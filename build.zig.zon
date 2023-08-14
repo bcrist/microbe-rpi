@@ -1,0 +1,10 @@
+.{
+    .name = "microbe-stm32",
+    .version = "0.0.0",
+    .dependencies = .{
+        .@"microbe-rt" = .{
+            .url = "https://github.com/bcrist/microbe-rt/archive/50f00e4d63796c1e1ed612ac4761cbc8414aab24.tar.gz",
+            .hash = "1220e58740a30fc709834e9a97180d16be3c20f1598ad57eef94bdcfc0951b8ac5bd",
+        },
+    },
+}
