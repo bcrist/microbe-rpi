@@ -2,12 +2,50 @@
 const chip = @import("chip");
 const Mmio = @import("microbe").Mmio;
 
-pub const InterruptType = enum(i8) {
-    NMI = -14,
-    HardFault = -13,
-    SVCall = -5,
-    PendSV = -2,
-    SysTick = -1,
+pub const Exception = enum(u9) {
+    none = 0,
+    Reset = 1,
+    NMI = 2,
+    HardFault = 3,
+    SVCall = 11,
+    PendSV = 14,
+    SysTick = 15,
+    TIMER_IRQ_0 = 16,
+    TIMER_IRQ_1 = 17,
+    TIMER_IRQ_2 = 18,
+    TIMER_IRQ_3 = 19,
+    PWM_IRQ_WRAP = 20,
+    USBCTRL_IRQ = 21,
+    XIP_IRQ = 22,
+    PIO0_IRQ_0 = 23,
+    PIO0_IRQ_1 = 24,
+    PIO1_IRQ_0 = 25,
+    PIO1_IRQ_1 = 26,
+    DMA_IRQ_0 = 27,
+    DMA_IRQ_1 = 28,
+    IO_IRQ_BANK0 = 29,
+    IO_IRQ_QSPI = 30,
+    SIO_IRQ_PROC0 = 31,
+    SIO_IRQ_PROC1 = 32,
+    CLOCKS_IRQ = 33,
+    SPI0_IRQ = 34,
+    SPI1_IRQ = 35,
+    UART0_IRQ = 36,
+    UART1_IRQ = 37,
+    ADC_IRQ_FIFO = 38,
+    I2C0_IRQ = 39,
+    I2C1_IRQ = 40,
+    RTC_IRQ = 41,
+
+    pub fn toInterrupt(self: Exception) ?Interrupt {
+        const num = @intFromEnum(self);
+        if (num < 16 or num >= 48) return null;
+        const irq: u5 = @intCast(num - 16);
+        return @enumFromInt(irq);
+    }
+};
+
+pub const Interrupt = enum(u5) {
     TIMER_IRQ_0 = 0,
     TIMER_IRQ_1 = 1,
     TIMER_IRQ_2 = 2,
@@ -34,6 +72,11 @@ pub const InterruptType = enum(i8) {
     I2C0_IRQ = 23,
     I2C1_IRQ = 24,
     RTC_IRQ = 25,
+
+    pub fn toException(self: Interrupt) Exception {
+        const num: u9 = @intFromEnum(self);
+        return @enumFromInt(num + 16);
+    }
 };
 
 pub const VectorTable = extern struct {

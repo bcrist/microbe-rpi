@@ -2,144 +2,242 @@
 const Mmio = @import("microbe").Mmio;
 
 pub const InterruptBitmap = packed struct(u32) {
-    TIMER_IRQ_0: u1 = 0,
-    TIMER_IRQ_1: u1 = 0,
-    TIMER_IRQ_2: u1 = 0,
-    TIMER_IRQ_3: u1 = 0,
-    PWM_IRQ_WRAP: u1 = 0,
-    USBCTRL_IRQ: u1 = 0,
-    XIP_IRQ: u1 = 0,
-    PIO0_IRQ_0: u1 = 0,
-    PIO0_IRQ_1: u1 = 0,
-    PIO1_IRQ_0: u1 = 0,
-    PIO1_IRQ_1: u1 = 0,
-    DMA_IRQ_0: u1 = 0,
-    DMA_IRQ_1: u1 = 0,
-    IO_IRQ_BANK0: u1 = 0,
-    IO_IRQ_QSPI: u1 = 0,
-    SIO_IRQ_PROC0: u1 = 0,
-    SIO_IRQ_PROC1: u1 = 0,
-    CLOCKS_IRQ: u1 = 0,
-    SPI0_IRQ: u1 = 0,
-    SPI1_IRQ: u1 = 0,
-    UART0_IRQ: u1 = 0,
-    UART1_IRQ: u1 = 0,
-    ADC_IRQ_FIFO: u1 = 0,
-    I2C0_IRQ: u1 = 0,
-    I2C1_IRQ: u1 = 0,
-    RTC_IRQ: u1 = 0,
+    TIMER_IRQ_0: bool = false,
+    TIMER_IRQ_1: bool = false,
+    TIMER_IRQ_2: bool = false,
+    TIMER_IRQ_3: bool = false,
+    PWM_IRQ_WRAP: bool = false,
+    USBCTRL_IRQ: bool = false,
+    XIP_IRQ: bool = false,
+    PIO0_IRQ_0: bool = false,
+    PIO0_IRQ_1: bool = false,
+    PIO1_IRQ_0: bool = false,
+    PIO1_IRQ_1: bool = false,
+    DMA_IRQ_0: bool = false,
+    DMA_IRQ_1: bool = false,
+    IO_IRQ_BANK0: bool = false,
+    IO_IRQ_QSPI: bool = false,
+    SIO_IRQ_PROC0: bool = false,
+    SIO_IRQ_PROC1: bool = false,
+    CLOCKS_IRQ: bool = false,
+    SPI0_IRQ: bool = false,
+    SPI1_IRQ: bool = false,
+    UART0_IRQ: bool = false,
+    UART1_IRQ: bool = false,
+    ADC_IRQ_FIFO: bool = false,
+    I2C0_IRQ: bool = false,
+    I2C1_IRQ: bool = false,
+    RTC_IRQ: bool = false,
     _reserved_1a: u6 = 0,
 };
 
+pub const NVIC = extern struct {
+    /// a.k.a. ISER
+    interrupt_set_enable: Mmio(InterruptBitmap, .rw),
+
+    _reserved_4: [124]u8 = undefined,
+
+    /// a.k.a. ICER
+    interrupt_clear_enable: Mmio(InterruptBitmap, .rw),
+
+    _reserved_84: [124]u8 = undefined,
+
+    /// a.k.a. ISPR
+    interrupt_set_pending: Mmio(InterruptBitmap, .rw),
+
+    _reserved_104: [124]u8 = undefined,
+
+    /// a.k.a. ICPR
+    interrupt_clear_pending: Mmio(InterruptBitmap, .rw),
+
+    _reserved_184: [636]u8 = undefined,
+    interrupt_priority_0: Mmio(packed struct(u32) {
+        TIMER_IRQ_0: u8 = 0,
+        TIMER_IRQ_1: u8 = 0,
+        TIMER_IRQ_2: u8 = 0,
+        TIMER_IRQ_3: u8 = 0,
+    }, .rw),
+    interrupt_priority_1: Mmio(packed struct(u32) {
+        PWM_IRQ_WRAP: u8 = 0,
+        USBCTRL_IRQ: u8 = 0,
+        XIP_IRQ: u8 = 0,
+        PIO0_IRQ_0: u8 = 0,
+    }, .rw),
+    interrupt_priority_2: Mmio(packed struct(u32) {
+        PIO0_IRQ_1: u8 = 0,
+        PIO1_IRQ_0: u8 = 0,
+        PIO1_IRQ_1: u8 = 0,
+        DMA_IRQ_0: u8 = 0,
+    }, .rw),
+    interrupt_priority_3: Mmio(packed struct(u32) {
+        DMA_IRQ_1: u8 = 0,
+        IO_IRQ_BANK0: u8 = 0,
+        IO_IRQ_QSPI: u8 = 0,
+        SIO_IRQ_PROC0: u8 = 0,
+    }, .rw),
+    interrupt_priority_4: Mmio(packed struct(u32) {
+        SIO_IRQ_PROC1: u8 = 0,
+        CLOCKS_IRQ: u8 = 0,
+        SPI0_IRQ: u8 = 0,
+        SPI1_IRQ: u8 = 0,
+    }, .rw),
+    interrupt_priority_5: Mmio(packed struct(u32) {
+        UART0_IRQ: u8 = 0,
+        UART1_IRQ: u8 = 0,
+        ADC_IRQ_FIFO: u8 = 0,
+        I2C0_IRQ: u8 = 0,
+    }, .rw),
+    interrupt_priority_6: Mmio(packed struct(u32) {
+        I2C1_IRQ: u8 = 0,
+        RTC_IRQ: u8 = 0,
+        _reserved_10: u16 = 0,
+    }, .rw),
+    interrupt_priority_7: Mmio(packed struct(u32) {
+        _reserved_0: u32 = 0,
+    }, .rw),
+};
+
 pub const SYSTICK = extern struct {
-    CSR: Mmio(packed struct(u32) {
-        ENABLE: enum(u1) {
-            disabled = 0x0,
-            enabled = 0x1,
-        } = .disabled,
-        TICKINT: enum(u1) {
-            interrupt_disabled = 0x0,
-            interrupt_enabled = 0x1,
-        } = .interrupt_disabled,
-        CLKSOURCE: enum(u1) {
+    control_status: Mmio(packed struct(u32) {
+        count_enable: bool = false,
+
+        /// Note the interrupt is triggered even if overflow_flag has not been cleared since the last overflow
+        overflow_interrupt_enable: bool = false,
+
+        clock_source: enum(u1) {
             watchdog_tick = 0x0,
-            clk_ref = 0x1,
+            clk_sys = 0x1,
         } = .watchdog_tick,
         _reserved_3: u13 = 0,
-        COUNTFLAG: enum(u1) {
-            waiting = 0x0,
-            reached_zero = 0x1,
-        } = .waiting,
+
+        /// Read-only; resets to 0 when read
+        overflow_flag: bool = false,
+
         _reserved_11: u15 = 0,
     }, .rw),
-    _reserved_4: [28]u8 = undefined,
-    RVR: Mmio(packed struct(u32) {
-        RELOAD: u24 = 0,
+    reload_value: Mmio(packed struct(u32) {
+        value: u24 = 0,
         _reserved_18: u8 = 0,
     }, .rw),
-    _reserved_24: [28]u8 = undefined,
-    CVR: Mmio(packed struct(u32) {
-        CURRENT: u24 = 0,
+    current_value: Mmio(packed struct(u32) {
+        value: u24 = 0,
         _reserved_18: u8 = 0,
     }, .rw),
-    _reserved_44: [28]u8 = undefined,
-    CALIB: Mmio(packed struct(u32) {
-        TENMS: u24 = 0,
+    calibration: Mmio(packed struct(u32) {
+        ten_ms_count: u24 = 0,
         _reserved_18: u6 = 0,
-        SKEW: u1 = 0,
-        NOREF: u1 = 0,
+        calibration_inexact: bool = false,
+        no_ref_clock: bool = false,
     }, .r),
 };
 
+pub const Exception = @import("chip").Exception;
+
+pub const VectorTablePointer = @import("vt.zig").VectorTablePointer;
+
 pub const SCB = extern struct {
-    CPUID: Mmio(packed struct(u32) {
-        REVISION: u4 = 1,
-        PARTNO: u12 = 0xC60,
-        ARCHITECTURE: u4 = 0xC,
-        VARIANT: u4 = 0,
-        IMPLEMENTER: u8 = 0x41,
+    /// a.k.a. CPUID
+    chip_id: Mmio(packed struct(u32) {
+        revision: u4 = 1,
+        part_num: u12 = 0xC60,
+        architecture: u4 = 0xC,
+        variant: u4 = 0,
+        implementer: u8 = 0x41,
     }, .r),
-    _reserved_4: [24]u8 = undefined,
-    SHPR2: Mmio(packed struct(u32) {
-        _reserved_0: u24 = 0,
-        SVCALLPRI: u8 = 0,
-    }, .rw),
-    ICSR: Mmio(packed struct(u32) {
-        VECTACTIVE: u9 = 0,
+
+    /// a.k.a. ICSR
+    interrupt_control_state: Mmio(packed struct(u32) {
+        active_exception_number: Exception = @enumFromInt(0x0),
         _reserved_9: u3 = 0,
-        VECTPENDING: u9 = 0,
+        pending_exception_number: Exception = @enumFromInt(0x0),
         _reserved_15: u1 = 0,
-        ISRPENDING: u1 = 0,
-        ISRPREEMPT: u1 = 0,
+
+        /// Only includes external interrupts (i.e. exception number >= 16)
+        interrupt_pending: bool = false,
+
+        /// Only available when core is halted
+        isr_preempt: bool = false,
+
         _reserved_18: u1 = 0,
-        PENDSTCLR: u1 = 0,
-        PENDSTSET: u1 = 0,
-        PENDSVCLR: u1 = 0,
-        PENDSVSET: u1 = 0,
+        clear_pending_SysTick: bool = false,
+
+        /// reads true if SysTick is pending
+        set_pending_SysTick: bool = false,
+
+        clear_pending_PendSV: bool = false,
+
+        /// reads true if PendSV is pending
+        set_pending_PendSV: bool = false,
+
         _reserved_1d: u2 = 0,
-        NMIPENDSET: u1 = 0,
+
+        /// reads true if NMI is pending
+        set_pending_NMI: bool = false,
     }, .rw),
-    _reserved_24: [24]u8 = undefined,
-    SHPR3: Mmio(packed struct(u32) {
-        _reserved_0: u16 = 0,
-        PENDSVPRI: u8 = 0,
-        SYSTICKPRI: u8 = 0,
-    }, .rw),
-    VTOR: Mmio(packed struct(u32) {
-        _reserved_0: u8 = 0,
-        TBLOFF: u24 = 0,
-    }, .rw),
-    _reserved_44: [24]u8 = undefined,
-    SHCSR: Mmio(packed struct(u32) {
-        _reserved_0: u15 = 0,
-        SVCALL: u1 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    AIRCR: Mmio(packed struct(u32) {
+
+    /// N.B. The vector table must be align(256)!
+    /// a.k.a. VTOR
+    vector_table: Mmio(VectorTablePointer, .rw),
+
+    /// a.k.a. AIRCR
+    reset_control: Mmio(packed struct(u32) {
         _reserved_0: u1 = 0,
-        VECTCLRACTIVE: u1 = 0,
-        SYSRESETREQ: u1 = 0,
+
+        /// Only available when core is halted
+        request_clear_active_exception: bool = false,
+
+        request_core_reset: bool = false,
         _reserved_3: u12 = 0,
-        ENDIANESS: u1 = 0,
-        VECTKEY: u16 = 0,
+        endianness: enum(u1) {
+            little = 0x0,
+            big = 0x1,
+        } = .little,
+        vector_key: u16 = 0x5FA,
     }, .rw),
-    _reserved_64: [28]u8 = undefined,
-    SCR: Mmio(packed struct(u32) {
+
+    /// a.k.a. SCR
+    system_control: Mmio(packed struct(u32) {
         _reserved_0: u1 = 0,
-        SLEEPONEXIT: u1 = 0,
-        SLEEPDEEP: u1 = 0,
+        sleep_on_exception_exit: bool = false,
+        deep_sleep_enable: bool = false,
         _reserved_3: u1 = 0,
-        SEVONPEND: u1 = 0,
+        send_event_on_pending_interrupt: bool = false,
         _reserved_5: u27 = 0,
     }, .rw),
-    _reserved_84: [28]u8 = undefined,
-    CCR: Mmio(packed struct(u32) {
+
+    /// a.k.a. CCR
+    configuration: Mmio(packed struct(u32) {
         _reserved_0: u3 = 0,
-        UNALIGN_TRP: u1 = 0,
+        unaligned_access_is_HardFault: bool = true,
         _reserved_4: u5 = 0,
-        STKALIGN: u1 = 0,
+        exception_stack_align_8: bool = true,
         _reserved_a: u22 = 0,
     }, .r),
+
+    _reserved_18: [4]u8 = undefined,
+
+    /// a.k.a. SHPR2
+    exception_priority_2: Mmio(packed struct(u32) {
+        _reserved_0: u24 = 0,
+        SVCall: u8 = 0,
+    }, .rw),
+
+    /// a.k.a. SHPR3
+    exception_priority_3: Mmio(packed struct(u32) {
+        _reserved_0: u16 = 0,
+        PendSV: u8 = 0,
+        SysTick: u8 = 0,
+    }, .rw),
+
+    /// a.k.a. SHCSR
+    exception_control_state: Mmio(packed struct(u32) {
+        _reserved_0: u15 = 0,
+
+        /// For debug use only; use SVC instruction to trigger SVCall from code.
+        pending_SVCall: bool = false,
+
+        _reserved_10: u16 = 0,
+    }, .rw),
 };
 
 pub const MPU = extern struct {
@@ -150,26 +248,22 @@ pub const MPU = extern struct {
         IREGION: u8 = 0,
         _reserved_18: u8 = 0,
     }, .r),
-    _reserved_4: [28]u8 = undefined,
     CTRL: Mmio(packed struct(u32) {
         ENABLE: u1 = 0,
         HFNMIENA: u1 = 0,
         PRIVDEFENA: u1 = 0,
         _reserved_3: u29 = 0,
     }, .rw),
-    _reserved_24: [28]u8 = undefined,
     RNR: Mmio(packed struct(u32) {
         REGION: u4 = 0,
         _reserved_4: u28 = 0,
     }, .rw),
-    _reserved_44: [28]u8 = undefined,
     RBAR: Mmio(packed struct(u32) {
         REGION: u4 = 0,
         VALID: u1 = 0,
         _reserved_5: u3 = 0,
         ADDR: u24 = 0,
     }, .rw),
-    _reserved_64: [28]u8 = undefined,
     RASR: Mmio(packed struct(u32) {
         ENABLE: u1 = 0,
         SIZE: u5 = 0,
@@ -183,68 +277,5 @@ pub const MPU = extern struct {
         _reserved_1b: u1 = 0,
         XN: u1 = 0,
         _reserved_1d: u3 = 0,
-    }, .rw),
-};
-
-pub const NVIC = extern struct {
-    /// Interrupt Set Enable Register
-    ISER: Mmio(InterruptBitmap, .rw),
-    _reserved_4: [124]u8 = undefined,
-    /// Interrupt Clear Enable Register
-    ICER: Mmio(InterruptBitmap, .rw),
-    _reserved_84: [124]u8 = undefined,
-    /// Interrupt Set Pending Register
-    ISPR: Mmio(InterruptBitmap, .rw),
-    _reserved_104: [124]u8 = undefined,
-    /// Interrupt Clear Pending Register
-    ICPR: Mmio(InterruptBitmap, .rw),
-    _reserved_184: [636]u8 = undefined,
-    /// Interrupt Priority Register
-    IPR0: Mmio(packed struct(u32) {
-        TIMER_IRQ_0: u8 = 0,
-        TIMER_IRQ_1: u8 = 0,
-        TIMER_IRQ_2: u8 = 0,
-        TIMER_IRQ_3: u8 = 0,
-    }, .rw),
-    /// Interrupt Priority Register
-    IPR1: Mmio(packed struct(u32) {
-        PWM_IRQ_WRAP: u8 = 0,
-        USBCTRL_IRQ: u8 = 0,
-        XIP_IRQ: u8 = 0,
-        PIO0_IRQ_0: u8 = 0,
-    }, .rw),
-    /// Interrupt Priority Register
-    IPR2: Mmio(packed struct(u32) {
-        PIO0_IRQ_1: u8 = 0,
-        PIO1_IRQ_0: u8 = 0,
-        PIO1_IRQ_1: u8 = 0,
-        DMA_IRQ_0: u8 = 0,
-    }, .rw),
-    /// Interrupt Priority Register
-    IPR3: Mmio(packed struct(u32) {
-        DMA_IRQ_1: u8 = 0,
-        IO_IRQ_BANK0: u8 = 0,
-        IO_IRQ_QSPI: u8 = 0,
-        SIO_IRQ_PROC0: u8 = 0,
-    }, .rw),
-    /// Interrupt Priority Register
-    IPR4: Mmio(packed struct(u32) {
-        SIO_IRQ_PROC1: u8 = 0,
-        CLOCKS_IRQ: u8 = 0,
-        SPI0_IRQ: u8 = 0,
-        SPI1_IRQ: u8 = 0,
-    }, .rw),
-    /// Interrupt Priority Register
-    IPR5: Mmio(packed struct(u32) {
-        UART0_IRQ: u8 = 0,
-        UART1_IRQ: u8 = 0,
-        ADC_IRQ_FIFO: u8 = 0,
-        I2C0_IRQ: u8 = 0,
-    }, .rw),
-    /// Interrupt Priority Register
-    IPR6: Mmio(packed struct(u32) {
-        I2C1_IRQ: u8 = 0,
-        RTC_IRQ: u8 = 0,
-        _reserved_10: u16 = 0,
     }, .rw),
 };

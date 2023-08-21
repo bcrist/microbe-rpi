@@ -1,8 +1,11 @@
-const common = @import("rp2040/common.zig");
 pub const reg_types = @import("rp2040/reg_types.zig");
 pub usingnamespace @import("rp2040/peripherals.zig");
+
+pub const interrupts = @import("rp2040/interrupts.zig");
+pub const Interrupt = interrupts.Interrupt;
+pub const Exception = interrupts.Exception;
+
 //pub const gpio = @import("gpio.zig");
-//pub const interrupts = @import("interrupts.zig");
 //pub const uart = @import("rp2040/uart.zig");
 //pub const dma = @import("rp2040/dma.zig");
 //pub const clocks = @import("rp2040/clocks.zig");

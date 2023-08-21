@@ -9,6 +9,13 @@ pub const VOLTAGE_SELECT = packed struct(u32) {
     _reserved_1: u31 = 0,
 };
 
+pub const Drive = enum(u2) {
+    @"2mA" = 0x0,
+    @"4mA" = 0x1,
+    @"8mA" = 0x2,
+    @"12mA" = 0x3,
+};
+
 pub const IO_PD = packed struct(u32) {
     SLEWFAST: u1 = 0,
     SCHMITT: u1 = 1,
@@ -31,6 +38,51 @@ pub const IO_PU = packed struct(u32) {
     _reserved_8: u24 = 0,
 };
 
+pub const PADS_BANK0 = extern struct {
+    VOLTAGE_SELECT: Mmio(VOLTAGE_SELECT, .rw),
+    GPIO0: Mmio(IO_PD, .rw),
+    GPIO1: Mmio(IO_PD, .rw),
+    GPIO2: Mmio(IO_PD, .rw),
+    GPIO3: Mmio(IO_PD, .rw),
+    GPIO4: Mmio(IO_PD, .rw),
+    GPIO5: Mmio(IO_PD, .rw),
+    GPIO6: Mmio(IO_PD, .rw),
+    GPIO7: Mmio(IO_PD, .rw),
+    GPIO8: Mmio(IO_PD, .rw),
+    GPIO9: Mmio(IO_PD, .rw),
+    GPIO10: Mmio(IO_PD, .rw),
+    GPIO11: Mmio(IO_PD, .rw),
+    GPIO12: Mmio(IO_PD, .rw),
+    GPIO13: Mmio(IO_PD, .rw),
+    GPIO14: Mmio(IO_PD, .rw),
+    GPIO15: Mmio(IO_PD, .rw),
+    GPIO16: Mmio(IO_PD, .rw),
+    GPIO17: Mmio(IO_PD, .rw),
+    GPIO18: Mmio(IO_PD, .rw),
+    GPIO19: Mmio(IO_PD, .rw),
+    GPIO20: Mmio(IO_PD, .rw),
+    GPIO21: Mmio(IO_PD, .rw),
+    GPIO22: Mmio(IO_PD, .rw),
+    GPIO23: Mmio(IO_PD, .rw),
+    GPIO24: Mmio(IO_PD, .rw),
+    GPIO25: Mmio(IO_PD, .rw),
+    GPIO26: Mmio(IO_PD, .rw),
+    GPIO27: Mmio(IO_PD, .rw),
+    GPIO28: Mmio(IO_PD, .rw),
+    GPIO29: Mmio(IO_PD, .rw),
+    SWCLK: Mmio(packed struct(u32) {
+        SLEWFAST: u1 = 0,
+        SCHMITT: u1 = 1,
+        PDE: u1 = 0,
+        PUE: u1 = 1,
+        DRIVE: Drive = .@"4mA",
+        IE: u1 = 1,
+        OD: u1 = 1,
+        _reserved_8: u24 = 0,
+    }, .rw),
+    SWD: Mmio(IO_PU, .rw),
+};
+
 pub const IO = packed struct(u32) {
     SLEWFAST: u1 = 0,
     SCHMITT: u1 = 1,
@@ -40,6 +92,23 @@ pub const IO = packed struct(u32) {
     IE: u1 = 1,
     OD: u1 = 0,
     _reserved_8: u24 = 0,
+};
+
+pub const PADS_QSPI = extern struct {
+    VOLTAGE_SELECT: Mmio(VOLTAGE_SELECT, .rw),
+    GPIO_QSPI_SCLK: Mmio(IO_PD, .rw),
+    GPIO_QSPI_SD0: Mmio(IO, .rw),
+    GPIO_QSPI_SD1: Mmio(IO, .rw),
+    GPIO_QSPI_SD2: Mmio(IO, .rw),
+    GPIO_QSPI_SD3: Mmio(IO, .rw),
+    GPIO_QSPI_SS: Mmio(IO_PU, .rw),
+};
+
+pub const ModeOverride = enum(u2) {
+    normal = 0x0,
+    invert = 0x1,
+    force_low = 0x2,
+    force_high = 0x3,
 };
 
 pub const IO_STATUS = packed struct(u32) {
@@ -191,103 +260,6 @@ pub const IO_INT_3 = packed struct(u32) {
     GPIO29_EDGE_LOW: u1 = 0,
     GPIO29_EDGE_HIGH: u1 = 0,
     _reserved_18: u8 = 0,
-};
-
-pub const IO_INT_QSPI = packed struct(u32) {
-    GPIO_QSPI_SCLK_LEVEL_LOW: u1 = 0,
-    GPIO_QSPI_SCLK_LEVEL_HIGH: u1 = 0,
-    GPIO_QSPI_SCLK_EDGE_LOW: u1 = 0,
-    GPIO_QSPI_SCLK_EDGE_HIGH: u1 = 0,
-    GPIO_QSPI_SS_LEVEL_LOW: u1 = 0,
-    GPIO_QSPI_SS_LEVEL_HIGH: u1 = 0,
-    GPIO_QSPI_SS_EDGE_LOW: u1 = 0,
-    GPIO_QSPI_SS_EDGE_HIGH: u1 = 0,
-    GPIO_QSPI_SD0_LEVEL_LOW: u1 = 0,
-    GPIO_QSPI_SD0_LEVEL_HIGH: u1 = 0,
-    GPIO_QSPI_SD0_EDGE_LOW: u1 = 0,
-    GPIO_QSPI_SD0_EDGE_HIGH: u1 = 0,
-    GPIO_QSPI_SD1_LEVEL_LOW: u1 = 0,
-    GPIO_QSPI_SD1_LEVEL_HIGH: u1 = 0,
-    GPIO_QSPI_SD1_EDGE_LOW: u1 = 0,
-    GPIO_QSPI_SD1_EDGE_HIGH: u1 = 0,
-    GPIO_QSPI_SD2_LEVEL_LOW: u1 = 0,
-    GPIO_QSPI_SD2_LEVEL_HIGH: u1 = 0,
-    GPIO_QSPI_SD2_EDGE_LOW: u1 = 0,
-    GPIO_QSPI_SD2_EDGE_HIGH: u1 = 0,
-    GPIO_QSPI_SD3_LEVEL_LOW: u1 = 0,
-    GPIO_QSPI_SD3_LEVEL_HIGH: u1 = 0,
-    GPIO_QSPI_SD3_EDGE_LOW: u1 = 0,
-    GPIO_QSPI_SD3_EDGE_HIGH: u1 = 0,
-    _reserved_18: u8 = 0,
-};
-
-pub const Drive = enum(u2) {
-    @"2mA" = 0x0,
-    @"4mA" = 0x1,
-    @"8mA" = 0x2,
-    @"12mA" = 0x3,
-};
-
-pub const ModeOverride = enum(u2) {
-    normal = 0x0,
-    invert = 0x1,
-    force_low = 0x2,
-    force_high = 0x3,
-};
-
-pub const PADS_BANK0 = extern struct {
-    VOLTAGE_SELECT: Mmio(VOLTAGE_SELECT, .rw),
-    GPIO0: Mmio(IO_PD, .rw),
-    GPIO1: Mmio(IO_PD, .rw),
-    GPIO2: Mmio(IO_PD, .rw),
-    GPIO3: Mmio(IO_PD, .rw),
-    GPIO4: Mmio(IO_PD, .rw),
-    GPIO5: Mmio(IO_PD, .rw),
-    GPIO6: Mmio(IO_PD, .rw),
-    GPIO7: Mmio(IO_PD, .rw),
-    GPIO8: Mmio(IO_PD, .rw),
-    GPIO9: Mmio(IO_PD, .rw),
-    GPIO10: Mmio(IO_PD, .rw),
-    GPIO11: Mmio(IO_PD, .rw),
-    GPIO12: Mmio(IO_PD, .rw),
-    GPIO13: Mmio(IO_PD, .rw),
-    GPIO14: Mmio(IO_PD, .rw),
-    GPIO15: Mmio(IO_PD, .rw),
-    GPIO16: Mmio(IO_PD, .rw),
-    GPIO17: Mmio(IO_PD, .rw),
-    GPIO18: Mmio(IO_PD, .rw),
-    GPIO19: Mmio(IO_PD, .rw),
-    GPIO20: Mmio(IO_PD, .rw),
-    GPIO21: Mmio(IO_PD, .rw),
-    GPIO22: Mmio(IO_PD, .rw),
-    GPIO23: Mmio(IO_PD, .rw),
-    GPIO24: Mmio(IO_PD, .rw),
-    GPIO25: Mmio(IO_PD, .rw),
-    GPIO26: Mmio(IO_PD, .rw),
-    GPIO27: Mmio(IO_PD, .rw),
-    GPIO28: Mmio(IO_PD, .rw),
-    GPIO29: Mmio(IO_PD, .rw),
-    SWCLK: Mmio(packed struct(u32) {
-        SLEWFAST: u1 = 0,
-        SCHMITT: u1 = 1,
-        PDE: u1 = 0,
-        PUE: u1 = 1,
-        DRIVE: Drive = .@"4mA",
-        IE: u1 = 1,
-        OD: u1 = 1,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SWD: Mmio(IO_PU, .rw),
-};
-
-pub const PADS_QSPI = extern struct {
-    VOLTAGE_SELECT: Mmio(VOLTAGE_SELECT, .rw),
-    GPIO_QSPI_SCLK: Mmio(IO_PD, .rw),
-    GPIO_QSPI_SD0: Mmio(IO, .rw),
-    GPIO_QSPI_SD1: Mmio(IO, .rw),
-    GPIO_QSPI_SD2: Mmio(IO, .rw),
-    GPIO_QSPI_SD3: Mmio(IO, .rw),
-    GPIO_QSPI_SS: Mmio(IO_PU, .rw),
 };
 
 pub const IO_BANK0 = extern struct {
@@ -1072,6 +1044,34 @@ pub const IO_BANK0 = extern struct {
     DORMANT_WAKE_INTS1: Mmio(IO_INT_1, .rw),
     DORMANT_WAKE_INTS2: Mmio(IO_INT_2, .rw),
     DORMANT_WAKE_INTS3: Mmio(IO_INT_3, .rw),
+};
+
+pub const IO_INT_QSPI = packed struct(u32) {
+    GPIO_QSPI_SCLK_LEVEL_LOW: u1 = 0,
+    GPIO_QSPI_SCLK_LEVEL_HIGH: u1 = 0,
+    GPIO_QSPI_SCLK_EDGE_LOW: u1 = 0,
+    GPIO_QSPI_SCLK_EDGE_HIGH: u1 = 0,
+    GPIO_QSPI_SS_LEVEL_LOW: u1 = 0,
+    GPIO_QSPI_SS_LEVEL_HIGH: u1 = 0,
+    GPIO_QSPI_SS_EDGE_LOW: u1 = 0,
+    GPIO_QSPI_SS_EDGE_HIGH: u1 = 0,
+    GPIO_QSPI_SD0_LEVEL_LOW: u1 = 0,
+    GPIO_QSPI_SD0_LEVEL_HIGH: u1 = 0,
+    GPIO_QSPI_SD0_EDGE_LOW: u1 = 0,
+    GPIO_QSPI_SD0_EDGE_HIGH: u1 = 0,
+    GPIO_QSPI_SD1_LEVEL_LOW: u1 = 0,
+    GPIO_QSPI_SD1_LEVEL_HIGH: u1 = 0,
+    GPIO_QSPI_SD1_EDGE_LOW: u1 = 0,
+    GPIO_QSPI_SD1_EDGE_HIGH: u1 = 0,
+    GPIO_QSPI_SD2_LEVEL_LOW: u1 = 0,
+    GPIO_QSPI_SD2_LEVEL_HIGH: u1 = 0,
+    GPIO_QSPI_SD2_EDGE_LOW: u1 = 0,
+    GPIO_QSPI_SD2_EDGE_HIGH: u1 = 0,
+    GPIO_QSPI_SD3_LEVEL_LOW: u1 = 0,
+    GPIO_QSPI_SD3_LEVEL_HIGH: u1 = 0,
+    GPIO_QSPI_SD3_EDGE_LOW: u1 = 0,
+    GPIO_QSPI_SD3_EDGE_HIGH: u1 = 0,
+    _reserved_18: u8 = 0,
 };
 
 pub const IO_QSPI = extern struct {
