@@ -116,7 +116,7 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
     });
 
     switch (options.source) {
-        .module => |module| module.source_file.addStepDependencies(boot2exe.step),
+        .module => |module| module.source_file.addStepDependencies(&boot2exe.step),
         .path => {},
     }
 

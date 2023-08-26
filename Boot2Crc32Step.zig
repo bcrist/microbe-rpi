@@ -40,7 +40,7 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
 
     // Random bytes to make ObjCopy unique. Refresh this with new random
     // bytes when ObjCopy implementation is modified incompatibly.
-    man.hash.add(@as(u32, 0xe18b7baf));
+    man.hash.add(@as(u32, 0xacda_b87f));
 
     const full_src_path = self.source.getPath(b);
     _ = try man.addFile(full_src_path, null);
