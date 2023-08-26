@@ -747,12 +747,12 @@ pub const SSI = extern struct {
         _reserved_8: u24 = 0,
     }, .rw),
     spi_control: Mmio(packed struct(u32) {
-        transfer_format: enum(u1) {
+        transfer_format: enum(u2) {
             standard_command_standard_address = 0,
             standard_command_wide_address = 1,
-            wide_command_wide_address = 1,
+            wide_command_wide_address = 2,
+            _,
         } = .standard_command_standard_address,
-        _reserved_1: u1 = 0,
         address_length: enum(u4) {
             none = 0,
             _4_bits = 1,

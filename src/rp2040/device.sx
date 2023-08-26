@@ -306,7 +306,7 @@
                         (set-type (enum
                             (0 standard_command_standard_address)
                             (1 standard_command_wide_address)
-                            (1 wide_command_wide_address)
+                            (2 wide_command_wide_address)
                         ))
                     )
                     (field ADDR_L
