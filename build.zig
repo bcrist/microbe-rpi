@@ -95,15 +95,21 @@ pub fn boot3Section() Section {
 
 pub const Boot2Options = struct {
     name: ?[]const u8,
-    root_source_file: ?std.Build.LazyPath,
+    source: union(enum) {
+        module: *std.Build.Module,
+        path: *std.Build.LazyPath,
+    },
     chip: microbe.Chip,
     optimize: std.builtin.Mode = .ReleaseFast,
 };
 
-pub fn addBoot2(b: *std.Build, options: Boot2Options) *std.Build.Module {
+pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Build.Module {
     var boot2exe = microbe.addExecutable(b, .{
-        .name = "boot2",
-        .root_source_file = options.root_source_file,
+        .name = options.name orelse "boot2",
+        .root_source_file = switch (options.source) {
+            .module => |module| module.source_file.getPath(module.builder),
+            .path => |path| path,
+        },
         .chip = options.chip,
         .sections = defaultSections(),
         .optimize = options.optimize,
