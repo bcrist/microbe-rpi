@@ -105,6 +105,9 @@ pub const Boot2Options = struct {
 };
 
 pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Build.Module {
+    const microbe_dep = b.dependency("microbe", .{});
+    const empty_module = microbe_dep.module("empty");
+
     var boot2exe = microbe.addExecutable(b, .{
         .name = options.name orelse "boot2",
         .root_source_file = switch (options.source) {
@@ -115,6 +118,7 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
         .sections = defaultSections(),
         .optimize = options.optimize,
     });
+    boot2exe.addModule("boot2", empty_module);
 
     switch (options.source) {
         .module => |module| module.source_file.addStepDependencies(&boot2exe.step),
