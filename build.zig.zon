@@ -2,9 +2,9 @@
     .name = "microbe-rpi",
     .version = "0.0.0",
     .dependencies = .{
-        .@"microbe" = .{
-            .url = "https://github.com/bcrist/microbe/archive/9e0a5684a0fe57c372b99abe56f891f8acac297a.tar.gz",
-            .hash = "12203c5381a6fb56b64067df8782a9fcc6428b66e570d2dd535332b2c7bc012448f3",
+        .microbe = .{
+            .url = "https://github.com/bcrist/microbe/archive/773311df15e2e0202a7c260ffb734ac6dd597fd8.tar.gz",
+            .hash = "1220ab68fc97b90dc3e053365433fb0e69d5e6ec62a09e0b19441fea91a800a141ae",
         },
     },
 }

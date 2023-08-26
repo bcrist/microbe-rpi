@@ -78,6 +78,7 @@ pub fn boot2Section() Section {
         },
         .rom_region = "flash",
         .ram_region = "sram5",
+        .skip_init = true,
     };
 }
 
