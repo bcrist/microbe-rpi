@@ -97,7 +97,7 @@ pub const Boot2Options = struct {
     name: ?[]const u8 = null,
     source: union(enum) {
         module: *std.Build.Module,
-        path: *std.Build.LazyPath,
+        path: std.Build.LazyPath,
     },
     chip: microbe.Chip,
     optimize: std.builtin.Mode = .ReleaseFast,
