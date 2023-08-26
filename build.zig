@@ -107,13 +107,19 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
     var boot2exe = microbe.addExecutable(b, .{
         .name = options.name orelse "boot2",
         .root_source_file = switch (options.source) {
-            .module => |module| module.source_file.getPath(module.builder),
+            .module => |module| .{ .path = module.source_file.getPath(module.builder) },
             .path => |path| path,
         },
         .chip = options.chip,
         .sections = defaultSections(),
         .optimize = options.optimize,
     });
+
+    switch (options.source) {
+        .module => |module| module.source_file.addStepDependencies(boot2exe.step),
+        .path => {},
+    }
+
     var boot2extract = b.addObjCopy(boot2exe.getOutputSource(), .{
         .format = .bin,
         .only_section = "boot2",
