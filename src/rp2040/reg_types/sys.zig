@@ -535,44 +535,106 @@ pub const XIP_CTRL = extern struct {
 };
 
 pub const SSI = extern struct {
-    CTRLR0: Mmio(packed struct(u32) {
-        data_frame_size: u4 = 0,
-        frame_format: u2 = 0,
+    control_0: Mmio(packed struct(u32) {
+        _reserved_0: u4 = 0,
+        frame_format: enum(u2) {
+            spi = 0,
+            ssp = 1,
+            microwire = 2,
+            _,
+        } = .spi,
         clock_phase: u1 = 0,
         clock_polarity: u1 = 0,
         transfer_mode: enum(u2) {
-            TX_AND_RX = 0,
-            TX_ONLY = 1,
-            RX_ONLY = 2,
-            EEPROM_READ = 3,
-        } = .TX_AND_RX,
+            tx_and_rx = 0,
+
+            /// not for SPI_frame_format == .standard
+            tx_only = 1,
+
+            /// not for SPI_frame_format == .standard
+            rx_only = 2,
+
+            /// tx then rx
+            eeprom_read = 3,
+        } = .tx_and_rx,
         slave_output_enable: u1 = 0,
 
         /// test mode
         shift_register_loop: u1 = 0,
 
-        /// n+1 clocks per frame
-        control_frame_size: u4 = 0,
+        control_frame_size: enum(u4) {
+            _1_bit = 0,
+            _2_bits = 1,
+            _3_bits = 2,
+            _4_bits = 3,
+            _5_bits = 4,
+            _6_bits = 5,
+            _7_bits = 6,
+            _8_bits = 7,
+            _9_bits = 8,
+            _10_bits = 9,
+            _11_bits = 10,
+            _12_bits = 11,
+            _13_bits = 12,
+            _14_bits = 13,
+            _15_bits = 14,
+            _16_bits = 15,
+        } = ._1_bit,
+        data_frame_size: enum(u5) {
+            _1_bit = 0x0,
+            _2_bits = 0x1,
+            _3_bits = 0x2,
+            _4_bits = 0x3,
+            _5_bits = 0x4,
+            _6_bits = 0x5,
+            _7_bits = 0x6,
+            _8_bits = 0x7,
+            _9_bits = 0x8,
+            _10_bits = 0x9,
+            _11_bits = 0xA,
+            _12_bits = 0xB,
+            _13_bits = 0xC,
+            _14_bits = 0xD,
+            _15_bits = 0xE,
+            _16_bits = 0xF,
+            _17_bits = 0x10,
+            _18_bits = 0x11,
+            _19_bits = 0x12,
+            _20_bits = 0x13,
+            _21_bits = 0x14,
+            _22_bits = 0x15,
+            _23_bits = 0x16,
+            _24_bits = 0x17,
+            _25_bits = 0x18,
+            _26_bits = 0x19,
+            _27_bits = 0x1A,
+            _28_bits = 0x1B,
+            _29_bits = 0x1C,
+            _30_bits = 0x1D,
+            _31_bits = 0x1E,
+            _32_bits = 0x1F,
+        } = ._1_bit,
 
-        /// n+1 clocks per frame
-        data_frame_size_in_32b_mode: u5 = 0,
-
-        SPI_frame_format: enum(u2) {
-            STD = 0,
-            DUAL = 1,
-            QUAD = 2,
+        /// Only valid when frame_format is .spi
+        spi_frame_format: enum(u2) {
+            standard = 0,
+            dual = 1,
+            quad = 2,
             _,
-        } = .STD,
+        } = .standard,
+
         _reserved_17: u1 = 0,
         slave_select_toggle_enable: u1 = 0,
         _reserved_19: u7 = 0,
     }, .rw),
-    CTRLR1: Mmio(packed struct(u32) {
+    control_1: Mmio(packed struct(u32) {
+        /// N+1 data frames will be transferred
         num_data_frames: u16 = 0,
+
         _reserved_10: u16 = 0,
     }, .rw),
-    ENABLE: Mmio(packed struct(u32) {
-        enable: u1 = 0,
+    enable: Mmio(packed struct(u32) {
+        enable: bool = false,
         _reserved_1: u31 = 0,
     }, .rw),
     MWCR: Mmio(packed struct(u32) {
@@ -585,8 +647,10 @@ pub const SSI = extern struct {
         SER: u1 = 0,
         _reserved_1: u31 = 0,
     }, .rw),
-    BAUDR: Mmio(packed struct(u32) {
-        SCKDV: u16 = 0,
+    baud_rate: Mmio(packed struct(u32) {
+        /// LSB must be 0
+        clock_divisor: u16 = 0,
+
         _reserved_10: u16 = 0,
     }, .rw),
     TXFTLR: Mmio(packed struct(u32) {
@@ -605,16 +669,16 @@ pub const SSI = extern struct {
         RXTFL: u8 = 0,
         _reserved_8: u24 = 0,
     }, .rw),
-    SR: Mmio(packed struct(u32) {
-        BUSY: u1 = 0,
-        TFNF: u1 = 0,
-        TFE: u1 = 0,
-        RFNE: u1 = 0,
-        RFF: u1 = 0,
-        TXE: u1 = 0,
-        DCOL: u1 = 0,
+    status: Mmio(packed struct(u32) {
+        busy: bool = false,
+        tx_fifo_not_full: bool = false,
+        tx_fifo_empty: bool = false,
+        rx_fifo_not_empty: bool = false,
+        rx_fifo_full: bool = false,
+        tx_error_flag: bool = false,
+        data_collision_error_flag: bool = false,
         _reserved_7: u25 = 0,
-    }, .rw),
+    }, .r),
     IMR: Mmio(packed struct(u32) {
         TXEIM: u1 = 0,
         TXOIM: u1 = 0,
@@ -677,34 +741,53 @@ pub const SSI = extern struct {
     }, .rw),
     IDR: Mmio(u32, .rw),
     SSI_VERSION_ID: Mmio(u32, .rw),
-    DR0: Mmio(u32, .rw),
-    _reserved_64: [140]u8 = undefined,
-    RX_SAMPLE_DLY: Mmio(packed struct(u32) {
-        RSD: u8 = 0,
+    data: [36]Mmio(u32, .rw),
+    rx_sample_delay: Mmio(packed struct(u32) {
+        delay: u8 = 0,
         _reserved_8: u24 = 0,
     }, .rw),
-    SPI_CTRLR0: Mmio(packed struct(u32) {
-        TRANS_TYPE: enum(u2) {
-            @"1C1A" = 0,
-            @"1C2A" = 1,
-            @"2C2A" = 2,
-            _,
-        } = .@"1C1A",
-        ADDR_L: u4 = 0,
+    spi_control: Mmio(packed struct(u32) {
+        transfer_format: enum(u1) {
+            standard_command_standard_address = 0,
+            standard_command_wide_address = 1,
+            wide_command_wide_address = 1,
+        } = .standard_command_standard_address,
+        _reserved_1: u1 = 0,
+        address_length: enum(u4) {
+            none = 0,
+            _4_bits = 1,
+            _8_bits = 2,
+            _12_bits = 3,
+            _16_bits = 4,
+            _20_bits = 5,
+            _24_bits = 6,
+            _28_bits = 7,
+            _32_bits = 8,
+            _36_bits = 9,
+            _40_bits = 10,
+            _44_bits = 11,
+            _48_bits = 12,
+            _52_bits = 13,
+            _56_bits = 14,
+            _60_bits = 15,
+        } = .none,
         _reserved_6: u2 = 0,
-        INST_L: enum(u2) {
-            NONE = 0,
-            @"4B" = 1,
-            @"8B" = 2,
-            @"16B" = 3,
-        } = .NONE,
+        command_length: enum(u2) {
+            none = 0,
+            _4_bits = 1,
+            _8_bits = 2,
+            _16_bits = 3,
+        } = .none,
         _reserved_a: u1 = 0,
-        WAIT_CYCLES: u5 = 0,
-        SPI_DDR_EN: u1 = 0,
-        INST_DDR_EN: u1 = 0,
-        SPI_RXDS_EN: u1 = 0,
+        wait_cycles_after_mode: u5 = 0,
+        ddr_address_and_data: bool = false,
+        ddr_command: bool = false,
+        enable_read_data_strobe: bool = false,
         _reserved_13: u5 = 0,
-        XIP_CMD: u8 = 3,
+
+        /// When command_length is 8 bits, this command is sent for each XIP transfer.
+        /// When command_length is 0, it is appended to the address.
+        xip_command_or_mode: u8 = 3,
     }, .rw),
     TXD_DRIVE_EDGE: Mmio(packed struct(u32) {
         TDE: u8 = 0,

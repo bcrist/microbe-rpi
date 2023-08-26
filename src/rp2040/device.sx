@@ -148,25 +148,216 @@
 )
 (group sys
     (peripheral XIP_SSI
-        (reg CTRLR0
-            (field DFS (rename data_frame_size))
-            (field FRF (rename frame_format))
-            (field SCPH (rename clock_phase))
-            (field SCPOL (rename clock_polarity))
-            (field TMOD (rename transfer_mode))
-            (field SLV_OE (rename slave_output_enable))
-            (field SRL (set-desc "test mode") (rename shift_register_loop))
-            (field CFS (set-desc "n+1 clocks per frame") (rename control_frame_size))
-            (field DFS_32 (set-desc "n+1 clocks per frame") (rename data_frame_size_in_32b_mode))
-            (field SPI_FRF (rename SPI_frame_format))
-            (field SSTE (rename slave_select_toggle_enable))
-        )
-        (reg CTRLR1 (field NDF (rename num_data_frames)))
         (type
-            (field SSIENR
-                (rename ENABLE)
+            (field CTRLR0
+                (rename control_0)
                 (type (inner
-                    (field SSI_EN (rename enable))
+                    (delete-field DFS)
+                    (field FRF
+                        (rename frame_format)
+                        (set-type (enum
+                            (0 spi)
+                            (1 ssp)
+                            (2 microwire)
+                        ))
+                    )
+                    (field SCPH
+                        (rename clock_phase)
+                    )
+                    (field SCPOL
+                        (rename clock_polarity)
+                    )
+                    (field TMOD
+                        (rename transfer_mode)
+                        (set-type (enum
+                            (0 tx_and_rx)
+                            (1 tx_only "not for SPI_frame_format == .standard")
+                            (2 rx_only "not for SPI_frame_format == .standard")
+                            (3 eeprom_read "tx then rx")
+                        ))
+                    )
+                    (field SLV_OE
+                        (rename slave_output_enable)
+                    )
+                    (field SRL
+                        (set-desc "test mode")
+                        (rename shift_register_loop)
+                    )
+                    (field CFS
+                        (rename control_frame_size)
+                        (set-type (enum
+                            (0 _1_bit)
+                            (1 _2_bits)
+                            (2 _3_bits)
+                            (3 _4_bits)
+                            (4 _5_bits)
+                            (5 _6_bits)
+                            (6 _7_bits)
+                            (7 _8_bits)
+                            (8 _9_bits)
+                            (9 _10_bits)
+                            (10 _11_bits)
+                            (11 _12_bits)
+                            (12 _13_bits)
+                            (13 _14_bits)
+                            (14 _15_bits)
+                            (15 _16_bits)
+                        ))
+                    )
+                    (field DFS_32
+                        (rename data_frame_size)
+                        (set-type (enum
+                            (0 _1_bit)
+                            (1 _2_bits)
+                            (2 _3_bits)
+                            (3 _4_bits)
+                            (4 _5_bits)
+                            (5 _6_bits)
+                            (6 _7_bits)
+                            (7 _8_bits)
+                            (8 _9_bits)
+                            (9 _10_bits)
+                            (10 _11_bits)
+                            (11 _12_bits)
+                            (12 _13_bits)
+                            (13 _14_bits)
+                            (14 _15_bits)
+                            (15 _16_bits)
+                            (16 _17_bits)
+                            (17 _18_bits)
+                            (18 _19_bits)
+                            (19 _20_bits)
+                            (20 _21_bits)
+                            (21 _22_bits)
+                            (22 _23_bits)
+                            (23 _24_bits)
+                            (24 _25_bits)
+                            (25 _26_bits)
+                            (26 _27_bits)
+                            (27 _28_bits)
+                            (28 _29_bits)
+                            (29 _30_bits)
+                            (30 _31_bits)
+                            (31 _32_bits)
+                        ))
+                    )
+                    (field SPI_FRF
+                        (rename spi_frame_format)
+                        (set-desc "Only valid when frame_format is .spi")
+                        (set-type (enum
+                            (0 standard)
+                            (1 dual)
+                            (2 quad)
+                        ))
+                    )
+                    (field SSTE
+                        (rename slave_select_toggle_enable)
+                    )
+                ))
+            )
+            (field CTRLR1
+                (rename control_1)
+                (type (inner
+                    (field NDF
+                        (rename num_data_frames)
+                        (set-desc "N+1 data frames will be transferred")
+                    )
+                ))
+            )
+            (field SSIENR
+                (rename enable)
+                (type (inner
+                    (field SSI_EN (rename enable) (set-type bool))
+                ))
+            )
+            (field BAUDR
+                (rename baud_rate)
+                (type (inner
+                    (field SCKDV (rename clock_divisor) (set-desc "LSB must be 0"))
+                ))
+            )
+            (field RX_SAMPLE_DLY
+                (rename rx_sample_delay)
+                (type (inner
+                    (field RSD (rename delay))
+                ))
+            )
+            (field SR
+                (rename status)
+                (type (set-access r) (inner
+                    (field BUSY (rename busy) (set-type bool))
+                    (field TFNF (rename tx_fifo_not_full) (set-type bool))
+                    (field TFE (rename tx_fifo_empty) (set-type bool))
+                    (field RFNE (rename rx_fifo_not_empty) (set-type bool))
+                    (field RFF (rename rx_fifo_full) (set-type bool))
+                    (field TXE (rename tx_error_flag) (set-type bool))
+                    (field DCOL (rename data_collision_error_flag) (set-type bool))
+                ))
+            )
+            (field DR0
+                (rename data)
+                (set-type (array 36 (reg u32)))
+            )
+            (field SPI_CTRLR0
+                (rename spi_control)
+                (type (inner
+                    (field TRANS_TYPE
+                        (rename transfer_format)
+                        (set-type (enum
+                            (0 standard_command_standard_address)
+                            (1 standard_command_wide_address)
+                            (1 wide_command_wide_address)
+                        ))
+                    )
+                    (field ADDR_L
+                        (rename address_length)
+                        (set-type (enum
+                            (0 none)
+                            (1 _4_bits)
+                            (2 _8_bits)
+                            (3 _12_bits)
+                            (4 _16_bits)
+                            (5 _20_bits)
+                            (6 _24_bits)
+                            (7 _28_bits)
+                            (8 _32_bits)
+                            (9 _36_bits)
+                            (10 _40_bits)
+                            (11 _44_bits)
+                            (12 _48_bits)
+                            (13 _52_bits)
+                            (14 _56_bits)
+                            (15 _60_bits)
+                        ))
+                    )
+                    (field INST_L
+                        (rename command_length)
+                        (set-type (enum
+                            (0 none)
+                            (1 _4_bits)
+                            (2 _8_bits)
+                            (3 _16_bits)
+                        ))
+                    )
+                    (field WAIT_CYCLES
+                        (rename wait_cycles_after_mode)
+                    )
+                    (field SPI_DDR_EN
+                        (rename ddr_address_and_data)
+                        (set-type bool)
+                    )
+                    (field INST_DDR_EN
+                        (rename ddr_command)
+                        (set-type bool)
+                    )
+                    (field SPI_RXDS_EN
+                        (rename enable_read_data_strobe)
+                        (set-type bool)
+                    )
+                    (field XIP_CMD
+                        (rename xip_command_or_mode)
+                        (set-desc "When command_length is 8 bits, this command is sent for each XIP transfer.\\nWhen command_length is 0, it is appended to the address.")
+                    )
                 ))
             )
             (rename SSI)

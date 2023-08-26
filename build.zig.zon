@@ -1,10 +1,10 @@
 .{
-    .name = "microbe-stm32",
+    .name = "microbe-rpi",
     .version = "0.0.0",
     .dependencies = .{
-        .@"microbe-rt" = .{
-            .url = "https://github.com/bcrist/microbe-rt/archive/e9c886b2e16ff6064f5a215a0c176173beb5cf55.tar.gz",
-            .hash = "122001f02d43ff1dcdee1a97afde3b6a6c1ef66be2cb0170530c866a1506df92c2f5",
+        .@"microbe" = .{
+            .url = "https://github.com/bcrist/microbe/archive/f07ef3ec164adab964d48752ea76c5017f61de43.tar.gz",
+            .hash = "1220eb2195cbc491d51194d4918cfe90a371b378280f79bc0716111f9fe371b6a6eb",
         },
     },
 }

@@ -1,5 +1,12 @@
+comptime {
+    _ = @import("boot2");
+    _ = @import("rp2040/boot.zig");
+}
+
 pub const reg_types = @import("rp2040/reg_types.zig");
 pub usingnamespace @import("rp2040/peripherals.zig");
+
+pub const boot = @import("rp2040/boot.zig");
 
 pub const interrupts = @import("rp2040/interrupts.zig");
 pub const Interrupt = interrupts.Interrupt;
@@ -9,10 +16,6 @@ pub const Exception = interrupts.Exception;
 //pub const uart = @import("rp2040/uart.zig");
 //pub const dma = @import("rp2040/dma.zig");
 //pub const clocks = @import("rp2040/clocks.zig");
-
-comptime {
-    _ = @import("rp2040/common.zig");
-}
 
 pub const base_name = "RP2040";
 pub const core_name = "ARM Cortex-M0+";
@@ -51,3 +54,13 @@ pub const PadID = enum {
     SWCLK, // pin 24
     SWDIO, // pin 25
 };
+
+pub fn flushInstructionCache() void {
+    asm volatile ("isb");
+}
+pub fn instructionFence() void {
+    asm volatile ("dsb");
+}
+pub fn memoryFence() void {
+    asm volatile ("dmb");
+}

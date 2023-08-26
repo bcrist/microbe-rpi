@@ -8,6 +8,29 @@ pub const Interrupt = chip.reg_types.Interrupt;
 pub const Handler = extern union {
     C: *const fn () callconv(.C) void,
     Naked: *const fn () callconv(.Naked) void,
+
+    pub fn wrap(comptime function: anytype) Handler {
+        const cc = @typeInfo(@TypeOf(function)).Fn.calling_convention;
+        return switch (cc) {
+            .C => .{ .C = function },
+            .Naked => .{ .Naked = function },
+            .Unspecified => .{
+                .C = struct {
+                    fn wrapper() callconv(.C) void {
+                        @call(.{ .modifier = .always_inline }, function, .{});
+                    }
+                }.wrapper,
+            },
+            else => @compileError("unsupported calling convention for exception handler: " ++ @tagName(cc)),
+        };
+    }
+
+    pub fn address(self: Handler) usize {
+        return switch (self) {
+            .C => |ptr| @intFromEnum(ptr),
+            .Naked => |ptr| @intFromEnum(ptr),
+        };
+    }
 };
 
 pub const unhandled = Handler { .C = _unhandled };
