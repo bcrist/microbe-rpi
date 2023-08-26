@@ -7,9 +7,8 @@ pub fn build(b: *std.Build) void {
 
     const chip = rpi.rp2040(1024, 2, 50_000_000); // clk_sys is limited to 100MHz
 
-    const boot2_module = rpi.addBoot2(b, .{
-        .name = "boot2-zd25q80c-div2",
-        .root_source_file = rpi_dep.module("boot2-zd25q").source_file,
+    const boot2_module = rpi.addChecksummedBoot2Module(b, .{
+        .source = .{ .module = rpi_dep.module("boot2-zd25q") },
         .chip = chip,
     });
 

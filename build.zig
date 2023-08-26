@@ -94,7 +94,7 @@ pub fn boot3Section() Section {
 }
 
 pub const Boot2Options = struct {
-    name: ?[]const u8,
+    name: ?[]const u8 = null,
     source: union(enum) {
         module: *std.Build.Module,
         path: *std.Build.LazyPath,
