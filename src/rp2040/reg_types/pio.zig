@@ -10,8 +10,8 @@ pub const SM3_CLKDIV = packed struct(u32) {
 pub const SM3_EXECCTRL = packed struct(u32) {
     STATUS_N: u4 = 0,
     STATUS_SEL: enum(u1) {
-        TXLEVEL = 0x0,
-        RXLEVEL = 0x1,
+        TXLEVEL = 0,
+        RXLEVEL = 1,
     } = .TXLEVEL,
     _reserved_5: u2 = 0,
     WRAP_BOTTOM: u5 = 0,

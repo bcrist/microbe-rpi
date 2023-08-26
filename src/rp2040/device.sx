@@ -30,7 +30,7 @@
     (peripheral TBMAN (delete))
 )
 (group io
-    (create-type Drive
+    (create-type DriveStrength
         (bits 2)
         (enum
             (0 2mA)
@@ -39,20 +39,20 @@
             (3 12mA)
         )
     )
-    (peripheral PADS_*
-        (reg * 
-            (field DRIVE (set-type Drive))
+    (create-type SlewRate
+        (bits 1)
+        (enum
+            (0 slow)
+            (1 fast)
         )
     )
-    (peripheral PADS_BANK0
-        (reg GPIO* (rename IO_PD))
-        (reg SWCLK (rename IO_PU_OD))
-        (reg SWD (rename IO_PU))
-    )
-    (peripheral PADS_QSPI
-        (reg GPIO_QSPI_SCLK (rename IO_PD))
-        (reg GPIO_QSPI_SD* (rename IO))
-        (reg GPIO_QSPI_SS (rename IO_PU))
+    (create-type PinMaintenance
+        (bits 2)
+        (enum
+            (0 float)
+            (1 pull_down)
+            (2 pull_up)
+        )
     )
     (create-type ModeOverride
         (bits 2)
@@ -63,31 +63,44 @@
             (3 force_high)
         )
     )
+    (peripheral PADS_*
+        (type (field VOLTAGE_SELECT (rename voltage)))
+        (reg voltage (rename VoltageSelect) (field VOLTAGE_SELECT (rename Voltage)))
+        (reg * 
+            (field DRIVE (rename strength) (set-type DriveStrength))
+            (field SLEWFAST (rename speed) (set-type SlewRate))
+            (field SCHMITT (rename hysteresis) (set-type bool))
+            (merge-field PDE maintenance PinMaintenance)
+            (field IE (rename input_enabled) (set-type bool))
+            (field OD (rename output_disabled) (set-type bool))
+        )
+    )
+    (peripheral PADS_BANK0 (rename PADS) (type (rename PADS)))
+    (peripheral PADS_QSPI
+        (reg GPIO_QSPI_SCLK (set-fallback-name PadConfig))
+        (reg GPIO_QSPI_SD* (set-fallback-name PadConfigFloat))
+        (reg GPIO_QSPI_SS (set-fallback-name PadConfigPullUp))
+    )
+
     (peripheral IO_*
         (reg *
             (field OEOVER (set-type ModeOverride))
             (field IRQOVER (set-type ModeOverride))
             (field INOVER (set-type ModeOverride))
             (field OUTOVER (set-type ModeOverride))
+            (field *_LEVEL_LOW (set-type bool))
+            (field *_LEVEL_HIGH (set-type bool))
+            (field *_EDGE_LOW (set-type bool))
+            (field *_EDGE_HIGH (set-type bool))
         )
-        (reg GPIO*_STATUS (rename IO_STATUS))
-        (reg INTR0 (rename IO_INT_0))
-        (reg INTR1 (rename IO_INT_1))
-        (reg INTR2 (rename IO_INT_2))
-        (reg INTR3 (rename IO_INT_3))
-        (reg PROC#_INT*0 (rename IO_INT_0))
-        (reg PROC#_INT*1 (rename IO_INT_1))
-        (reg PROC#_INT*2 (rename IO_INT_2))
-        (reg PROC#_INT*3 (rename IO_INT_3))
-        (reg DORMANT_WAKE_INT*0 (rename IO_INT_0))
-        (reg DORMANT_WAKE_INT*1 (rename IO_INT_1))
-        (reg DORMANT_WAKE_INT*2 (rename IO_INT_2))
-        (reg DORMANT_WAKE_INT*3 (rename IO_INT_3))
+        (reg GPIO*_STATUS (rename Status))
+        (reg INTR0 (set-fallback-name GpioInterruptBitmap0))
+        (reg INTR1 (set-fallback-name GpioInterruptBitmap1))
+        (reg INTR2 (set-fallback-name GpioInterruptBitmap2))
+        (reg INTR3 (set-fallback-name GpioInterruptBitmap3))
     )
     (peripheral IO_QSPI
-        (reg INTR (rename IO_INT_QSPI))
-        (reg PROC#_INT* (rename IO_INT_QSPI))
-        (reg DORMANT_WAKE_INT* (rename IO_INT_QSPI))
+        (reg INTR (set-fallback-name QspiInterruptBitmap))
     )
 )
 (group pio

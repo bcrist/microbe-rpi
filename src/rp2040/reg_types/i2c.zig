@@ -2,50 +2,50 @@
 const Mmio = @import("microbe").Mmio;
 
 pub const IC_EN = enum(u1) {
-    DISABLED = 0x0,
-    ENABLED = 0x1,
+    DISABLED = 0,
+    ENABLED = 1,
 };
 
 pub const IC_10BITADDR_ = enum(u1) {
-    ADDR_7BITS = 0x0,
-    ADDR_10BITS = 0x1,
+    ADDR_7BITS = 0,
+    ADDR_10BITS = 1,
 };
 
 pub const STOP = enum(u1) {
-    DISABLE = 0x0,
-    ENABLE = 0x1,
+    DISABLE = 0,
+    ENABLE = 1,
 };
 
 pub const SLV_ = enum(u1) {
-    INACTIVE = 0x0,
-    ACTIVE = 0x1,
+    INACTIVE = 0,
+    ACTIVE = 1,
 };
 
 pub const M_RX_ = enum(u1) {
-    ENABLED = 0x0,
-    DISABLED = 0x1,
+    ENABLED = 0,
+    DISABLED = 1,
 };
 
 pub const MST_ACTIVITY = enum(u1) {
-    IDLE = 0x0,
-    ACTIVE = 0x1,
+    IDLE = 0,
+    ACTIVE = 1,
 };
 
 pub const I2C = extern struct {
     IC_CON: Mmio(packed struct(u32) {
         MASTER_MODE: IC_EN = .ENABLED,
         SPEED: enum(u2) {
-            STANDARD = 0x1,
-            FAST = 0x2,
-            HIGH = 0x3,
+            STANDARD = 1,
+            FAST = 2,
+            HIGH = 3,
             _,
         } = .FAST,
         IC_10BITADDR_SLAVE: IC_10BITADDR_ = .ADDR_7BITS,
         IC_10BITADDR_MASTER: IC_10BITADDR_ = .ADDR_7BITS,
         IC_RESTART_EN: IC_EN = .ENABLED,
         IC_SLAVE_DISABLE: enum(u1) {
-            SLAVE_ENABLED = 0x0,
-            SLAVE_DISABLED = 0x1,
+            SLAVE_ENABLED = 0,
+            SLAVE_DISABLED = 1,
         } = .SLAVE_DISABLED,
         STOP_DET_IFADDRESSED: IC_EN = .DISABLED,
         TX_EMPTY_CTRL: IC_EN = .DISABLED,
@@ -56,8 +56,8 @@ pub const I2C = extern struct {
     IC_TAR: Mmio(packed struct(u32) {
         IC_TAR: u10 = 0x55,
         GC_OR_START: enum(u1) {
-            GENERAL_CALL = 0x0,
-            START_BYTE = 0x1,
+            GENERAL_CALL = 0,
+            START_BYTE = 1,
         } = .GENERAL_CALL,
         SPECIAL: IC_EN = .DISABLED,
         _reserved_c: u20 = 0,
@@ -70,8 +70,8 @@ pub const I2C = extern struct {
     IC_DATA_CMD: Mmio(packed struct(u32) {
         DAT: u8 = 0,
         CMD: enum(u1) {
-            WRITE = 0x0,
-            READ = 0x1,
+            WRITE = 0,
+            READ = 1,
         } = .WRITE,
         STOP: STOP = .DISABLE,
         RESTART: STOP = .DISABLE,
@@ -198,32 +198,32 @@ pub const I2C = extern struct {
     IC_ENABLE: Mmio(packed struct(u32) {
         ENABLE: IC_EN = .DISABLED,
         ABORT: enum(u1) {
-            DISABLE = 0x0,
-            ENABLED = 0x1,
+            DISABLE = 0,
+            ENABLED = 1,
         } = .DISABLE,
         TX_CMD_BLOCK: enum(u1) {
-            NOT_BLOCKED = 0x0,
-            BLOCKED = 0x1,
+            NOT_BLOCKED = 0,
+            BLOCKED = 1,
         } = .NOT_BLOCKED,
         _reserved_3: u29 = 0,
     }, .rw),
     IC_STATUS: Mmio(packed struct(u32) {
         ACTIVITY: SLV_ = .INACTIVE,
         TFNF: enum(u1) {
-            FULL = 0x0,
-            NOT_FULL = 0x1,
+            FULL = 0,
+            NOT_FULL = 1,
         } = .NOT_FULL,
         TFE: enum(u1) {
-            NON_EMPTY = 0x0,
-            EMPTY = 0x1,
+            NON_EMPTY = 0,
+            EMPTY = 1,
         } = .EMPTY,
         RFNE: enum(u1) {
-            EMPTY = 0x0,
-            NOT_EMPTY = 0x1,
+            EMPTY = 0,
+            NOT_EMPTY = 1,
         } = .EMPTY,
         RFF: enum(u1) {
-            NOT_FULL = 0x0,
-            FULL = 0x1,
+            NOT_FULL = 0,
+            FULL = 1,
         } = .NOT_FULL,
         MST_ACTIVITY: MST_ACTIVITY = .IDLE,
         SLV_ACTIVITY: MST_ACTIVITY = .IDLE,
@@ -247,60 +247,60 @@ pub const I2C = extern struct {
         ABRT_10ADDR1_NOACK: SLV_ = .INACTIVE,
         ABRT_10ADDR2_NOACK: SLV_ = .INACTIVE,
         ABRT_TXDATA_NOACK: enum(u1) {
-            ABRT_TXDATA_NOACK_VOID = 0x0,
-            ABRT_TXDATA_NOACK_GENERATED = 0x1,
+            ABRT_TXDATA_NOACK_VOID = 0,
+            ABRT_TXDATA_NOACK_GENERATED = 1,
         } = .ABRT_TXDATA_NOACK_VOID,
         ABRT_GCALL_NOACK: enum(u1) {
-            ABRT_GCALL_NOACK_VOID = 0x0,
-            ABRT_GCALL_NOACK_GENERATED = 0x1,
+            ABRT_GCALL_NOACK_VOID = 0,
+            ABRT_GCALL_NOACK_GENERATED = 1,
         } = .ABRT_GCALL_NOACK_VOID,
         ABRT_GCALL_READ: enum(u1) {
-            ABRT_GCALL_READ_VOID = 0x0,
-            ABRT_GCALL_READ_GENERATED = 0x1,
+            ABRT_GCALL_READ_VOID = 0,
+            ABRT_GCALL_READ_GENERATED = 1,
         } = .ABRT_GCALL_READ_VOID,
         ABRT_HS_ACKDET: enum(u1) {
-            ABRT_HS_ACK_VOID = 0x0,
-            ABRT_HS_ACK_GENERATED = 0x1,
+            ABRT_HS_ACK_VOID = 0,
+            ABRT_HS_ACK_GENERATED = 1,
         } = .ABRT_HS_ACK_VOID,
         ABRT_SBYTE_ACKDET: enum(u1) {
-            ABRT_SBYTE_ACKDET_VOID = 0x0,
-            ABRT_SBYTE_ACKDET_GENERATED = 0x1,
+            ABRT_SBYTE_ACKDET_VOID = 0,
+            ABRT_SBYTE_ACKDET_GENERATED = 1,
         } = .ABRT_SBYTE_ACKDET_VOID,
         ABRT_HS_NORSTRT: enum(u1) {
-            ABRT_HS_NORSTRT_VOID = 0x0,
-            ABRT_HS_NORSTRT_GENERATED = 0x1,
+            ABRT_HS_NORSTRT_VOID = 0,
+            ABRT_HS_NORSTRT_GENERATED = 1,
         } = .ABRT_HS_NORSTRT_VOID,
         ABRT_SBYTE_NORSTRT: enum(u1) {
-            ABRT_SBYTE_NORSTRT_VOID = 0x0,
-            ABRT_SBYTE_NORSTRT_GENERATED = 0x1,
+            ABRT_SBYTE_NORSTRT_VOID = 0,
+            ABRT_SBYTE_NORSTRT_GENERATED = 1,
         } = .ABRT_SBYTE_NORSTRT_VOID,
         ABRT_10B_RD_NORSTRT: enum(u1) {
-            ABRT_10B_RD_VOID = 0x0,
-            ABRT_10B_RD_GENERATED = 0x1,
+            ABRT_10B_RD_VOID = 0,
+            ABRT_10B_RD_GENERATED = 1,
         } = .ABRT_10B_RD_VOID,
         ABRT_MASTER_DIS: enum(u1) {
-            ABRT_MASTER_DIS_VOID = 0x0,
-            ABRT_MASTER_DIS_GENERATED = 0x1,
+            ABRT_MASTER_DIS_VOID = 0,
+            ABRT_MASTER_DIS_GENERATED = 1,
         } = .ABRT_MASTER_DIS_VOID,
         ARB_LOST: enum(u1) {
-            ABRT_LOST_VOID = 0x0,
-            ABRT_LOST_GENERATED = 0x1,
+            ABRT_LOST_VOID = 0,
+            ABRT_LOST_GENERATED = 1,
         } = .ABRT_LOST_VOID,
         ABRT_SLVFLUSH_TXFIFO: enum(u1) {
-            ABRT_SLVFLUSH_TXFIFO_VOID = 0x0,
-            ABRT_SLVFLUSH_TXFIFO_GENERATED = 0x1,
+            ABRT_SLVFLUSH_TXFIFO_VOID = 0,
+            ABRT_SLVFLUSH_TXFIFO_GENERATED = 1,
         } = .ABRT_SLVFLUSH_TXFIFO_VOID,
         ABRT_SLV_ARBLOST: enum(u1) {
-            ABRT_SLV_ARBLOST_VOID = 0x0,
-            ABRT_SLV_ARBLOST_GENERATED = 0x1,
+            ABRT_SLV_ARBLOST_VOID = 0,
+            ABRT_SLV_ARBLOST_GENERATED = 1,
         } = .ABRT_SLV_ARBLOST_VOID,
         ABRT_SLVRD_INTX: enum(u1) {
-            ABRT_SLVRD_INTX_VOID = 0x0,
-            ABRT_SLVRD_INTX_GENERATED = 0x1,
+            ABRT_SLVRD_INTX_VOID = 0,
+            ABRT_SLVRD_INTX_GENERATED = 1,
         } = .ABRT_SLVRD_INTX_VOID,
         ABRT_USER_ABRT: enum(u1) {
-            ABRT_USER_ABRT_VOID = 0x0,
-            ABRT_USER_ABRT_GENERATED = 0x1,
+            ABRT_USER_ABRT_VOID = 0,
+            ABRT_USER_ABRT_GENERATED = 1,
         } = .ABRT_USER_ABRT_VOID,
         _reserved_11: u6 = 0,
         TX_FLUSH_CNT: u9 = 0,

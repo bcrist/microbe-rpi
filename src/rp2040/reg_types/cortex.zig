@@ -105,8 +105,8 @@ pub const SYSTICK = extern struct {
         overflow_interrupt_enable: bool = false,
 
         clock_source: enum(u1) {
-            watchdog_tick = 0x0,
-            clk_sys = 0x1,
+            watchdog_tick = 0,
+            clk_sys = 1,
         } = .watchdog_tick,
         _reserved_3: u13 = 0,
 
@@ -189,8 +189,8 @@ pub const SCB = extern struct {
         request_core_reset: bool = false,
         _reserved_3: u12 = 0,
         endianness: enum(u1) {
-            little = 0x0,
-            big = 0x1,
+            little = 0,
+            big = 1,
         } = .little,
         vector_key: u16 = 0x5FA,
     }, .rw),

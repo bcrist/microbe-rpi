@@ -131,7 +131,7 @@ pub inline fn setGloballyEnabled(comptime enabled: bool) void {
 
 pub inline fn currentException() Exception {
     // Another way to implement this would be:
-    // chip.SCB.interrupt_control_state.read().active_exception_number > 0
+    // chip.SCB.interrupt_control_state.read().active_exception_number
     // but this is faster:
     return !asm volatile ("mrs r0, ipsr"
         : [ret] "={r0}" (-> Exception),

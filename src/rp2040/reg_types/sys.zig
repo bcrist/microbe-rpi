@@ -541,10 +541,10 @@ pub const SSI = extern struct {
         clock_phase: u1 = 0,
         clock_polarity: u1 = 0,
         transfer_mode: enum(u2) {
-            TX_AND_RX = 0x0,
-            TX_ONLY = 0x1,
-            RX_ONLY = 0x2,
-            EEPROM_READ = 0x3,
+            TX_AND_RX = 0,
+            TX_ONLY = 1,
+            RX_ONLY = 2,
+            EEPROM_READ = 3,
         } = .TX_AND_RX,
         slave_output_enable: u1 = 0,
 
@@ -558,9 +558,9 @@ pub const SSI = extern struct {
         data_frame_size_in_32b_mode: u5 = 0,
 
         SPI_frame_format: enum(u2) {
-            STD = 0x0,
-            DUAL = 0x1,
-            QUAD = 0x2,
+            STD = 0,
+            DUAL = 1,
+            QUAD = 2,
             _,
         } = .STD,
         _reserved_17: u1 = 0,
@@ -685,18 +685,18 @@ pub const SSI = extern struct {
     }, .rw),
     SPI_CTRLR0: Mmio(packed struct(u32) {
         TRANS_TYPE: enum(u2) {
-            @"1C1A" = 0x0,
-            @"1C2A" = 0x1,
-            @"2C2A" = 0x2,
+            @"1C1A" = 0,
+            @"1C2A" = 1,
+            @"2C2A" = 2,
             _,
         } = .@"1C1A",
         ADDR_L: u4 = 0,
         _reserved_6: u2 = 0,
         INST_L: enum(u2) {
-            NONE = 0x0,
-            @"4B" = 0x1,
-            @"8B" = 0x2,
-            @"16B" = 0x3,
+            NONE = 0,
+            @"4B" = 1,
+            @"8B" = 2,
+            @"16B" = 3,
         } = .NONE,
         _reserved_a: u1 = 0,
         WAIT_CYCLES: u5 = 0,
