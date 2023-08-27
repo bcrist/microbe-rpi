@@ -69,7 +69,6 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
 
     var buf: [4001]u8 = undefined;
 
-    std.log.info("boot2_crc_src: {s}", .{ full_src_path });
     const raw_boot2 = try b.build_root.handle.readFile(full_src_path, &buf);
 
     if (raw_boot2.len == 0) {

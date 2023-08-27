@@ -7,8 +7,8 @@
             .hash = "12209ab097955a8ea807ded65d9cac59b771e7850f1190fcd963f3c1d3201b6609e3",
         },
         .@"microbe-rpi" = .{
-            .url = "https://github.com/bcrist/microbe-rpi/archive/5065f5727bbf39eee610fee56a9c63d996acdeb6.tar.gz",
-            .hash = "12206ab7cf1276ef2cad743c36577d11827ab479db4fc63921f955158decd88f6c13",
+            .url = "https://github.com/bcrist/microbe-rpi/archive/d7375e69d4a442d5809a2cf0682f3650d2bd38c4.tar.gz",
+            .hash = "12201f27b78bc2aa363e44cd6ce6f6d9bd8e309b9dc29f99fb4f43c9a95543bf32cf",
         },
     },
 }
