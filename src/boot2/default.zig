@@ -1,5 +1,13 @@
-/// Adapted from
-/// https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/boot_stage2/boot2_w25q080.S
+/// This should work for most 25xxx QSPI flash devices, where:
+///    * The device supports the read status register (SR) command (0x05).
+///    * The device supports either the write enable command (0x06) or volatile SR write enable (0x50).
+///    * Bit 0 of the SR is the "write in progress" flag.
+///    * There is a "quad enable" (QE) bit somewhere in the SR.
+///    * The device supports the write status register command (0x01).
+///        * Alternatively the write status register 1 command (0x31) can be used instead,
+///          if QE is in the upper byte and the device supports it.
+///    * The device supports the quad fast read command (0xEB).
+///        * Using 24 address bits + 8 mode bits + N dummy cycles before data transfer.
 
 const std = @import("std");
 const chip = @import("chip");
@@ -11,37 +19,35 @@ comptime {
     if ((flash_clock_div & 1) != 0) @compileError("flash_clock_div must be even");
 }
 
-// Note ZD25Q only requires bit 4 and bit 5 to be different.
-const continuous_read_mode_bits: u8 = 0xA0;
-
 const Command = enum(u8) {
+    write_enable = 0x06,
     write_enable_volatile_status_reg = 0x50,
     read_status_reg_0 = 0x05,
     read_status_reg_1 = 0x35,
+    write_status_reg = 0x01,
     write_status_reg_1 = 0x31,
     quad_read = 0xEB,
 };
 
-const StatusRegister0 = packed struct(u8) {
+const StatusRegister0 = if (config.flash_quad_enable_bit < 8) packed struct (u8) {
     write_in_progress: bool,
-    write_enable: bool,
-    block_protect_0: bool,
-    block_protect_1: bool,
-    block_protect_2: bool,
-    block_protect_3: bool,
-    block_protect_4: bool,
-    status_register_protect_0: u1,
+    _unused0: std.meta.Int(.unsigned, config.flash_quad_enable_bit - 1),
+    quad_enable: bool,
+    _unused1: std.meta.Int(.unsigned, 7 - config.flash_quad_enable_bit),
+} else packed struct (u8) {
+    write_in_progress: bool,
+    _unused1: u7,
 };
 
-const StatusRegister1 = packed struct(u8) {
-    status_register_protect_1: u1,
+const StatusRegister1 = if (config.flash_quad_enable_bit < 8) u8 else packed struct (u8) {
+    _unused0: std.meta.Int(.unsigned, config.flash_quad_enable_bit - 8),
     quad_enable: bool,
-    erase_suspend_flag: bool,
-    security_register_protect_0: bool,
-    security_register_protect_1: bool,
-    security_register_protect_2: bool,
-    block_protect_mode: bool,
-    program_suspend_flag: bool,
+    _unused1: std.meta.Int(.unsigned, 15 - config.flash_quad_enable_bit),
+};
+
+const FullStatusRegister = packed struct (u16) {
+    sr0: StatusRegister0,
+    sr1: StatusRegister1,
 };
 
 extern fn _boot3() callconv(.Naked) noreturn;
@@ -96,14 +102,43 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
     chip.SSI.enable.write(.{ .enable = true });
     defer chip.SSI.enable.write(.{ .enable = false });
 
-    var sr1 = doReadCommand(.read_status_reg_1, StatusRegister1);
-    if (!sr1.quad_enable) {
-        sr1.quad_enable = true;
+    if (comptime config.flash_quad_enable_bit < 8) {
+        const sr0 = doReadCommand(.read_status_reg_0, StatusRegister0);
+        if (!sr0.quad_enable) {
+            sr0.quad_enable = true;
 
-        doWriteCommand(.write_enable_volatile_status_reg, void, {});
-        doWriteCommand(.write_status_reg_1, StatusRegister1, sr1);
+            if (comptime config.flash_has_volatile_status_reg) {
+                doWriteCommand(.write_enable_volatile_status_reg, void, {});
+            } else {
+                doWriteCommand(.write_enable, void, {});
+            }
 
-        while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
+            doWriteCommand(.write_status_reg, StatusRegister0, sr0);
+
+            while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
+        }
+    } else {
+        const sr1 = doReadCommand(.read_status_reg_1, StatusRegister1);
+        if (!sr1.quad_enable) {
+            sr1.quad_enable = true;
+
+            if (comptime config.flash_has_volatile_status_reg) {
+                doWriteCommand(.write_enable_volatile_status_reg, void, {});
+            } else {
+                doWriteCommand(.write_enable, void, {});
+            }
+
+            if (comptime config.flash_has_write_status_reg_1) {
+                doWriteCommand(.write_status_reg_1, StatusRegister1, sr1);
+            } else {
+                doWriteCommand(.write_status_reg, FullStatusRegister, .{
+                    .sr0 = doReadCommand(.read_status_reg_0, StatusRegister0),
+                    .sr1 = sr1,
+                });
+            }
+
+            while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
+        }
     }
 
     chip.SSI.control_0.write(.{
@@ -121,13 +156,13 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
         .transfer_format = .standard_command_wide_address,
         .command_length = ._8_bits,
         .address_length = ._32_bits,
-        .wait_cycles_after_mode = 4,
+        .wait_cycles_after_mode = config.xip_wait_cycles,
     });
 
     chip.SSI.enable.write(.{ .enable = true });
 
     chip.SSI.data[0].write(@intFromEnum(Command.quad_read));
-    chip.SSI.data[0].write(continuous_read_mode_bits); // upper 24 bits are address; we don't actually care what they are.
+    chip.SSI.data[0].write(config.xip_mode_bits); // upper 24 bits are address; we don't actually care what they are.
     blockUntilTxComplete();
 
     chip.SSI.enable.write(.{ .enable = false });
@@ -136,8 +171,8 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
         .transfer_format = .wide_command_wide_address,
         .command_length = .none,
         .address_length = ._32_bits,
-        .wait_cycles_after_mode = 4,
-        .xip_command_or_mode = continuous_read_mode_bits,
+        .wait_cycles_after_mode = config.xip_wait_cycles,
+        .xip_command_or_mode = config.xip_mode_bits,
     });
 
     chip.SSI.enable.write(.{ .enable = true });

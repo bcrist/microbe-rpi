@@ -6,19 +6,66 @@ const Core = microbe.Core;
 const Section = microbe.Section;
 const MemoryRegion = microbe.MemoryRegion;
 
-pub const Rp2040Options = struct {
-    flash_size_kibytes: u32,
+pub const FlashOptions = struct {
+    size_kibytes: u32,
 
-    /// flash_clk_div must be even and >= 2.
-    /// The max clk_sys will be flash_clk_div * max_flash_frequency_hz
-    flash_clk_div: u8 = 4,
+    /// clock_div must be even and >= 2.
+    /// The max clk_sys will be clock_div * max_frequency_hz
+    clock_div: u8,
 
     /// You may want to adjust this based on the speed noted in your QSPI memory's datasheet.
     /// Most 25Qxx style chips will support 50 MHz or more.
-    max_flash_frequency_hz: u32 = 33_333_333,
+    max_frequency_hz: u32,
+
+    // These are used by the default boot2 implementation to set up XIP mode:
+    xip_mode_bits: u8,
+    xip_wait_cycles: u8,
+    has_volatile_status_reg: bool,
+    has_write_status_reg_1: bool,
+    quad_enable_bit: u8,
 };
 
-pub fn rp2040(comptime options: Rp2040Options) Chip {
+pub fn zd25q80c() FlashOptions {
+    return .{
+        .size_kibytes = 1024,
+        .clock_div = 4,
+        .max_flash_frequency_hz = 50_000_000,
+        .xip_mode_bits = 0xA0,
+        .xip_wait_cycles = 4,
+        .has_volatile_status_reg = true,
+        .has_write_status_reg_1 = true,
+        .quad_enable_bit = 9,
+    };
+}
+
+/// Max clk_sys of 100MHz, but lower latency for XIP loads than zd25q80c (clock_div == 4)
+pub fn zd25q80c_div2() FlashOptions {
+    var options = zd25q80c();
+    options.clock_div = 2;
+    return options;
+}
+
+pub fn zd25q16c() FlashOptions {
+    var options = zd25q80c();
+    options.size_kibytes = 2048;
+    options.clock_div = 2;
+    options.max_flash_frequency_hz = 86_000_000;
+    return options;
+}
+
+pub fn zd25q32c() FlashOptions {
+    var options = zd25q16c();
+    options.size_kibytes = 4096;
+    return options;
+}
+
+pub fn zd25q64c() FlashOptions {
+    var options = zd25q16c();
+    options.size_kibytes = 8192;
+    return options;
+}
+
+pub fn rp2040(comptime options: FlashOptions) Chip {
     return .{
         .name = "RP2040",
         .dependency_name = "microbe-rpi",
@@ -34,14 +81,13 @@ pub fn rp2040(comptime options: Rp2040Options) Chip {
             MemoryRegion.executableRam("usb_dpram", 0x50100000, 4 * 1024),
         },
         .extra_config = comptime &.{
-            .{
-                .name = "flash_clock_div",
-                .value = std.fmt.comptimePrint("{}", .{ options.flash_clk_div })
-            },
-            .{
-                .name = "max_flash_frequency_hz",
-                .value = std.fmt.comptimePrint("{}", .{ options.max_flash_frequency_hz })
-            },
+            .{ .name = "flash_clock_div",               .value = std.fmt.comptimePrint("{}", .{ options.clock_div }) },
+            .{ .name = "max_flash_frequency_hz",        .value = std.fmt.comptimePrint("{}", .{ options.max_frequency_hz }) },
+            .{ .name = "xip_mode_bits",                 .value = std.fmt.comptimePrint("0x{X}", .{ options.xip_mode_bits }) },
+            .{ .name = "xip_wait_cycles",               .value = std.fmt.comptimePrint("{}", .{ options.xip_wait_cycles }) },
+            .{ .name = "flash_has_volatile_status_reg", .value = std.fmt.comptimePrint("{}", .{ options.has_volatile_status_reg }) },
+            .{ .name = "flash_has_write_status_reg_1",  .value = std.fmt.comptimePrint("{}", .{ options.has_write_status_reg_1 }) },
+            .{ .name = "flash_quad_enable_bit",         .value = std.fmt.comptimePrint("{}", .{ options.quad_enable_bit }) },
         },
     };
 }
@@ -120,7 +166,7 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
     const microbe_dep = b.dependency("microbe", .{});
     const empty_module = microbe_dep.module("empty");
 
-    const exe_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}.zig", .{ name }) catch @panic("OOM") else "boot2.elf";
+    const exe_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}.elf", .{ name }) catch @panic("OOM") else "boot2.elf";
     var boot2exe = microbe.addExecutable(b, .{
         .name = exe_name,
         .root_source_file = switch (options.source) {
@@ -183,5 +229,5 @@ pub fn build(b: *std.Build) void {
         module.dependencies.put("chip", module) catch @panic("OOM");
     }
 
-    _ = b.addModule("boot2-zd25q", .{ .source_file = .{ .path = "src/boot2/zd25q.zig" }});
+    _ = b.addModule("boot2-default", .{ .source_file = .{ .path = "src/boot2/default.zig" }});
 }
