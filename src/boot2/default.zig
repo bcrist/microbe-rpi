@@ -103,7 +103,7 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
     defer chip.SSI.enable.write(.{ .enable = false });
 
     if (comptime config.flash_quad_enable_bit < 8) {
-        const sr0 = doReadCommand(.read_status_reg_0, StatusRegister0);
+        var sr0 = doReadCommand(.read_status_reg_0, StatusRegister0);
         if (!sr0.quad_enable) {
             sr0.quad_enable = true;
 
@@ -118,7 +118,7 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
             while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
         }
     } else {
-        const sr1 = doReadCommand(.read_status_reg_1, StatusRegister1);
+        var sr1 = doReadCommand(.read_status_reg_1, StatusRegister1);
         if (!sr1.quad_enable) {
             sr1.quad_enable = true;
 

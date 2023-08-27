@@ -29,7 +29,7 @@ pub fn zd25q80c() FlashOptions {
     return .{
         .size_kibytes = 1024,
         .clock_div = 4,
-        .max_flash_frequency_hz = 50_000_000,
+        .max_frequency_hz = 50_000_000,
         .xip_mode_bits = 0xA0,
         .xip_wait_cycles = 4,
         .has_volatile_status_reg = true,
@@ -73,7 +73,7 @@ pub fn rp2040(comptime options: FlashOptions) Chip {
         .core = Core.cortex_m0plus,
         .single_threaded = false,
         .memory_regions = comptime &.{
-            MemoryRegion.mainFlash(0x10000000, options.flash_size_kibytes * 1024),
+            MemoryRegion.mainFlash(0x10000000, options.size_kibytes * 1024),
             MemoryRegion.mainRam(0x20000000, 256 * 1024),
             MemoryRegion.executableRam("xip_cache", 0x15000000, 16 * 1024),
             MemoryRegion.executableRam("sram4", 0x20040000, 4 * 1024),
