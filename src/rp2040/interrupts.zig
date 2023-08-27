@@ -17,7 +17,7 @@ pub const Handler = extern union {
             .Unspecified => .{
                 .C = struct {
                     fn wrapper() callconv(.C) void {
-                        @call(.{ .modifier = .always_inline }, function, .{});
+                        @call(.always_inline, function, .{});
                     }
                 }.wrapper,
             },

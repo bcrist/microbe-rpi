@@ -192,3 +192,5 @@ fn doReadCommand(command: Command, comptime T: type) linksection(".boot2") T {
 
     return @bitCast(raw);
 }
+
+pub fn main() void {}
