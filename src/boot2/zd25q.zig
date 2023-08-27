@@ -144,7 +144,7 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
 
 fn blockUntilTxComplete() linksection(".boot2") void {
     var status = chip.SSI.status.read();
-    while (!status.tx_fifo_empty or status.busy) {
+    while (!status.tx_fifo_empty) {
         status = chip.SSI.status.read();
     }
 }

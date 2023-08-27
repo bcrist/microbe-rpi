@@ -62,6 +62,10 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
         &digest,
         "boot2.zig",
     });
+    const cache_dir = "microbe" ++ std.fs.path.sep_str ++ digest;
+    b.cache_root.handle.makePath(cache_dir) catch |err| {
+        return step.fail("unable to make path {s}: {s}", .{ cache_dir, @errorName(err) });
+    };
 
     var buf: [4001]u8 = undefined;
 
