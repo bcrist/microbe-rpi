@@ -101,7 +101,7 @@ pub const Boot2Options = struct {
         path: std.Build.LazyPath,
     },
     chip: microbe.Chip,
-    optimize: std.builtin.Mode = .ReleaseFast,
+    optimize: std.builtin.Mode = .ReleaseSmall,
 };
 
 pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Build.Module {
