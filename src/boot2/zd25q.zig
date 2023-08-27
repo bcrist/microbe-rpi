@@ -147,7 +147,7 @@ fn blockUntilTxComplete() linksection(".boot2") void {
     const ptr: *volatile T  = @ptrCast(&chip.SSI.status);
     var status = ptr.read();
     while (!status.tx_fifo_empty or status.busy) {
-        //asm volatile ("" ::: "memory");
+        asm volatile ("" ::: "memory");
         status = ptr.read();
     }
 }

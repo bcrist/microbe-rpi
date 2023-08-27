@@ -23,13 +23,11 @@ extern fn _init_ram() void;
 /// This is the entry point after XIP has been enabled by boot2.
 /// All it does is initialize core 0's SP and then call _start()
 export fn _boot3() linksection(".boot3_entry") callconv(.Naked) noreturn {
-    const raw_start_addr: usize = @intFromPtr(&_start);
-    const start_addr_with_thumb_bit = raw_start_addr | 1;
     asm volatile (
         \\ mov sp, %[stack]
         \\ bx %[start]
         :
-        : [start] "r" (start_addr_with_thumb_bit),
+        : [start] "r" (&_start),
           [stack] "r" (&_core0_stack_end)
         : "memory"
     );
