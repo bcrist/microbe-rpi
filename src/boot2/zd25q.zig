@@ -46,8 +46,8 @@ const StatusRegister1 = packed struct(u8) {
 
 extern fn _boot3() callconv(.Naked) noreturn;
 export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
-    asm volatile ("blx %[func]" :: [func] "{r}" (&setupXip) : "memory");
-    asm volatile ("bx %[func]" :: [func] "{r}" (&_boot3));
+    asm volatile ("blx %[func]" :: [func] "r" (&setupXip) : "memory");
+    asm volatile ("bx %[func]" :: [func] "r" (&_boot3));
     unreachable;
 }
 

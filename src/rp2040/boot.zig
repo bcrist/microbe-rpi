@@ -29,8 +29,8 @@ export fn _boot3() linksection(".boot3_entry") callconv(.Naked) noreturn {
         \\ mov sp, %[stack]
         \\ bx %[start]
         :
-        : [start] "{r}" (start_addr_with_thumb_bit),
-          [stack] "{r}" (&_core0_stack_end)
+        : [start] "r" (start_addr_with_thumb_bit),
+          [stack] "r" (&_core0_stack_end)
         : "memory"
     );
 }
@@ -113,9 +113,10 @@ fn initVectorTable(comptime core_id: []const u8) VectorTable {
     return vt;
 }
 
-pub fn resetCurrentCore() void {
+pub fn resetCurrentCore() noreturn {
     // TODO if core0, we should reset the whole chip.  Otherwise just reset core1
     chip.SCB.reset_control.write(.{ .request_core_reset = true });
+    unreachable;
 }
 
 pub const ChipResetSource = enum {

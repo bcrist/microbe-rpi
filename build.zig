@@ -86,7 +86,7 @@ pub fn boot3Section() Section {
     return .{
         .name = "boot3",
         .contents = &.{
-            \\PROVIDE(_boot3 = .)
+            \\PROVIDE(_boot3 = .);
             \\KEEP(*(.boot3_entry))
             \\KEEP(*(.boot3))
         },
