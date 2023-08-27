@@ -6,15 +6,27 @@ const Core = microbe.Core;
 const Section = microbe.Section;
 const MemoryRegion = microbe.MemoryRegion;
 
-pub fn rp2040(comptime flash_size_kibytes: usize, comptime flash_clk_div: u8, comptime max_flash_frequency_hz: u32) Chip {
+pub const Rp2040Options = struct {
+    flash_size_kibytes: u32,
+
+    /// flash_clk_div must be even and >= 2.
+    /// The max clk_sys will be flash_clk_div * max_flash_frequency_hz
+    flash_clk_div: u8 = 4,
+
+    /// You may want to adjust this based on the speed noted in your QSPI memory's datasheet.
+    /// Most 25Qxx style chips will support 50 MHz or more.
+    max_flash_frequency_hz: u32 = 33_333_333,
+};
+
+pub fn rp2040(comptime options: Rp2040Options) Chip {
     return .{
-        .name = std.fmt.comptimePrint("RP2040 ({} kiB flash)", .{ flash_size_kibytes }),
+        .name = "RP2040",
         .dependency_name = "microbe-rpi",
         .module_name = "rp2040",
         .core = Core.cortex_m0plus,
         .single_threaded = false,
         .memory_regions = comptime &.{
-            MemoryRegion.mainFlash(0x10000000, flash_size_kibytes * 1024),
+            MemoryRegion.mainFlash(0x10000000, options.flash_size_kibytes * 1024),
             MemoryRegion.mainRam(0x20000000, 256 * 1024),
             MemoryRegion.executableRam("xip_cache", 0x15000000, 16 * 1024),
             MemoryRegion.executableRam("sram4", 0x20040000, 4 * 1024),
@@ -24,11 +36,11 @@ pub fn rp2040(comptime flash_size_kibytes: usize, comptime flash_clk_div: u8, co
         .extra_config = comptime &.{
             .{
                 .name = "flash_clock_div",
-                .value = std.fmt.comptimePrint("{}", .{ flash_clk_div })
+                .value = std.fmt.comptimePrint("{}", .{ options.flash_clk_div })
             },
             .{
                 .name = "max_flash_frequency_hz",
-                .value = std.fmt.comptimePrint("{}", .{ max_flash_frequency_hz })
+                .value = std.fmt.comptimePrint("{}", .{ options.max_flash_frequency_hz })
             },
         },
     };
