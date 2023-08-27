@@ -45,17 +45,23 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     const full_src_path = self.source.getPath(b);
     _ = try man.addFile(full_src_path, null);
 
+    if (try step.cacheHit(&man)) {
+        // Cache hit, skip subprocess execution.
+        const digest = man.final();
+        self.output_file.path = try b.cache_root.join(b.allocator, &.{
+            "microbe",
+            &digest,
+            "boot2.zig",
+        });
+        return;
+    }
+
     const digest = man.final();
     self.output_file.path = try b.cache_root.join(b.allocator, &.{
         "microbe",
         &digest,
         "boot2.zig",
     });
-
-    if (try step.cacheHit(&man)) {
-        // Cache hit, skip subprocess execution.
-        return;
-    }
 
     var buf: [4001]u8 = undefined;
     const raw_boot2 = try b.build_root.handle.readFile(full_src_path, &buf);
