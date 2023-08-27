@@ -25,7 +25,10 @@ pub fn create(owner: *Build, source: Build.LazyPath) *Boot2Crc32Step {
     return self;
 }
 
-pub fn getOutputSource(self: *const Boot2Crc32Step) Build.LazyPath {
+/// deprecated: use getOutput
+pub const getOutputSource = getOutput;
+
+pub fn getOutput(self: *const Boot2Crc32Step) Build.LazyPath {
     return .{ .generated = &self.output_file };
 }
 

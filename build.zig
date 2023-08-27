@@ -108,8 +108,9 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
     const microbe_dep = b.dependency("microbe", .{});
     const empty_module = microbe_dep.module("empty");
 
+    const exe_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}.zig", .{ name }) catch @panic("OOM") else "boot2.elf";
     var boot2exe = microbe.addExecutable(b, .{
-        .name = options.name orelse "boot2",
+        .name = exe_name,
         .root_source_file = switch (options.source) {
             .module => |module| .{ .path = module.source_file.getPath(module.builder) },
             .path => |path| path,
@@ -125,20 +126,27 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
         .path => {},
     }
 
-    var boot2extract = b.addObjCopy(boot2exe.getOutputSource(), .{
+    var boot2extract = b.addObjCopy(boot2exe.getOutput(), .{
         .format = .bin,
         .only_section = ".boot2",
         .pad_to = 252,
     });
 
-    var boot2 = Boot2Crc32Step.create(b, boot2extract.getOutputSource());
-    boot2.step.dependOn(&boot2extract.step);
+    var boot2 = Boot2Crc32Step.create(b, boot2extract.getOutput());
 
     if (options.name) |name| {
-        return b.addModule(name, .{ .source_file = boot2.getOutputSource() });
+        return b.addModule(name, .{ .source_file = boot2.getOutput() });
     } else {
-        return b.createModule(.{ .source_file = boot2.getOutputSource() });
+        return b.createModule(.{ .source_file = boot2.getOutput() });
     }
+}
+
+pub fn addBinToUf2(b: *std.Build, input_file: std.Build.LazyPath) *microbe.BinToUf2Step {
+    return microbe.addBinToUf2(b, input_file, .{
+        .base_address = 0x1000_0000,
+        .block_size = 256,
+        .family_id = 0xE48BFF56,
+    });
 }
 
 pub fn build(b: *std.Build) void {
