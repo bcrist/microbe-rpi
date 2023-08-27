@@ -3,6 +3,7 @@ pub const chip = @import("chip");
 const microbe = @import("microbe");
 
 comptime {
+    _ = @import("boot2");
     _ = @import("config");
     _ = @import("chip");
 }

@@ -1,5 +1,4 @@
 comptime {
-    _ = @import("boot2");
     _ = @import("rp2040/boot.zig");
 }
 
