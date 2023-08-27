@@ -71,7 +71,7 @@ pub fn boot2Section() Section {
         .contents = &.{
             \\KEEP(*(.boot2_entry))
             \\KEEP(*(.boot2))
-            \\FILL(0x00)
+            \\FILL(0x00);
             \\. = _boot2_start + 0xFC;
             \\KEEP(*(.boot2_checksum))
             \\. = _boot2_start + 0x100;
@@ -127,7 +127,7 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
 
     var boot2extract = b.addObjCopy(boot2exe.getOutputSource(), .{
         .format = .bin,
-        .only_section = "boot2",
+        .only_section = ".boot2",
         .pad_to = 252,
     });
 
