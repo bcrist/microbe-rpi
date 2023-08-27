@@ -143,12 +143,10 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
 }
 
 fn blockUntilTxComplete() linksection(".boot2") void {
-    const T = @TypeOf(chip.SSI.status);
-    const ptr: *volatile T  = @ptrCast(&chip.SSI.status);
-    var status = ptr.read();
+    var status = chip.SSI.status.read();
     while (!status.tx_fifo_empty or status.busy) {
         //asm volatile ("" ::: "memory");
-        status = ptr.read();
+        status = chip.SSI.status.read();
     }
 }
 
