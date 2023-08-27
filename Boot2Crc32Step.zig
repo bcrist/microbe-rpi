@@ -38,8 +38,8 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     var man = b.cache.obtain();
     defer man.deinit();
 
-    // Random bytes to make ObjCopy unique. Refresh this with new random
-    // bytes when ObjCopy implementation is modified incompatibly.
+    // Random bytes to make hash unique. Refresh this with new random
+    // bytes when hash implementation is modified incompatibly.
     man.hash.add(@as(u32, 0xacda_b87f));
 
     const full_src_path = self.source.getPath(b);
@@ -64,6 +64,8 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     });
 
     var buf: [4001]u8 = undefined;
+
+    std.log.info("boot2_crc_src: {s}", .{ full_src_path });
     const raw_boot2 = try b.build_root.handle.readFile(full_src_path, &buf);
 
     if (raw_boot2.len == 0) {

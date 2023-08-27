@@ -132,6 +132,7 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
     });
 
     var boot2 = Boot2Crc32Step.create(b, boot2extract.getOutputSource());
+    boot2.step.dependOn(&boot2extract.step);
 
     if (options.name) |name| {
         return b.addModule(name, .{ .source_file = boot2.getOutputSource() });
