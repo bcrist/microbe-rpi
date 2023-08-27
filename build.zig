@@ -126,7 +126,7 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
         .path => {},
     }
 
-    var boot2extract = b.addObjCopy(boot2exe.getOutput(), .{
+    var boot2extract = b.addObjCopy(boot2exe.getEmittedBin(), .{
         .format = .bin,
         .only_section = ".boot2",
         .pad_to = 252,
