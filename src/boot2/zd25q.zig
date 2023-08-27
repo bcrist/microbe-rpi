@@ -99,7 +99,7 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
     if (!sr1.quad_enable) {
         sr1.quad_enable = true;
 
-        doWriteCommand(.write_enable_volatile_status_reg, void, {});
+        doWriteCommand(.write_enable_volatile_status_reg, u0, 0);
         doWriteCommand(.write_status_reg_1, StatusRegister1, sr1);
 
         while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
@@ -145,53 +145,35 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
 fn blockUntilTxComplete() linksection(".boot2") void {
     var status = chip.SSI.status.read();
     while (!status.tx_fifo_empty or status.busy) {
-        //asm volatile ("" ::: "memory");
         status = chip.SSI.status.read();
     }
 }
 
-fn doWriteCommand(command: Command, comptime T: type, value: T) linksection(".boot2") void {
-    if (@sizeOf(T) == 0) {
-        chip.SSI.data[0].write(@intFromEnum(command));
-        blockUntilTxComplete();
-        _ = chip.SSI.data[0].read();
-    } else {
-        const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
-        var raw: Raw = @bitCast(value);
-
-        chip.SSI.data[0].write(@intFromEnum(command));
-        inline for (0..@sizeOf(T)) |byte_index| {
-            const b: u8 = @truncate(raw >> @intCast(byte_index * 8));
-            chip.SSI.data[0].write(b);
-        }
-
-        blockUntilTxComplete();
-
-        _ = chip.SSI.data[0].read();
-        inline for (0..@sizeOf(T)) |_| {
-            _ = chip.SSI.data[0].read();
-        }
-    }
-}
-
-fn doReadCommand(command: Command, comptime T: type) linksection(".boot2") T {
-    const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
-
+fn doCommand(command: Command, comptime T: type, value: T) linksection(".boot2") T {
     chip.SSI.data[0].write(@intFromEnum(command));
-    inline for (0..@sizeOf(T)) |_| {
-        chip.SSI.data[0].write(0);
+    inline for (0..@sizeOf(T)) |byte_index| {
+        const b: u8 = @truncate(value >> @intCast(byte_index * 8));
+        chip.SSI.data[0].write(b);
     }
 
     blockUntilTxComplete();
 
     _ = chip.SSI.data[0].read();
-    var raw: Raw = 0;
+    var raw: T = 0;
     inline for (0..@sizeOf(T)) |byte_index| {
-        const b: Raw = @truncate(chip.SSI.data[0].read());
+        const b: T = @truncate(chip.SSI.data[0].read());
         raw |= b << @intCast(byte_index * 8);
     }
 
-    return @bitCast(raw);
+    return raw;
+}
+
+fn doWriteCommand(command: Command, comptime T: type, value: T) linksection(".boot2") void {
+    _ = doCommand(command, std.meta.Int(.unsigned, @bitSizeOf(T)), @bitCast(value));
+}
+
+fn doReadCommand(command: Command, comptime T: type) linksection(".boot2") T {
+    return doCommand(command, std.meta.Int(.unsigned, @bitSizeOf(T)), 0);
 }
 
 pub fn main() void {}
