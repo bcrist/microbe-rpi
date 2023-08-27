@@ -173,7 +173,7 @@ fn doWriteCommand(command: Command, comptime T: type, value: T) linksection(".bo
 }
 
 fn doReadCommand(command: Command, comptime T: type) linksection(".boot2") T {
-    return doCommand(command, std.meta.Int(.unsigned, @bitSizeOf(T)), 0);
+    return @bitCast(doCommand(command, std.meta.Int(.unsigned, @bitSizeOf(T)), 0));
 }
 
 pub fn main() void {}
