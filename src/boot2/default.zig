@@ -59,6 +59,24 @@ export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
 }
 
 fn setupXip() linksection(".boot2") callconv (.C) void {
+    chip.IO_BANK0.GPIO15_CTRL.write(.{
+        .OUTOVER = .force_high,
+        .OEOVER = .force_high,
+    });
+
+    chip.IO_BANK0.GPIO20_CTRL.write(.{
+        .OUTOVER = .force_low,
+        .OEOVER = .force_high,
+    });
+    chip.IO_BANK0.GPIO21_CTRL.write(.{
+        .OUTOVER = .force_low,
+        .OEOVER = .force_high,
+    });
+    chip.IO_BANK0.GPIO22_CTRL.write(.{
+        .OUTOVER = .force_low,
+        .OEOVER = .force_high,
+    });
+
     chip.PADS_QSPI.GPIO_QSPI_SCLK.write(.{
         .speed = .fast,
         .strength = .@"8mA",
@@ -158,6 +176,7 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
         .command_length = ._8_bits,
         .address_length = ._32_bits,
         .wait_cycles_after_mode = config.xip_wait_cycles,
+        .xip_command_or_mode = 0,
     });
 
     chip.SSI.enable.write(.{ .enable = true });
