@@ -52,13 +52,6 @@ const FullStatusRegister = packed struct (u16) {
 
 extern fn _boot3() callconv(.Naked) noreturn;
 export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
-    // TODO use bl instead of blx for the setupXip call?
-    asm volatile ("blx %[func]" :: [func] "r" (&setupXip) : "memory");
-    asm volatile ("bx %[func]" :: [func] "r" (&_boot3));
-    unreachable;
-}
-
-fn setupXip() linksection(".boot2") callconv (.C) void {
     chip.IO_BANK0.GPIO15_CTRL.write(.{
         .OUTOVER = .force_high,
         .OEOVER = .force_high,
@@ -77,6 +70,14 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
         .OEOVER = .force_high,
     });
 
+
+    // TODO use bl instead of blx for the setupXip call?
+    asm volatile ("blx %[func]" :: [func] "r" (&setupXip) : "memory");
+    asm volatile ("bx %[func]" :: [func] "r" (&_boot3));
+    unreachable;
+}
+
+fn setupXip() linksection(".boot2") callconv (.C) void {
     chip.PADS_QSPI.GPIO_QSPI_SCLK.write(.{
         .speed = .fast,
         .strength = .@"8mA",
