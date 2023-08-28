@@ -100,7 +100,6 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
     });
 
     chip.SSI.enable.write(.{ .enable = true });
-    defer chip.SSI.enable.write(.{ .enable = false });
 
     if (comptime config.flash_quad_enable_bit < 8) {
         var sr0 = doReadCommand(.read_status_reg_0, StatusRegister0);
@@ -140,6 +139,8 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
             while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
         }
     }
+
+    chip.SSI.enable.write(.{ .enable = false });
 
     chip.SSI.control_0.write(.{
         .frame_format = .spi,
