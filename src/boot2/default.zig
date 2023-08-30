@@ -52,22 +52,22 @@ const FullStatusRegister = packed struct (u16) {
 
 extern fn _boot3() callconv(.Naked) noreturn;
 export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
-    chip.IO_BANK0.GPIO15_CTRL.write(.{
-        .OUTOVER = .force_high,
-        .OEOVER = .force_high,
+    chip.IO[15].control.write(.{
+        .output_override = .force_high,
+        .oe_override = .force_high,
     });
 
-    chip.IO_BANK0.GPIO20_CTRL.write(.{
-        .OUTOVER = .force_low,
-        .OEOVER = .force_high,
+    chip.IO[20].control.write(.{
+        .output_override = .force_low,
+        .oe_override = .force_high,
     });
-    chip.IO_BANK0.GPIO21_CTRL.write(.{
-        .OUTOVER = .force_low,
-        .OEOVER = .force_high,
+    chip.IO[21].control.write(.{
+        .output_override = .force_low,
+        .oe_override = .force_high,
     });
-    chip.IO_BANK0.GPIO22_CTRL.write(.{
-        .OUTOVER = .force_low,
-        .OEOVER = .force_high,
+    chip.IO[22].control.write(.{
+        .output_override = .force_low,
+        .oe_override = .force_high,
     });
 
 
@@ -78,25 +78,25 @@ export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
 }
 
 fn setupXip() linksection(".boot2") callconv (.C) void {
-    chip.PADS_QSPI.GPIO_QSPI_SCLK.write(.{
+    chip.PADS_QSPI.sclk.write(.{
         .speed = .fast,
         .strength = .@"8mA",
         .input_enabled = false,
     });
 
-    chip.PADS_QSPI.GPIO_QSPI_SD0.write(.{
+    chip.PADS_QSPI.sd[0].write(.{
         .speed = .fast,
         .hysteresis = false,
     });
-    chip.PADS_QSPI.GPIO_QSPI_SD1.write(.{
+    chip.PADS_QSPI.sd[1].write(.{
         .speed = .fast,
         .hysteresis = false,
     });
-    chip.PADS_QSPI.GPIO_QSPI_SD2.write(.{
+    chip.PADS_QSPI.sd[2].write(.{
         .speed = .fast,
         .hysteresis = false,
     });
-    chip.PADS_QSPI.GPIO_QSPI_SD3.write(.{
+    chip.PADS_QSPI.sd[3].write(.{
         .speed = .fast,
         .hysteresis = false,
     });

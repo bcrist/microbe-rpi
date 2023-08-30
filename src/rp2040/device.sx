@@ -1,6 +1,6 @@
 (group ""
     (peripheral PADS_* (move-to-group io))
-    (peripheral IO_* (move-to-group io))
+    (peripheral IO_* (delete))
     (peripheral PIO* (move-to-group pio))
     (peripheral PWM (move-to-group pwm))
     (peripheral I2C* (move-to-group i2c))
@@ -64,8 +64,10 @@
         )
     )
     (peripheral PADS_*
-        (type (field VOLTAGE_SELECT (rename voltage)))
-        (reg voltage (rename VoltageSelect) (field VOLTAGE_SELECT (rename Voltage)))
+        (type
+            (field VOLTAGE_SELECT (rename voltage))
+        )
+        (reg voltage (rename VoltageSelect) (field VOLTAGE_SELECT (rename voltage)))
         (reg * 
             (field DRIVE (rename strength) (set-type DriveStrength))
             (field SLEWFAST (rename speed) (set-type SlewRate))
@@ -75,32 +77,347 @@
             (field OD (rename output_disabled) (set-type bool))
         )
     )
-    (peripheral PADS_BANK0 (rename PADS) (type (rename PADS)))
-    (peripheral PADS_QSPI
-        (reg GPIO_QSPI_SCLK (set-fallback-name PadConfig))
-        (reg GPIO_QSPI_SD* (set-fallback-name PadConfigFloat))
-        (reg GPIO_QSPI_SS (set-fallback-name PadConfigPullUp))
-    )
-
-    (peripheral IO_*
-        (reg *
-            (field OEOVER (set-type ModeOverride))
-            (field IRQOVER (set-type ModeOverride))
-            (field INOVER (set-type ModeOverride))
-            (field OUTOVER (set-type ModeOverride))
-            (field *_LEVEL_LOW (set-type bool))
-            (field *_LEVEL_HIGH (set-type bool))
-            (field *_EDGE_LOW (set-type bool))
-            (field *_EDGE_HIGH (set-type bool))
+    (peripheral PADS_BANK0
+        (type
+            (field GPIO0 (type (inner (rename PadConfig))))
+            (delete-field GPIO*)
+            (create-field gpio (offset 4)
+                (type (array 30 (reg PadConfig)))
+            )
+            (field SWCLK (rename swclk))
+            (field SWD (rename swdio))
+            (rename PADS)
         )
-        (reg GPIO*_STATUS (rename Status))
-        (reg INTR0 (set-fallback-name GpioInterruptBitmap0))
-        (reg INTR1 (set-fallback-name GpioInterruptBitmap1))
-        (reg INTR2 (set-fallback-name GpioInterruptBitmap2))
-        (reg INTR3 (set-fallback-name GpioInterruptBitmap3))
+        (rename PADS)
     )
-    (peripheral IO_QSPI
-        (reg INTR (set-fallback-name QspiInterruptBitmap))
+    (peripheral PADS_QSPI
+        (type
+            (field GPIO_QSPI_SCLK
+                (rename sclk)
+                (type (inner
+                    (set-name "")
+                    (set-fallback-name "")
+                ))
+            )
+            (field GPIO_QSPI_SD0
+                (rename sd)
+                (type (inner (set-name QspiPadConfigFloat)))
+                (set-type (array 4 (reg QspiPadConfigFloat)))
+            )
+            (delete-field GPIO_QSPI_SD*)
+            (field GPIO_QSPI_SS
+                (rename ss)
+                (type (inner (set-name QspiPadConfigPullUp)))
+            )
+        )
+    )
+    (create-type IoStatus
+        (bits 32)
+        (packed
+            (output_internal "Before override/inversion" (type u1) (offset 8))
+            (output_pad "After override/inversion" (type u1))
+            (oe_internal "Before override/inversion" (type u1) (offset 12))
+            (oe_pad "After override/inversion" (type u1))
+            (input_pad "Before override/inversion" (type u1) (offset 17))
+            (input_internal "After override/inversion" (type u1) (offset 19))
+            (irq_pad "Before override/inversion" (type u1) (offset 24))
+            (irq_internal "After override/inversion" (type u1) (offset 26))
+        )
+    )
+    (create-type IoFunction
+        (bits 5)
+        (enum
+            (0 jtag)
+            (1 spi)
+            (2 uart)
+            (3 i2c)
+            (4 pwm)
+            (5 sio)
+            (6 pio0)
+            (7 pio1)
+            (8 clock)
+            (9 usb)
+            (0x1f disable)
+        )
+    )
+    (create-type QspiFunction
+        (bits 5)
+        (enum
+            (0 ssi)
+            (5 sio)
+            (0x1f disable)
+        )
+    )
+    (create-type IoControl
+        (bits 32)
+        (packed 
+            (func (type IoFunction) (default 0x1F))
+            (output_override (type ModeOverride) (offset 8))
+            (oe_override (type ModeOverride) (offset 12))
+            (input_override (type ModeOverride) (offset 16))
+            (irq_override (type ModeOverride) (offset 28))
+        )
+    )
+    (create-type QspiControl
+        (bits 32)
+        (packed 
+            (func (type QspiFunction) (default 0x1F))
+            (output_override (type ModeOverride) (offset 8))
+            (oe_override (type ModeOverride) (offset 12))
+            (input_override (type ModeOverride) (offset 16))
+            (irq_override (type ModeOverride) (offset 28))
+        )
+    )
+    (create-type IoStatusControl
+        (struct
+            (status (type (reg IoStatus)))
+            (control (type (reg IoControl)))
+        )
+    )
+    (create-type QspiStatusControl
+        (struct
+            (status (type (reg IoStatus)))
+            (control (type (reg QspiControl)))
+        )
+    )
+    (create-peripheral IO
+        (base 0x40014000)
+        (type (array 30 IoStatusControl) (inline never))
+    )
+    (create-peripheral IO_QSPI
+        (base 0x40018000)
+        (type (struct
+            (sclk (type QspiStatusControl))
+            (ss (type QspiStatusControl))
+            (sd (type (array 4 QspiStatusControl)))
+        ))
+    )
+    (create-type InterruptBitmap
+        (struct
+            (gpio_0_to_7 (type (reg (name InterruptBitmap0) (bits 32) (packed
+                (gpio0_low)
+                (gpio0_high)
+                (gpio0_falling)
+                (gpio0_rising)
+
+                (gpio1_low)
+                (gpio1_high)
+                (gpio1_falling)
+                (gpio1_rising)
+
+                (gpio2_low)
+                (gpio2_high)
+                (gpio2_falling)
+                (gpio2_rising)
+
+                (gpio3_low)
+                (gpio3_high)
+                (gpio3_falling)
+                (gpio3_rising)
+
+                (gpio4_low)
+                (gpio4_high)
+                (gpio4_falling)
+                (gpio4_rising)
+
+                (gpio5_low)
+                (gpio5_high)
+                (gpio5_falling)
+                (gpio5_rising)
+
+                (gpio6_low)
+                (gpio6_high)
+                (gpio6_falling)
+                (gpio6_rising)
+
+                (gpio7_low)
+                (gpio7_high)
+                (gpio7_falling)
+                (gpio7_rising)
+            ))))
+            (gpio_8_to_15 (type (reg (name InterruptBitmap1) (bits 32) (packed
+                (gpio8_low)
+                (gpio8_high)
+                (gpio8_falling)
+                (gpio8_rising)
+
+                (gpio9_low)
+                (gpio9_high)
+                (gpio9_falling)
+                (gpio9_rising)
+
+                (gpio10_low)
+                (gpio10_high)
+                (gpio10_falling)
+                (gpio10_rising)
+
+                (gpio11_low)
+                (gpio11_high)
+                (gpio11_falling)
+                (gpio11_rising)
+
+                (gpio12_low)
+                (gpio12_high)
+                (gpio12_falling)
+                (gpio12_rising)
+
+                (gpio13_low)
+                (gpio13_high)
+                (gpio13_falling)
+                (gpio13_rising)
+
+                (gpio14_low)
+                (gpio14_high)
+                (gpio14_falling)
+                (gpio14_rising)
+
+                (gpio15_low)
+                (gpio15_high)
+                (gpio15_falling)
+                (gpio15_rising)
+            ))))
+            (gpio_16_to_23 (type (reg (name InterruptBitmap2) (bits 32) (packed
+                (gpio16_low)
+                (gpio16_high)
+                (gpio16_falling)
+                (gpio16_rising)
+
+                (gpio17_low)
+                (gpio17_high)
+                (gpio17_falling)
+                (gpio17_rising)
+
+                (gpio18_low)
+                (gpio18_high)
+                (gpio18_falling)
+                (gpio18_rising)
+
+                (gpio19_low)
+                (gpio19_high)
+                (gpio19_falling)
+                (gpio19_rising)
+
+                (gpio20_low)
+                (gpio20_high)
+                (gpio20_falling)
+                (gpio20_rising)
+
+                (gpio21_low)
+                (gpio21_high)
+                (gpio21_falling)
+                (gpio21_rising)
+
+                (gpio22_low)
+                (gpio22_high)
+                (gpio22_falling)
+                (gpio22_rising)
+
+                (gpio23_low)
+                (gpio23_high)
+                (gpio23_falling)
+                (gpio23_rising)
+            ))))
+            (gpio_24_to_29 (type (reg (name InterruptBitmap3) (bits 32) (packed
+                (gpio24_low)
+                (gpio24_high)
+                (gpio24_falling)
+                (gpio24_rising)
+
+                (gpio25_low)
+                (gpio25_high)
+                (gpio25_falling)
+                (gpio25_rising)
+
+                (gpio26_low)
+                (gpio26_high)
+                (gpio26_falling)
+                (gpio26_rising)
+
+                (gpio27_low)
+                (gpio27_high)
+                (gpio27_falling)
+                (gpio27_rising)
+
+                (gpio28_low)
+                (gpio28_high)
+                (gpio28_falling)
+                (gpio28_rising)
+
+                (gpio29_low)
+                (gpio29_high)
+                (gpio29_falling)
+                (gpio29_rising)
+            ))))
+        )
+    )
+    (copy-type InterruptBitmap InterruptBitmapReadOnly
+        (field * (type (set-access r)))
+    )
+    (create-type InterruptEnableForceStatus
+        (struct
+            (enable (type InterruptBitmap))
+            (force (type InterruptBitmap))
+            (status (type InterruptBitmapReadOnly))
+        )
+    )
+    (create-peripheral IO_INT
+        (base 0x400140F0)
+        (type (struct
+            (interrupt_status "Write 1 to clear edge interrupt flags" (type InterruptBitmap))
+            (core0 (type InterruptEnableForceStatus))
+            (core1 (type InterruptEnableForceStatus))
+            (dormant_wake (type InterruptEnableForceStatus))
+        ))
+    )
+    (create-type QspiInterruptBitmap
+        (bits 32)
+        (packed
+            (sclk_low)
+            (sclk_high)
+            (sclk_falling)
+            (sclk_rising)
+
+            (ss_low)
+            (ss_high)
+            (ss_falling)
+            (ss_rising)
+
+            (sd0_low)
+            (sd0_high)
+            (sd0_falling)
+            (sd0_rising)
+
+            (sd1_low)
+            (sd1_high)
+            (sd1_falling)
+            (sd1_rising)
+
+            (sd2_low)
+            (sd2_high)
+            (sd2_falling)
+            (sd2_rising)
+
+            (sd3_low)
+            (sd3_high)
+            (sd3_falling)
+            (sd3_rising)
+        )
+    )
+    (create-type QspiInterruptEnableForceStatus
+        (struct
+            (enable (type (reg QspiInterruptBitmap)))
+            (force (type (reg QspiInterruptBitmap)))
+            (status (type (reg r QspiInterruptBitmap)))
+        )
+    )
+    (create-peripheral IO_QSPI_INT
+        (base 0x40018030)
+        (type (struct
+            (interrupt_status "Write 1 to clear edge interrupt flags" (type (reg QspiInterruptBitmap)))
+            (core0 (type QspiInterruptEnableForceStatus))
+            (core1 (type QspiInterruptEnableForceStatus))
+            (dormant_wake (type QspiInterruptEnableForceStatus))
+        ))
     )
 )
 (group pio
