@@ -73,7 +73,8 @@ pub fn rp2040(comptime options: FlashOptions) Chip {
         .core = Core.cortex_m0plus,
         .single_threaded = false,
         .memory_regions = comptime &.{
-            MemoryRegion.mainFlash(0x10000000, options.size_kibytes * 1024),
+            MemoryRegion.executableRom("boot2_flash", 0x10000000, 0x100),
+            MemoryRegion.mainFlash(0x10000100, options.size_kibytes * 1024 - 0x100),
             MemoryRegion.mainRam(0x20000000, 256 * 1024),
             MemoryRegion.executableRam("xip_cache", 0x15000000, 16 * 1024),
             MemoryRegion.executableRam("sram4", 0x20040000, 4 * 1024),
@@ -94,9 +95,6 @@ pub fn rp2040(comptime options: FlashOptions) Chip {
 
 pub fn defaultSections() []const Section {
     return comptime &.{
-        // FLASH + RAM (copied to sram5 by boot1 ROM)
-        boot2Section(),
-
         // FLASH only:
         boot3Section(),
         Section.keepRomSection("core0_vt", "flash"),
@@ -120,6 +118,9 @@ pub fn defaultSections() []const Section {
 
         // FLASH only:
         Section.defaultNvmSection(),
+
+        // FLASH + RAM (copied to sram5 by boot1 ROM)
+        boot2Section(),
     };
 }
 
@@ -134,7 +135,7 @@ pub fn boot2Section() Section {
             \\    KEEP(*(.boot2_checksum))
             \\    . = _boot2_start + 0x100;
         },
-        .rom_region = "flash",
+        .rom_region = "boot2_flash",
         .ram_address = 0x20041F00,
         .skip_init = true,
     };
