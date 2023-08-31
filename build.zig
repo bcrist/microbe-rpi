@@ -162,13 +162,16 @@ pub const Boot2Options = struct {
     optimize: std.builtin.Mode = .ReleaseSmall,
 };
 
-pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Build.Module {
+pub fn addChecksummedBoot2(b: *std.Build, options: Boot2Options) *std.Build.Step.Compile {
+    // TODO consider using custom chip/sections so that the compiler can't accidentally place functions outside the 256-byte boot2 range?
+
     const microbe_dep = b.dependency("microbe", .{});
     const empty_module = microbe_dep.module("empty");
 
-    const exe_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}.elf", .{ name }) catch @panic("OOM") else "boot2.elf";
-    var boot2exe = microbe.addExecutable(b, .{
-        .name = exe_name,
+    // Initially, build without the .boot2_checksum symbol:
+    const object_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}.o", .{ name }) catch @panic("OOM") else "boot2.o";
+    var object = microbe.addObject(b, .{
+        .name = object_name,
         .root_source_file = switch (options.source) {
             .module => |module| .{ .path = module.source_file.getPath(module.builder) },
             .path => |path| path,
@@ -177,26 +180,52 @@ pub fn addChecksummedBoot2Module(b: *std.Build, options: Boot2Options) *std.Buil
         .sections = defaultSections(),
         .optimize = options.optimize,
     });
-    boot2exe.addModule("boot2", empty_module);
-
     switch (options.source) {
-        .module => |module| module.source_file.addStepDependencies(&boot2exe.step),
         .path => {},
+        .module => |m| {
+            m.source_file.addStepDependencies(&object.step);
+            var iter = m.dependencies.iterator();
+            while (iter.next()) |entry| {
+                object.addModule(entry.key_ptr.*, entry.value_ptr.*);
+            }
+        },
     }
+    object.addModule("checksum", empty_module);
 
-    var boot2extract = b.addObjCopy(boot2exe.getEmittedBin(), .{
+    // Compute the new checksum:
+    var extract = object.addObjCopy(.{
         .format = .bin,
         .only_section = ".boot2",
         .pad_to = 252,
     });
+    var checksum = Boot2Crc32Step.create(b, extract.getOutput());
+    var checksum_module = b.createModule(.{ .source_file = checksum.getOutput() });
 
-    var boot2 = Boot2Crc32Step.create(b, boot2extract.getOutput());
-
-    if (options.name) |name| {
-        return b.addModule(name, .{ .source_file = boot2.getOutput() });
-    } else {
-        return b.createModule(.{ .source_file = boot2.getOutput() });
+    // Recompile with the .boot2_checksum symbol:
+    const final_object_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}_checksummed.o", .{ name }) catch @panic("OOM") else "boot2_checksummed.o";
+    var final_object = microbe.addObject(b, .{
+        .name = final_object_name,
+        .root_source_file = switch (options.source) {
+            .module => |module| .{ .path = module.source_file.getPath(module.builder) },
+            .path => |path| path,
+        },
+        .chip = options.chip,
+        .sections = defaultSections(),
+        .optimize = options.optimize,
+    });
+    switch (options.source) {
+        .path => {},
+        .module => |m| {
+            m.source_file.addStepDependencies(&object.step);
+            var iter = m.dependencies.iterator();
+            while (iter.next()) |entry| {
+                object.addModule(entry.key_ptr.*, entry.value_ptr.*);
+            }
+        },
     }
+    final_object.addModule("checksum", checksum_module);
+
+    return final_object;
 }
 
 pub fn addBinToUf2(b: *std.Build, input_file: std.Build.LazyPath) *microbe.BinToUf2Step {

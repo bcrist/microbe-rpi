@@ -464,6 +464,19 @@
     )
 )
 (group sys
+    (peripheral SYSINFO
+        (type
+            (field CHIP_ID (rename chip_id)
+                (type (inner
+                    (field MANUFACTURER (rename mfr))
+                    (field PART (rename part))
+                    (field REVISION (rename revision))
+                ))
+            )
+            (delete-field PLATFORM)
+            (field GITREF_RP2040 (rename git_revision))
+        )
+    )
     (peripheral XIP_SSI
         (type
             (field CTRLR0
