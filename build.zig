@@ -168,17 +168,30 @@ pub fn addChecksummedBoot2(b: *std.Build, options: Boot2Options) *std.Build.Step
     const microbe_dep = b.dependency("microbe", .{});
     const empty_module = microbe_dep.module("empty");
 
+    const config_step = microbe.ConfigStep.create(b, options.chip, options.sections);
+
+    const chip_dep = b.dependency(options.chip.dependency_name, .{});
+    const chip_module = chip_dep.module(options.chip.module_name);
+    const rt_module = chip_module.dependencies.get("microbe").?;
+
+    const config_module = b.createModule(.{
+        .source_file = config_step.getOutput(),
+        .dependencies = &.{
+            .{ .name = "chip", .module = chip_module },
+        },
+    });
+
     // Initially, build without the .boot2_checksum symbol:
     const object_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}.o", .{ name }) catch @panic("OOM") else "boot2.o";
-    var object = microbe.addObject(b, .{
+    var object = b.addObject(.{
         .name = object_name,
         .root_source_file = switch (options.source) {
             .module => |module| .{ .path = module.source_file.getPath(module.builder) },
             .path => |path| path,
         },
-        .chip = options.chip,
-        .sections = defaultSections(),
         .optimize = options.optimize,
+        .target = options.chip.core.target,
+        .single_threaded = options.chip.single_threaded,
     });
     switch (options.source) {
         .path => {},
@@ -190,6 +203,9 @@ pub fn addChecksummedBoot2(b: *std.Build, options: Boot2Options) *std.Build.Step
             }
         },
     }
+    object.addModule("microbe", rt_module);
+    object.addModule("config", config_module);
+    object.addModule("chip", chip_module);
     object.addModule("checksum", empty_module);
 
     // Compute the new checksum:
@@ -203,26 +219,29 @@ pub fn addChecksummedBoot2(b: *std.Build, options: Boot2Options) *std.Build.Step
 
     // Recompile with the .boot2_checksum symbol:
     const final_object_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}_checksummed.o", .{ name }) catch @panic("OOM") else "boot2_checksummed.o";
-    var final_object = microbe.addObject(b, .{
+    var final_object = b.addObject(.{
         .name = final_object_name,
         .root_source_file = switch (options.source) {
             .module => |module| .{ .path = module.source_file.getPath(module.builder) },
             .path => |path| path,
         },
-        .chip = options.chip,
-        .sections = defaultSections(),
         .optimize = options.optimize,
+        .target = options.chip.core.target,
+        .single_threaded = options.chip.single_threaded,
     });
     switch (options.source) {
         .path => {},
         .module => |m| {
-            m.source_file.addStepDependencies(&object.step);
+            m.source_file.addStepDependencies(&final_object.step);
             var iter = m.dependencies.iterator();
             while (iter.next()) |entry| {
-                object.addModule(entry.key_ptr.*, entry.value_ptr.*);
+                final_object.addModule(entry.key_ptr.*, entry.value_ptr.*);
             }
         },
     }
+    final_object.addModule("microbe", rt_module);
+    final_object.addModule("config", config_module);
+    final_object.addModule("chip", chip_module);
     final_object.addModule("checksum", checksum_module);
 
     return final_object;
