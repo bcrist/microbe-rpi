@@ -52,23 +52,7 @@ const FullStatusRegister = packed struct (u16) {
 
 extern fn _boot3() callconv(.Naked) noreturn;
 export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
-    chip.IO[15].control.write(.{
-        .output_override = .force_high,
-        .oe_override = .force_high,
-    });
-
-    chip.IO[20].control.write(.{
-        .output_override = .force_low,
-        .oe_override = .force_high,
-    });
-    chip.IO[21].control.write(.{
-        .output_override = .force_low,
-        .oe_override = .force_high,
-    });
-    chip.IO[22].control.write(.{
-        .output_override = .force_low,
-        .oe_override = .force_high,
-    });
+    asm volatile ("bkpt");
 
     // TODO use bl instead of blx for the setupXip call?
     asm volatile ("blx %[func]" :: [func] "r" (&setupXip) : "memory");

@@ -20,7 +20,6 @@ pub fn create(owner: *Build, bin_source: Build.LazyPath) *Boot2ChecksumStep {
         .output_file = .{
             .step = &self.step,
         },
-        .include_data = false,
     };
     bin_source.addStepDependencies(&self.step);
     return self;
