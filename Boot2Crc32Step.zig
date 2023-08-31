@@ -17,7 +17,7 @@ pub fn create(owner: *Build, sources: []const Build.LazyPath) *Boot2Crc32Step {
             .owner = owner,
             .makeFn = make,
         }),
-        .sources = owner.allocator.dupe(sources),
+        .sources = owner.allocator.dupe(Build.LazyPath, sources) catch @panic("OOM"),
         .output_file = .{
             .step = &self.step,
         },
@@ -76,9 +76,9 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     };
 
     var buf: [4001]u8 = undefined;
-    @memset(buf, 0);
+    @memset(&buf, 0);
 
-    var remaining = &buf;
+    var remaining: []u8 = &buf;
 
     for (self.sources) |src| {
         const data = try b.build_root.handle.readFile(src.getPath(b), remaining);
