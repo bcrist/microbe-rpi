@@ -120,15 +120,16 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
             \\    0x{X:0>2}, 0x{X:0>2}, 0x{X:0>2}, 0x{X:0>2},
             \\}};
             \\
+            , .{ buf[248], buf[249], buf[250], buf[251] });
         );
     }
 
-    try writer.writeAll(
+    try writer.print(
         \\
         \\export const _boot2_checksum: u32 linksection(".boot2_checksum") = 0x{X};
         \\
         \\
-        , .{ buf[248], buf[249], buf[250], buf[251], crc });
+        , .{ crc });
 
     try man.writeManifest();
 }

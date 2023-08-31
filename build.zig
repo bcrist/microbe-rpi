@@ -168,7 +168,7 @@ pub fn addChecksummedBoot2(b: *std.Build, options: Boot2Options) *std.Build.Step
     const microbe_dep = b.dependency("microbe", .{});
     const empty_module = microbe_dep.module("empty");
 
-    const config_step = microbe.ConfigStep.create(b, options.chip, options.sections);
+    const config_step = microbe.ConfigStep.create(b, options.chip, defaultSections());
 
     const chip_dep = b.dependency(options.chip.dependency_name, .{});
     const chip_module = chip_dep.module(options.chip.module_name);
