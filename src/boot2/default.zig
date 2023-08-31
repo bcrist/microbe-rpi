@@ -17,9 +17,6 @@ const flash_clock_div = config.flash_clock_div;
 comptime {
     if (flash_clock_div == 0) @compileError("flash_clock_div must be >= 2");
     if ((flash_clock_div & 1) != 0) @compileError("flash_clock_div must be even");
-
-    // This will export the .boot2_checksum symbol when this is compiled with addChecksummedBoot2:
-    _ = @import("checksum");
 }
 
 const Command = enum(u8) {
