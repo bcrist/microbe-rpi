@@ -135,8 +135,7 @@ pub fn boot2Section() Section {
             \\    . = _boot2_start + 0x100;
         },
         .rom_region = "flash",
-        .ram_region = "sram5",
-        .ram_offset = 0xF00,
+        .ram_address = 0x20041F00,
         .skip_init = true,
     };
 }
