@@ -79,6 +79,7 @@ pub fn rp2040(comptime options: FlashOptions) Chip {
             MemoryRegion.executableRam("xip_cache", 0x15000000, 16 * 1024),
             MemoryRegion.executableRam("sram4", 0x20040000, 4 * 1024),
             MemoryRegion.executableRam("sram5", 0x20041000, 4 * 1024),
+            MemoryRegion.executableRam("boot2_sram5", 0x20041F00, 0x100),
             MemoryRegion.executableRam("usb_dpram", 0x50100000, 4 * 1024),
         },
         .extra_config = comptime &.{
@@ -136,7 +137,7 @@ pub fn boot2Section() Section {
             \\    . = _boot2_start + 0x100;
         },
         .rom_region = "boot2_flash",
-        .ram_address = 0x20041F00,
+        .ram_region = "boot2_sram5",
         .skip_init = true,
     };
 }
