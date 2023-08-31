@@ -131,7 +131,7 @@ pub fn boot2Section() Section {
         .contents = &.{
             \\KEEP(*(.boot2_entry))
             \\    KEEP(*(.boot2))
-            \\    FILL(0xFF);
+            \\    FILL(0xFFFFFFFF);
             \\    . = _boot2_start + 0xFC;
             \\    KEEP(*(.boot2_checksum))
             \\    . = _boot2_start + 0x100;
