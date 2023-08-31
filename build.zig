@@ -128,14 +128,15 @@ pub fn boot2Section() Section {
         .name = "boot2",
         .contents = &.{
             \\KEEP(*(.boot2_entry))
-            \\KEEP(*(.boot2))
-            \\FILL(0x00);
-            \\. = _boot2_start + 0xFC;
-            \\KEEP(*(.boot2_checksum))
-            \\. = _boot2_start + 0x100;
+            \\    KEEP(*(.boot2))
+            \\    FILL(0xFF);
+            \\    . = _boot2_start + 0xFC;
+            \\    KEEP(*(.boot2_checksum))
+            \\    . = _boot2_start + 0x100;
         },
         .rom_region = "flash",
         .ram_region = "sram5",
+        .ram_offset = 0xF00,
         .skip_init = true,
     };
 }
@@ -145,8 +146,8 @@ pub fn boot3Section() Section {
         .name = "boot3",
         .contents = &.{
             \\PROVIDE(_boot3 = .);
-            \\KEEP(*(.boot3_entry))
-            \\KEEP(*(.boot3))
+            \\    KEEP(*(.boot3_entry))
+            \\    KEEP(*(.boot3))
         },
         .rom_region = "flash",
     };
