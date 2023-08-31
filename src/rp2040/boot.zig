@@ -22,12 +22,12 @@ extern fn _init_ram() void;
 
 /// This is the entry point after XIP has been enabled by boot2.
 /// All it does is initialize core 0's SP and then call _start()
-export fn _boot3() linksection(".boot3_entry") callconv(.Naked) noreturn {
+pub fn boot3() callconv(.Naked) noreturn {
     asm volatile (
         \\ mov sp, %[stack]
         \\ bx %[start]
         :
-        : [start] "r" (&_start),
+        : [start] "r" (&start),
           [stack] "r" (&_core0_stack_end)
         : "memory"
     );
@@ -35,10 +35,10 @@ export fn _boot3() linksection(".boot3_entry") callconv(.Naked) noreturn {
 
 /// This is the logical entry point for microbe.
 /// It will invoke the main function from the root source file and provide error return handling
-export fn _start() linksection(".boot3") callconv(.C) noreturn {
+fn start() linksection(".boot3") callconv(.C) noreturn {
     _init_ram();
 
-    chip.SCB.vector_table.write(&_core0_vt);
+    chip.SCB.vector_table.write(&core0_vt);
 
     // clocks.init(root.clocks);
 
@@ -73,8 +73,8 @@ export fn _start() linksection(".boot3") callconv(.C) noreturn {
     resetCurrentCore();
 }
 
-export const _core0_vt: VectorTable linksection(".core0_vt") = initVectorTable("core0");
-export const _core1_vt: VectorTable linksection(".core1_vt") = initVectorTable("core1");
+pub const core0_vt: VectorTable linksection(".core0_vt") = initVectorTable("core0");
+pub const core1_vt: VectorTable linksection(".core1_vt") = initVectorTable("core1");
 
 fn initVectorTable(comptime core_id: []const u8) VectorTable {
     var vt: VectorTable = .{

@@ -19,7 +19,7 @@ comptime {
     if ((flash_clock_div & 1) != 0) @compileError("flash_clock_div must be even");
 
     // This will export the .boot2_checksum symbol when this is compiled with addChecksummedBoot2:
-    @import("checksum");
+    _ = @import("checksum");
 }
 
 const Command = enum(u8) {
