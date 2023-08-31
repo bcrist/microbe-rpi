@@ -4,11 +4,11 @@ const Build = std.Build;
 const Boot2Crc32Step = @This();
 
 step: Build.Step,
-source: Build.LazyPath,
+sources: []const Build.LazyPath,
 output_file: Build.GeneratedFile,
 include_data: bool,
 
-pub fn create(owner: *Build, source: Build.LazyPath) *Boot2Crc32Step {
+pub fn create(owner: *Build, sources: []const Build.LazyPath) *Boot2Crc32Step {
     var self = owner.allocator.create(Boot2Crc32Step) catch @panic("OOM");
     self.* = .{
         .step = Build.Step.init(.{
@@ -17,13 +17,15 @@ pub fn create(owner: *Build, source: Build.LazyPath) *Boot2Crc32Step {
             .owner = owner,
             .makeFn = make,
         }),
-        .source = source,
+        .sources = owner.allocator.dupe(sources),
         .output_file = .{
             .step = &self.step,
         },
         .include_data = false,
     };
-    source.addStepDependencies(&self.step);
+    for (sources) |src| {
+        src.addStepDependencies(&self.step);
+    }
     return self;
 }
 
@@ -47,8 +49,9 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     // bytes when hash implementation is modified incompatibly.
     man.hash.add(@as(u32, 0xacda_b87f));
 
-    const full_src_path = self.source.getPath(b);
-    _ = try man.addFile(full_src_path, null);
+    for (self.sources) |src| {
+        _ = try man.addFile(src.getPath(b), null);
+    }
 
     if (try step.cacheHit(&man)) {
         // Cache hit, skip subprocess execution.
@@ -73,21 +76,30 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     };
 
     var buf: [4001]u8 = undefined;
+    @memset(buf, 0);
 
-    const raw_boot2 = try b.build_root.handle.readFile(full_src_path, &buf);
+    var remaining = &buf;
 
-    if (raw_boot2.len == 0) {
+    for (self.sources) |src| {
+        const data = try b.build_root.handle.readFile(src.getPath(b), remaining);
+        remaining = remaining[data.len..];
+    }
+
+    const actual_length = buf.len - remaining.len;
+
+    if (actual_length == 0) {
         std.log.err("boot2 section is empty; did you forget to export a boot2 function?", .{});
         return error.InvalidBoot2Section;
-    } else if (raw_boot2.len > 252) {
-        if (raw_boot2.len > 4000) {
+    } else if (actual_length > 252) {
+        if (actual_length > 4000) {
             std.log.err("Expected boot2 section to be <= 252 bytes; found > 4000", .{});
         } else {
-            std.log.err("Expected boot2 section to be <= 252 bytes; found {}", .{ raw_boot2.len });
+            std.log.err("Expected boot2 section to be <= 252 bytes; found {}", .{ actual_length });
         }
         return error.InvalidBoot2Section;
     }
 
+    const raw_boot2 = buf[0..252];
     var crc = std.hash.crc.Crc32Mpeg2.hash(raw_boot2);
     var crc_stream = std.io.fixedBufferStream(buf[252..256]);
     try crc_stream.writer().writeIntLittle(u32, crc);

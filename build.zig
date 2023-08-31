@@ -182,9 +182,8 @@ pub fn addChecksummedBoot2(b: *std.Build, options: Boot2Options) *std.Build.Step
     });
 
     // Initially, build without the .boot2_checksum symbol:
-    const object_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}.o", .{ name }) catch @panic("OOM") else "boot2.o";
     var object = b.addObject(.{
-        .name = object_name,
+        .name = options.name orelse "boot2",
         .root_source_file = switch (options.source) {
             .module => |module| .{ .path = module.source_file.getPath(module.builder) },
             .path => |path| path,
@@ -209,16 +208,19 @@ pub fn addChecksummedBoot2(b: *std.Build, options: Boot2Options) *std.Build.Step
     object.addModule("checksum", empty_module);
 
     // Compute the new checksum:
-    var extract = object.addObjCopy(.{
+    var extract_boot2_entry = object.addObjCopy(.{
+        .format = .bin,
+        .only_section = ".boot2_entry",
+    });
+    var extract_boot2 = object.addObjCopy(.{
         .format = .bin,
         .only_section = ".boot2",
-        .pad_to = 252,
     });
-    var checksum = Boot2Crc32Step.create(b, extract.getOutput());
+    var checksum = Boot2Crc32Step.create(b, &.{ extract_boot2_entry.getOutput(), extract_boot2.getOutput() });
     var checksum_module = b.createModule(.{ .source_file = checksum.getOutput() });
 
     // Recompile with the .boot2_checksum symbol:
-    const final_object_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}_checksummed.o", .{ name }) catch @panic("OOM") else "boot2_checksummed.o";
+    const final_object_name = if (options.name) |name| std.fmt.allocPrint(b.allocator, "{s}_checksummed", .{ name }) catch @panic("OOM") else "boot2_checksummed";
     var final_object = b.addObject(.{
         .name = final_object_name,
         .root_source_file = switch (options.source) {
