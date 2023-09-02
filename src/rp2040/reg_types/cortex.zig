@@ -133,7 +133,7 @@ pub const SYSTICK = extern struct {
 
 pub const Exception = @import("chip").Exception;
 
-pub const VectorTablePointer = @import("vt.zig").VectorTablePointer;
+pub const VectorTable = @import("vt.zig").VectorTable;
 
 pub const SCB = extern struct {
     /// a.k.a. CPUID
@@ -147,9 +147,9 @@ pub const SCB = extern struct {
 
     /// a.k.a. ICSR
     interrupt_control_state: Mmio(packed struct(u32) {
-        active_exception_number: Exception = @enumFromInt(0x0),
+        active_exception_number: Exception = @enumFromInt(0),
         _reserved_9: u3 = 0,
-        pending_exception_number: Exception = @enumFromInt(0x0),
+        pending_exception_number: Exception = @enumFromInt(0),
         _reserved_15: u1 = 0,
 
         /// Only includes external interrupts (i.e. exception number >= 16)
@@ -177,7 +177,7 @@ pub const SCB = extern struct {
 
     /// N.B. The vector table must be align(256)!
     /// a.k.a. VTOR
-    vector_table: Mmio(VectorTablePointer, .rw),
+    vector_table: Mmio(*allowzero const VectorTable, .rw),
 
     /// a.k.a. AIRCR
     reset_control: Mmio(packed struct(u32) {
@@ -192,7 +192,7 @@ pub const SCB = extern struct {
             little = 0,
             big = 1,
         } = .little,
-        vector_key: u16 = 0x5FA,
+        write_enable_key: u16 = 0x5FA,
     }, .rw),
 
     /// a.k.a. SCR

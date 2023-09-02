@@ -143,9 +143,13 @@ pub const pio = @import("reg_types/pio.zig");
 
 pub const pwm = @import("reg_types/pwm.zig");
 
+pub const rtc = @import("reg_types/rtc.zig");
+
 pub const spi = @import("reg_types/spi.zig");
 
 pub const sys = @import("reg_types/sys.zig");
+
+pub const timer = @import("reg_types/timer.zig");
 
 pub const uart = @import("reg_types/uart.zig");
 

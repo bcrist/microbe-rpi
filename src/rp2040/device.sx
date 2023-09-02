@@ -20,12 +20,12 @@
     (peripheral XIP_CTRL (move-to-group sys))
     (peripheral XIP_SSI (move-to-group sys))
 
+    (peripheral RTC (move-to-group rtc))
+    (peripheral TIMER (move-to-group timer))
     (peripheral XOSC (move-to-group clk))
     (peripheral ROSC (move-to-group clk))
     (peripheral CLOCKS (move-to-group clk))
-    (peripheral RTC (move-to-group clk))
     (peripheral PLL_* (move-to-group clk))
-    (peripheral TIMER (move-to-group clk))
     (peripheral PPB (delete))
     (peripheral TBMAN (delete))
 )
@@ -189,7 +189,7 @@
         (type (struct
             (sclk (type QspiStatusControl))
             (ss (type QspiStatusControl))
-            (sd (type (array 4 QspiStatusControl)))
+            (sd (type [4]QspiStatusControl))
         ))
     )
     (create-type InterruptBitmap
@@ -433,6 +433,286 @@
 (group adc
 )
 (group dma
+    (create-type ChannelBitmap
+        (bits 32)
+        (packed
+            (channel_0 (type bool))
+            (channel_1 (type bool))
+            (channel_2 (type bool))
+            (channel_3 (type bool))
+            (channel_4 (type bool))
+            (channel_5 (type bool))
+            (channel_6 (type bool))
+            (channel_7 (type bool))
+            (channel_8 (type bool))
+            (channel_9 (type bool))
+            (channel_10 (type bool))
+            (channel_11 (type bool))
+        )
+    )
+    (create-type InterruptEnableForceStatus
+        (struct
+            (enable (type (reg ChannelBitmap)))
+            (force (type (reg ChannelBitmap)))
+            (status (type (reg r ChannelBitmap)))
+        )
+    )
+    (create-type Checksum
+        (struct
+            (control (type
+                (reg (bits 32) (packed
+                    (enabled (type bool))
+                    (channel (type u4))
+                    (algorithm (type (enum
+                        (0 crc32_ieee802_3)
+                        (1 crc32_ieee802_3_bitswapped)
+                        (2 crc16_ccitt)
+                        (3 crc16_ccitt_bitswapped)
+                        (0xE parity)
+                        (0xF sum32) 
+                    )))
+                    (byteswap "applies after the byteswap from channel config" (type bool))
+                    (output_bitswapped (type bool))
+                    (output_complemented (type bool))
+                ))
+            ))
+            (data (type (reg u32)))
+        )
+    )
+    (peripheral DMA
+        (reg CH0_CTRL_TRIG
+            (rename ChannelControl)
+            (field EN (rename enabled))
+            (field HIGH_PRIORITY
+                (rename priority)
+                (set-type (enum
+                    (0 low)
+                    (1 high)
+                ))
+            )
+            (field DATA_SIZE
+                (rename width)
+                (set-type (enum
+                    (0 _8_bits)
+                    (1 _16_bits)
+                    (2 _32_bits)
+                ))
+            )
+            (field INCR_READ (rename increment_after_read) (set-type bool))
+            (field INCR_WRITE (rename increment_after_write) (set-type bool))
+            (field RING_SIZE
+                (rename circular_buffer_align)
+                (set-type (enum
+                    (0 no_wrap)
+                    (1 _2_bytes)
+                    (2 _4_bytes)
+                    (3 _8_bytes)
+                    (4 _16_bytes)
+                    (5 _32_bytes)
+                    (6 _64_bytes)
+                    (7 _128_bytes)
+                    (8 _256_bytes)
+                    (9 _512_bytes)
+                    (10 _1024_bytes)
+                    (11 _2048_bytes)
+                    (12 _4096_bytes)
+                    (13 _8192_bytes)
+                    (14 _16384_bytes)
+                    (15 _32768_bytes)
+                ))
+            )
+            (field CHAIN_TO
+                (rename chain_channel)
+                (set-desc "Set to own channel ID to disable")
+            )
+            (field RING_SEL
+                (rename circular_buffer_mode)
+                (set-type (enum
+                    (0 circular_buffer_source)
+                    (1 circular_buffer_dest)
+                ))
+            )
+            (field TREQ_SEL
+                (rename handshake)
+                (set-default 0x3f)
+                (set-type (enum
+                    (0x0 pio0_tx0)
+                    (0x1 pio0_tx1)
+                    (0x2 pio0_tx2)
+                    (0x3 pio0_tx3)
+                    (0x4 pio0_rx0)
+                    (0x5 pio0_rx1)
+                    (0x6 pio0_rx2)
+                    (0x7 pio0_rx3)
+
+                    (0x8 pio1_tx0)
+                    (0x9 pio1_tx1)
+                    (0xA pio1_tx2)
+                    (0xB pio1_tx3)
+                    (0xC pio1_rx0)
+                    (0xD pio1_rx1)
+                    (0xE pio1_rx2)
+                    (0xF pio1_rx3)
+
+                    (0x10 spi0_tx)
+                    (0x11 spi0_rx)
+                    (0x12 spi1_tx)
+                    (0x13 spi1_rx)
+
+                    (0x14 uart0_tx)
+                    (0x15 uart0_rx)
+                    (0x16 uart1_tx)
+                    (0x17 uart1_rx)
+
+                    (0x18 pwm_wrap0)
+                    (0x19 pwm_wrap1)
+                    (0x1A pwm_wrap2)
+                    (0x1B pwm_wrap3)
+                    (0x1C pwm_wrap4)
+                    (0x1D pwm_wrap5)
+                    (0x1E pwm_wrap6)
+                    (0x1F pwm_wrap7)
+
+                    (0x20 i2c0_tx)
+                    (0x21 i2c0_rx)
+                    (0x22 i2c1_tx)
+                    (0x23 i2c1_rx)
+
+                    (0x24 adc)
+                    (0x25 xip_stream)
+                    (0x26 xip_ssitx)
+                    (0x27 xip_ssirx)
+
+                    (0x3b pacer0)
+                    (0x3c pacer1)
+                    (0x3d pacer2)
+                    (0x3e pacer3)
+
+                    (0x3f none)
+                ))
+            )
+            (field IRQ_QUIET
+                (rename interrupt_mode)
+                (set-type (enum
+                    (0 transfer_complete)
+                    (1 null_trigger)
+                ))
+            )
+            (field BSWAP (rename byteswap) (set-type bool))
+            (field SNIFF_EN (rename checksum_enabled) (set-type bool))
+            (field BUSY (rename busy) (set-type bool))
+            (field WRITE_ERROR
+                (rename write_error_flag)
+                (set-desc "write 1 to clear")
+                (set-type bool)
+            )
+            (field READ_ERROR
+                (rename read_error_flag)
+                (set-desc "write 1 to clear")
+                (set-type bool)
+            )
+            (field AHB_ERROR
+                (rename bus_error_flag)
+                (set-desc "logical OR or write_error_flag and read_error_flag")
+                (set-type bool)
+            )
+        )
+        (set-base 0x50000400 adjust-offsets)
+        (type
+            (delete-field CH#_*)
+            (delete-field N_CHANNELS)
+            (field INTR
+                (rename interrupt_status)
+                (set-type (reg ChannelBitmap))
+            )
+            (merge-field INTE0 irq0 InterruptEnableForceStatus)
+            (merge-field INTE1 irq1 InterruptEnableForceStatus)
+            (merge-field TIMER0 pacer (array 4 (reg (packed
+                (divisor (type u16))
+                (multiplier (type u16))
+            ))))
+            (field MULTI_CHAN_TRIGGER
+                (rename multi_trigger)
+                (set-type (reg w ChannelBitmap))
+            )
+            (merge-field SNIFF_CTRL checksum Checksum)
+            (field FIFO_LEVELS
+                (rename fifo_debug)
+                (type (set-access r) (inner
+                    (field TDF_LVL (rename data_fifo_level))
+                    (field WAF_LVL (rename write_address_fifo_level))
+                    (field RAF_LVL (rename read_address_fifo_level))
+                ))
+            )
+            (field CHAN_ABORT
+                (rename abort)
+                (set-desc "N.B. erratum RP2040-E13")
+                (set-type (reg w ChannelBitmap))
+            )
+        )
+    )
+    (create-type Channel
+        (union
+            (config (type (struct
+                (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
+                (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
+                (count "Writes will not take effect until the next time the channel is triggered" (type (reg u32)))
+                (control (type (reg ChannelControl)) (offset 0x10))
+            )))
+            (trigger (type (struct
+                (control (type (reg ChannelControl)) (offset 0xC))
+                (count (type (reg u32)) (offset 0x1C))
+                (write_ptr (type (reg (pointer allowzero anyopaque))) (offset 0x2C))
+                (read_ptr (type (reg (pointer allowzero const anyopaque))) (offset 0x3C))
+            )))
+            (config_block (type (struct
+                (control_triggered (type (struct
+                    (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
+                    (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
+                    (count "Writes will not take effect until the next time the channel is triggered" (type (reg u32)))
+                    (control (type (reg ChannelControl)))
+                )))
+                (count_triggered (type (struct
+                    (control (type (reg ChannelControl)))
+                    (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
+                    (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
+                    (count (type (reg u32)))
+                )))
+                (write_ptr_triggered (type (struct
+                    (control (type (reg ChannelControl)))
+                    (count (type (reg u32)))
+                    (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
+                    (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
+                )))
+                (read_ptr_triggered (type (struct
+                    (control (type (reg ChannelControl)))
+                    (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
+                    (count (type (reg u32)))
+                    (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
+                )))
+            )))
+        )
+    )
+    (create-peripheral DMA_CH
+        (base 0x50000000)
+        (type (array 12 Channel) (inline never))
+    )
+    (create-type Debug
+        (bits 512)
+        (struct
+            (pending "write any value to reinitialize DREQ handshaking" (type (reg
+                (bits 32)
+                (packed
+                    (count (type u6))
+                )
+            )))
+            (reload_count (type (reg r u32)))
+        )
+    )
+    (create-peripheral DMA_DEBUG
+        (base 0x50000800)
+        (type (array 12 Debug) (inline never))
+    )
 )
 (group usb
     (create-type EndpointType
@@ -462,6 +742,526 @@
         (type (rename REGS))
         (rename USB)
     )
+)
+(group clk
+    (peripheral XOSC
+        (type
+            (field CTRL
+                (rename control)
+                (set-type (reg (bits 32) (packed
+                    (range (type u12) (default 0xAA0))
+                    (enabled
+                        (default 0xD1E)
+                        (type (enum
+                            (0xD1E disabled)
+                            (0xFAB enabled)
+                        ))
+                    )
+                )))
+            )
+            (field STATUS
+                (rename status)
+                (set-type (reg r (bits 32) (packed
+                    (enabled (offset 12) (type bool))
+                    (stable (offset 31) (type bool))
+                )))
+            )
+            (field DORMANT
+                (rename pause)
+                (set-type (reg (bits 32) (enum
+                    (0x636F6D61 shutdown_until_interrupt)
+                )))
+            )
+            (field STARTUP
+                (rename startup_delay)
+                (set-type (reg (bits 32) (packed
+                    (cycles (type u14) (default 0xC4))
+                )))
+            )
+            (delete-field COUNT)
+        )
+    )
+    (create-type RoscStageDriveStrength
+        (enum
+            (0 1x)
+            (1 2x)
+            (3 3x)
+            (7 4x)
+        )
+    )
+    (peripheral ROSC
+        (type
+            (field CTRL
+                (rename control)
+                (set-type (reg (bits 32) (packed
+                    (range
+                        (default 0xFA7)
+                        (type (enum
+                            (0xFA4 low "8 stages")
+                            (0xFA5 medium "6 stages")
+                            (0xFA7 high "4 stages")
+                        ))
+                    )
+                    (enabled
+                        (default 0xD1E)
+                        (type (enum
+                            (0xD1E disabled)
+                            (0xFAB enabled)
+                        ))
+                    )
+                )))
+            )
+            (field FREQA
+                (rename drive0)
+                (set-type (reg (bits 32) (packed
+                    (stage0 (type RoscStageDriveStrength))
+                    (stage1 (type RoscStageDriveStrength) (offset 4))
+                    (stage2 (type RoscStageDriveStrength) (offset 8))
+                    (stage3 (type RoscStageDriveStrength) (offset 12))
+                    (write_enable_key (type u16) (default 0x9696) (offset 16))
+                )))
+            )
+            (field FREQB
+                (rename drive1)
+                (set-type (reg (bits 32) (packed
+                    (stage4 (type RoscStageDriveStrength))
+                    (stage5 (type RoscStageDriveStrength) (offset 4))
+                    (stage6 (type RoscStageDriveStrength) (offset 8))
+                    (stage7 (type RoscStageDriveStrength) (offset 12))
+                    (write_enable_key (type u16) (default 0x9696) (offset 16))
+                )))
+            )
+            (field DORMANT
+                (rename pause)
+                (set-type (reg (bits 32) (enum
+                    (0x636F6D61 shutdown_until_interrupt)
+                )))
+            )
+            (field DIV
+                (rename output_divisor)
+                (type (inner
+                    (field DIV
+                        (rename divisor)
+                        (set-default 0xAB0)
+                        (set-type (enum
+                            (0xAA0 div32)
+                            (0xAA1 div1)
+                            (0xAA2 div2)
+                            (0xAA3 div3)
+                            (0xAA4 div4)
+                            (0xAA5 div5)
+                            (0xAA6 div6)
+                            (0xAA7 div7)
+                            (0xAA8 div8)
+                            (0xAA9 div9)
+                            (0xAAA div10)
+                            (0xAAB div11)
+                            (0xAAC div12)
+                            (0xAAD div13)
+                            (0xAAE div14)
+                            (0xAAF div15)
+                            (0xAB0 div16)
+                            (0xAB1 div17)
+                            (0xAB2 div18)
+                            (0xAB3 div19)
+                            (0xAB4 div20)
+                            (0xAB5 div21)
+                            (0xAB6 div22)
+                            (0xAB7 div23)
+                            (0xAB8 div24)
+                            (0xAB9 div25)
+                            (0xABA div26)
+                            (0xABB div27)
+                            (0xABC div28)
+                            (0xABD div29)
+                            (0xABE div30)
+                            (0xABF div31)
+                        ))
+                    )
+                ))
+            )
+            (field STATUS
+                (rename status)
+                (type (set-access r) (inner
+                    (field ENABLED (rename enabled) (set-type bool))
+                    (field STABLE (rename stable) (set-type bool))
+                    (field DIV_RUNNING (rename divider_running) (set-type bool))
+                    (delete-field BADWRITE)
+                ))
+            )
+            (field RANDOMBIT
+                (rename random)
+                (type (inner
+                    (field RANDOMBIT (rename bit))
+                ))
+            )
+            (delete-field PHASE)
+            (delete-field COUNT)
+        )
+    )
+    (peripheral PLL_* (type
+        (rename PLL)
+        (field CS
+            (rename control_status)
+            (type (inner
+                (field REFDIV
+                    (rename input_divisor)
+                    (set-desc "1 - 31")
+                )
+                (field BYPASS (rename bypass) (set-type bool))
+                (field LOCK (rename locked) (set-type bool))
+            ))
+        )
+        (field PWR
+            (rename power)
+            (set-type (reg (bits 32) (enum
+                (0x2D shutdown)
+                (0x2C bypass)
+                (0x4 run)
+            )))
+        )
+        (field FBDIV_INT
+            (rename multiplier)
+            (type (inner
+                (field FBDIV_INT
+                    (rename factor)
+                    (set-desc "16 - 320")
+                )
+            ))
+        )
+        (field PRIM
+            (rename output)
+            (type (inner
+                (field POSTDIV2
+                    (rename divisor2)
+                    (set-desc "1-7; should be <= POSTDIV1")
+                )
+                (field POSTDIV1
+                    (rename divisor1)
+                    (set-desc "1-7")
+                )
+            ))
+        )
+    ))
+
+    (create-type GpoutClockGenerator
+        (inline never)
+        (bits 96)
+        (struct
+            (control (type (reg
+                (bits 32)
+                (packed
+                    (source
+                        (offset 5)
+                        (type (enum
+                            (0 pll_sys)
+                            (1 gpin0)
+                            (2 gpin1)
+                            (3 pll_usb)
+                            (4 rosc)
+                            (5 xosc)
+                            (6 clk_sys)
+                            (7 clk_usb)
+                            (8 clk_adc)
+                            (9 clk_rtc)
+                            (10 clk_ref)
+                        ))
+                    )
+                    (kill (type bool) (offset 10))
+                    (enabled (type bool) (offset 11))
+                    (duty_cycle_correction (type bool) (offset 12))
+                    (initial_phase_delay (type u2) (offset 16))
+                    (nudge_phase (type bool) (offset 20))
+                )
+            )))
+            (divisor "8 fractional bits" (type (reg u32)))
+        )
+    )
+    (peripheral CLOCKS (type
+        (merge-field CLK_GPOUT0_CTRL gpout [4]GpoutClockGenerator)
+        (merge-field CLK_REF_CTRL ref (fallback-name RefClockGenerator)
+            (bits 96)
+            (inline never)
+            (struct
+                (control (type (reg
+                    (bits 32)
+                    (packed
+                        (source
+                            (type (enum
+                                (0 rosc)
+                                (1 aux)
+                                (2 xosc)
+                            ))
+                        )
+                        (aux_source
+                            (offset 5)
+                            (type (enum
+                                (0 pll_usb)
+                                (1 gpin0)
+                                (2 gpin1)
+                            ))
+                        )
+                    )
+                )))
+                (divisor (type (reg (bits 32) (packed
+                    (divisor
+                        (offset 8)
+                        (type (enum
+                            (0 div65536)
+                            (1 none)
+                            (2 div2)
+                            (3 div3)
+                        ))
+                    )
+                ))))
+                (status (type (reg r (bits 32) (packed
+                    (source (default 1) (type (enum
+                        (1 rosc)
+                        (2 aux)
+                        (4 xosc)
+                    )))
+                ))))
+            )
+        )
+        (merge-field CLK_SYS_CTRL sys (fallback-name SysClockGenerator)
+            (bits 96)
+            (inline never)
+            (struct
+                (control (type (reg
+                    (bits 32)
+                    (packed
+                        (source
+                            (type (enum
+                                (0 clk_ref)
+                                (1 aux)
+                            ))
+                        )
+                        (aux_source
+                            (offset 5)
+                            (type (enum
+                                (0 pll_sys)
+                                (1 pll_usb)
+                                (2 rosc)
+                                (3 xosc)
+                                (4 gpin0)
+                                (5 gpin1)
+                            ))
+                        )
+                    )
+                )))
+                (divisor "8 fractional bits" (type (reg u32)))
+                (status (type (reg r (bits 32) (packed
+                    (source (default 1) (type (enum
+                        (1 clk_ref)
+                        (2 aux)
+                    )))
+                ))))
+            )
+        )
+        (merge-field CLK_PERI_CTRL peri (fallback-name PeriClockGenerator)
+            (bits 96)
+            (inline never)
+            (struct
+                (control (type (reg
+                    (bits 32)
+                    (packed
+                        (source
+                            (offset 5)
+                            (type (enum
+                                (0 clk_sys)
+                                (1 pll_sys)
+                                (2 pll_usb)
+                                (3 rosc)
+                                (4 xosc)
+                                (5 gpin0)
+                                (6 gpin1)
+                            ))
+                        )
+                        (kill (type bool) (offset 10))
+                        (enabled (type bool) (offset 11))
+                    )
+                )))
+            )
+        )
+        (merge-field CLK_USB_CTRL usb (fallback-name UsbAdcClockGenerator)
+            (bits 96)
+            (inline never)
+            (struct
+                (control (type (reg
+                    (bits 32)
+                    (packed
+                        (source
+                            (offset 5)
+                            (type (enum
+                                (0 pll_usb)
+                                (1 pll_sys)
+                                (2 rosc)
+                                (3 xosc)
+                                (4 gpin0)
+                                (5 gpin1)
+                            ))
+                        )
+                        (kill (type bool) (offset 10))
+                        (enabled (type bool) (offset 11))
+                        (initial_phase_delay (type u2) (offset 16))
+                        (nudge_phase (type bool) (offset 20))
+                    )
+                )))
+                (divisor (type (reg (bits 32) (packed
+                    (divisor
+                        (offset 8)
+                        (type (enum
+                            (0 div65536)
+                            (1 none)
+                            (2 div2)
+                            (3 div3)
+                        ))
+                    )
+                ))))
+            )
+        )
+        (merge-field CLK_ADC_CTRL adc (fallback-name UsbAdcClockGenerator)
+            (bits 96)
+            (inline never)
+            (struct
+                (control (type (reg
+                    (bits 32)
+                    (packed
+                        (source
+                            (offset 5)
+                            (type (enum
+                                (0 pll_usb)
+                                (1 pll_sys)
+                                (2 rosc)
+                                (3 xosc)
+                                (4 gpin0)
+                                (5 gpin1)
+                            ))
+                        )
+                        (kill (type bool) (offset 10))
+                        (enabled (type bool) (offset 11))
+                        (initial_phase_delay (type u2) (offset 16))
+                        (nudge_phase (type bool) (offset 20))
+                    )
+                )))
+                (divisor (type (reg (bits 32) (packed
+                    (divisor
+                        (offset 8)
+                        (type (enum
+                            (0 div65536)
+                            (1 none)
+                            (2 div2)
+                            (3 div3)
+                        ))
+                    )
+                ))))
+            )
+        )
+        (merge-field CLK_RTC_CTRL rtc (fallback-name RtcClockGenerator)
+            (bits 96)
+            (inline never)
+            (struct
+                (control (type (reg
+                    (bits 32)
+                    (packed
+                        (source
+                            (offset 5)
+                            (type (enum
+                                (0 pll_usb)
+                                (1 pll_sys)
+                                (2 rosc)
+                                (3 xosc)
+                                (4 gpin0)
+                                (5 gpin1)
+                            ))
+                        )
+                        (kill (type bool) (offset 10))
+                        (enabled (type bool) (offset 11))
+                        (initial_phase_delay (type u2) (offset 16))
+                        (nudge_phase (type bool) (offset 20))
+                    )
+                )))
+                (divisor "8 fractional bits" (type (reg u32)))
+            )
+        )
+        (merge-field CLK_SYS_RESUS_CTRL resus (name SysResus)
+            (bits 64)
+            (struct
+                (control (type (reg
+                    (bits 32)
+                    (packed
+                        (timeout (type u8) (default 0xFF))
+                        (enabled (type bool))
+                        (force (type bool) (offset 12))
+                        (clear (type bool) (offset 16))
+                    )
+                )))
+                (status (type (reg
+                    (bits 32)
+                    (packed (resuscitated (type bool)))
+                )))
+            )
+        )
+        (field WAKE_EN0
+            (type (inner
+                (field * (set-type bool))
+                (rename ClockEnableBitmap0)
+            ))
+        )
+        (field WAKE_EN1
+            (type (inner
+                (field * (set-type bool))
+                (rename ClockEnableBitmap1)
+            ))
+        )
+        (merge-field WAKE_EN0 wake_enable (name ClockEnableBitmap)
+            (inline always)
+            (struct
+                (_0 (type (reg ClockEnableBitmap0)) (default 0xFFFFFFFF))
+                (_1 (type (reg ClockEnableBitmap1)) (default 0x7FFF))
+            )
+        )
+        (merge-field SLEEP_EN0 sleep_enable ClockEnableBitmap)
+        (merge-field ENABLED0 enabled_status ClockEnableBitmap)
+        (field enabled_status (type
+            (rename "")
+            (field * (type (set-access r)))
+        ))
+        
+        (field INTR
+            (rename interrupt_status)
+            (type (set-access r) (inner
+                (field * (set-type bool))
+                (rename ClockInterruptBitmap)
+                (field CLK_SYS_RESUS (rename resus))
+            ))
+        )
+        (merge-field INTE irq (struct
+            (enable (type (reg ClockInterruptBitmap)))
+            (force (type (reg ClockInterruptBitmap)))
+            (status (type (reg r ClockInterruptBitmap)))
+        ))
+
+        (set-name _CLOCKS)
+    ))
+    (create-peripheral FREQ_COUNTER (base 0x40008000) (type _CLOCKS))
+    (peripheral FREQ_COUNTER
+        (type
+            (rename "")
+            (set-fallback-name FREQ_COUNTER)
+            (delete-field wake_enable*)
+            (delete-field sleep_enable*)
+            (delete-field enabled_status*)
+            (delete-field i*)
+            (-- TODO rename other regs here)
+        )
+        (set-base 0x40008080 adjust-offsets)
+    )
+    (peripheral CLOCKS (type
+        (rename "")
+        (delete-field FC0_*)
+        (rename CLOCKS)
+    ))
 )
 (group sys
     (peripheral SYSINFO
@@ -695,9 +1495,6 @@
         (rename SSI)
     )
 )
-(group clk
-    (peripheral PLL_* (type (rename PLL)))
-)
 (group cortex
     (create-peripheral SYSTICK
         (base 0xE000E010)
@@ -753,7 +1550,7 @@
                 (set_pending_NMI "reads true if NMI is pending" (type bool) (offset 31))
             ))))
             (vector_table "N.B. The vector table must be align(256)!\\na.k.a. VTOR"
-                (type (reg (bits 32) (name VectorTablePointer) (ext vt.zig)))
+                (type (reg (pointer allowzero const (name VectorTable) (ext vt.zig))))
             )
             (reset_control "a.k.a. AIRCR" (type (reg (bits 32) (packed
                 (request_clear_active_exception "Only available when core is halted" (type bool) (offset 1))
@@ -765,7 +1562,7 @@
                         (1 big)
                     ))
                 )
-                (vector_key (type u16) (default 0x05FA))
+                (write_enable_key (type u16) (default 0x05FA))
             ))))
             (system_control "a.k.a. SCR" (type (reg (bits 32) (packed
                 (sleep_on_exception_exit (type bool) (offset 1))
