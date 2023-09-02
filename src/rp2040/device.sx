@@ -1205,43 +1205,41 @@
         (field WAKE_EN0
             (type (inner
                 (field * (set-type bool))
-                (rename ClockEnableBitmap0)
+                (rename EnableBitmap0)
             ))
         )
         (field WAKE_EN1
             (type (inner
                 (field * (set-type bool))
-                (rename ClockEnableBitmap1)
+                (rename EnableBitmap1)
             ))
         )
-        (merge-field WAKE_EN0 wake_enable (name ClockEnableBitmap)
+        (merge-field WAKE_EN0 wake_enable (name EnableBitmap)
             (inline always)
             (struct
-                (_0 (type (reg ClockEnableBitmap0)) (default 0xFFFFFFFF))
-                (_1 (type (reg ClockEnableBitmap1)) (default 0x7FFF))
+                (_0 (type (reg EnableBitmap0)) (default 0xFFFFFFFF))
+                (_1 (type (reg EnableBitmap1)) (default 0x7FFF))
             )
         )
-        (merge-field SLEEP_EN0 sleep_enable ClockEnableBitmap)
-        (merge-field ENABLED0 enabled_status ClockEnableBitmap)
+        (merge-field SLEEP_EN0 sleep_enable EnableBitmap)
+        (merge-field ENABLED0 enabled_status EnableBitmap)
         (field enabled_status (type
             (rename "")
             (field * (type (set-access r)))
         ))
-        
         (field INTR
             (rename interrupt_status)
             (type (set-access r) (inner
                 (field * (set-type bool))
-                (rename ClockInterruptBitmap)
+                (rename InterruptBitmap)
                 (field CLK_SYS_RESUS (rename resus))
             ))
         )
         (merge-field INTE irq (struct
-            (enable (type (reg ClockInterruptBitmap)))
-            (force (type (reg ClockInterruptBitmap)))
-            (status (type (reg r ClockInterruptBitmap)))
+            (enable (type (reg InterruptBitmap)))
+            (force (type (reg InterruptBitmap)))
+            (status (type (reg r InterruptBitmap)))
         ))
-
         (set-name _CLOCKS)
     ))
     (create-peripheral FREQ_COUNTER (base 0x40008000) (type _CLOCKS))
@@ -1253,7 +1251,6 @@
             (delete-field sleep_enable*)
             (delete-field enabled_status*)
             (delete-field i*)
-            (-- TODO rename other regs here)
         )
         (set-base 0x40008080 adjust-offsets)
     )
@@ -1262,6 +1259,71 @@
         (delete-field FC0_*)
         (rename CLOCKS)
     ))
+    (peripheral FREQ_COUNTER (type
+        (field FC0_REF_KHZ (rename ref_freq))
+        (field FC0_MIN_KHZ (rename min_freq))
+        (field FC0_MAX_KHZ (rename max_freq))
+        (field FC0_DELAY (rename delay))
+        (field FC0_INTERVAL (rename interval))
+        (field FC0_SRC (rename source))
+        (field FC0_STATUS (rename status))
+        (field FC0_RESULT (rename result))
+        (-- TODO rename packed fields)
+    ))
+)
+(group timer
+    (create-type AlarmBitmap
+        (bits 32)
+        (packed
+            (alarm0 (type bool))
+            (alarm1 (type bool))
+            (alarm2 (type bool))
+            (alarm3 (type bool))
+        )
+    )
+    (peripheral TIMER
+        (type
+            (merge-field TIMEHW write_tick (struct
+                (high (type (reg w u32)))
+                (low (type (reg w u32)))
+            ))
+            (merge-field TIMEHR read_tick (struct
+                (high "read low first to latch" (type (reg r u32)))
+                (low "high is latched when read" (type (reg r u32)))
+            ))
+            (merge-field ALARM0 alarm_tick (array 4 (reg u32)))
+            (field ARMED
+                (rename alarm)
+                (set-type (union
+                    (pending (type (reg r AlarmBitmap)))
+                    (cancel (type (reg w AlarmBitmap)))
+                ))
+            )
+            (merge-field TIMERAWH read_tick_unlatched (struct
+                (high (type (reg r u32)))
+                (low (type (reg r u32)))
+            ))
+            (field DBGPAUSE
+                (rename debug)
+                (type (inner
+                    (field DBG0 (rename pause_when_core0_halted) (set-type bool))
+                    (field DBG1 (rename pause_when_core1_halted) (set-type bool))
+                ))
+            )
+            (field PAUSE
+                (rename control)
+                (type (inner
+                    (field PAUSE (rename pause) (set-type bool))
+                ))
+            )
+            (field INTR (rename interrupt_status) (set-type (reg AlarmBitmap)))
+            (merge-field INTE irq (struct
+                (enable (type (reg AlarmBitmap)))
+                (force (type (reg AlarmBitmap)))
+                (status (type (reg r AlarmBitmap)))
+            ))
+        )
+    )
 )
 (group sys
     (peripheral SYSINFO

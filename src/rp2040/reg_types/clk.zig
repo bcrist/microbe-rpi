@@ -359,7 +359,7 @@ pub const RtcClockGenerator = extern struct {
     _reserved_8: [4]u8 = undefined,
 };
 
-pub const ClockEnableBitmap0 = packed struct(u32) {
+pub const EnableBitmap0 = packed struct(u32) {
     clk_sys_clocks: bool = true,
     clk_adc_adc: bool = true,
     clk_sys_adc: bool = true,
@@ -394,7 +394,7 @@ pub const ClockEnableBitmap0 = packed struct(u32) {
     clk_sys_sram3: bool = true,
 };
 
-pub const ClockEnableBitmap1 = packed struct(u32) {
+pub const EnableBitmap1 = packed struct(u32) {
     clk_sys_sram4: bool = true,
     clk_sys_sram5: bool = true,
     clk_sys_syscfg: bool = true,
@@ -413,75 +413,9 @@ pub const ClockEnableBitmap1 = packed struct(u32) {
     _reserved_f: u17 = 0,
 };
 
-pub const ClockInterruptBitmap = packed struct(u32) {
+pub const InterruptBitmap = packed struct(u32) {
     resus: bool = false,
     _reserved_1: u31 = 0,
-};
-
-pub const FREQ_COUNTER = extern struct {
-    FC0_REF_KHZ: Mmio(packed struct(u32) {
-        FC0_REF_KHZ: u20 = 0,
-        _reserved_14: u12 = 0,
-    }, .rw),
-    FC0_MIN_KHZ: Mmio(packed struct(u32) {
-        FC0_MIN_KHZ: u25 = 0,
-        _reserved_19: u7 = 0,
-    }, .rw),
-    FC0_MAX_KHZ: Mmio(packed struct(u32) {
-        FC0_MAX_KHZ: u25 = 0x1FFFFFF,
-        _reserved_19: u7 = 0,
-    }, .rw),
-    FC0_DELAY: Mmio(packed struct(u32) {
-        FC0_DELAY: u3 = 1,
-        _reserved_3: u29 = 0,
-    }, .rw),
-    FC0_INTERVAL: Mmio(packed struct(u32) {
-        FC0_INTERVAL: u4 = 8,
-        _reserved_4: u28 = 0,
-    }, .rw),
-    FC0_SRC: Mmio(packed struct(u32) {
-        FC0_SRC: enum(u8) {
-            NULL = 0x0,
-            pll_sys_clksrc_primary = 0x1,
-            pll_usb_clksrc_primary = 0x2,
-            rosc_clksrc = 0x3,
-            rosc_clksrc_ph = 0x4,
-            xosc_clksrc = 0x5,
-            clksrc_gpin0 = 0x6,
-            clksrc_gpin1 = 0x7,
-            clk_ref = 0x8,
-            clk_sys = 0x9,
-            clk_peri = 0xA,
-            clk_usb = 0xB,
-            clk_adc = 0xC,
-            clk_rtc = 0xD,
-            _,
-        } = .NULL,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    FC0_STATUS: Mmio(packed struct(u32) {
-        PASS: u1 = 0,
-        _reserved_1: u3 = 0,
-        DONE: u1 = 0,
-        _reserved_5: u3 = 0,
-        RUNNING: u1 = 0,
-        _reserved_9: u3 = 0,
-        WAITING: u1 = 0,
-        _reserved_d: u3 = 0,
-        FAIL: u1 = 0,
-        _reserved_11: u3 = 0,
-        SLOW: u1 = 0,
-        _reserved_15: u3 = 0,
-        FAST: u1 = 0,
-        _reserved_19: u3 = 0,
-        DIED: u1 = 0,
-        _reserved_1d: u3 = 0,
-    }, .rw),
-    FC0_RESULT: Mmio(packed struct(u32) {
-        FRAC: u5 = 0,
-        KHZ: u25 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
 };
 
 pub const CLOCKS = extern struct {
@@ -509,21 +443,87 @@ pub const CLOCKS = extern struct {
     },
     _reserved_80: [32]u8 = undefined,
     wake_enable: extern struct {
-        _0: Mmio(ClockEnableBitmap0, .rw),
-        _1: Mmio(ClockEnableBitmap1, .rw),
+        _0: Mmio(EnableBitmap0, .rw),
+        _1: Mmio(EnableBitmap1, .rw),
     },
     sleep_enable: extern struct {
-        _0: Mmio(ClockEnableBitmap0, .rw),
-        _1: Mmio(ClockEnableBitmap1, .rw),
+        _0: Mmio(EnableBitmap0, .rw),
+        _1: Mmio(EnableBitmap1, .rw),
     },
     enabled_status: extern struct {
-        _0: Mmio(ClockEnableBitmap0, .r),
-        _1: Mmio(ClockEnableBitmap1, .r),
+        _0: Mmio(EnableBitmap0, .r),
+        _1: Mmio(EnableBitmap1, .r),
     },
-    interrupt_status: Mmio(ClockInterruptBitmap, .r),
+    interrupt_status: Mmio(InterruptBitmap, .r),
     irq: extern struct {
-        enable: Mmio(ClockInterruptBitmap, .rw),
-        force: Mmio(ClockInterruptBitmap, .rw),
-        status: Mmio(ClockInterruptBitmap, .r),
+        enable: Mmio(InterruptBitmap, .rw),
+        force: Mmio(InterruptBitmap, .rw),
+        status: Mmio(InterruptBitmap, .r),
     },
+};
+
+pub const FREQ_COUNTER = extern struct {
+    ref_freq: Mmio(packed struct(u32) {
+        FC0_REF_KHZ: u20 = 0,
+        _reserved_14: u12 = 0,
+    }, .rw),
+    min_freq: Mmio(packed struct(u32) {
+        FC0_MIN_KHZ: u25 = 0,
+        _reserved_19: u7 = 0,
+    }, .rw),
+    max_freq: Mmio(packed struct(u32) {
+        FC0_MAX_KHZ: u25 = 0x1FFFFFF,
+        _reserved_19: u7 = 0,
+    }, .rw),
+    delay: Mmio(packed struct(u32) {
+        FC0_DELAY: u3 = 1,
+        _reserved_3: u29 = 0,
+    }, .rw),
+    interval: Mmio(packed struct(u32) {
+        FC0_INTERVAL: u4 = 8,
+        _reserved_4: u28 = 0,
+    }, .rw),
+    source: Mmio(packed struct(u32) {
+        FC0_SRC: enum(u8) {
+            NULL = 0x0,
+            pll_sys_clksrc_primary = 0x1,
+            pll_usb_clksrc_primary = 0x2,
+            rosc_clksrc = 0x3,
+            rosc_clksrc_ph = 0x4,
+            xosc_clksrc = 0x5,
+            clksrc_gpin0 = 0x6,
+            clksrc_gpin1 = 0x7,
+            clk_ref = 0x8,
+            clk_sys = 0x9,
+            clk_peri = 0xA,
+            clk_usb = 0xB,
+            clk_adc = 0xC,
+            clk_rtc = 0xD,
+            _,
+        } = .NULL,
+        _reserved_8: u24 = 0,
+    }, .rw),
+    status: Mmio(packed struct(u32) {
+        PASS: u1 = 0,
+        _reserved_1: u3 = 0,
+        DONE: u1 = 0,
+        _reserved_5: u3 = 0,
+        RUNNING: u1 = 0,
+        _reserved_9: u3 = 0,
+        WAITING: u1 = 0,
+        _reserved_d: u3 = 0,
+        FAIL: u1 = 0,
+        _reserved_11: u3 = 0,
+        SLOW: u1 = 0,
+        _reserved_15: u3 = 0,
+        FAST: u1 = 0,
+        _reserved_19: u3 = 0,
+        DIED: u1 = 0,
+        _reserved_1d: u3 = 0,
+    }, .rw),
+    result: Mmio(packed struct(u32) {
+        FRAC: u5 = 0,
+        KHZ: u25 = 0,
+        _reserved_1e: u2 = 0,
+    }, .rw),
 };
