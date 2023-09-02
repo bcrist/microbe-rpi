@@ -43,223 +43,6 @@ pub const SYSCFG = extern struct {
     }, .rw),
 };
 
-pub const INTERP = packed struct(u32) {
-    SHIFT: u5 = 0,
-    MASK_LSB: u5 = 0,
-    MASK_MSB: u5 = 0,
-    SIGNED: u1 = 0,
-    CROSS_INPUT: u1 = 0,
-    CROSS_RESULT: u1 = 0,
-    ADD_RAW: u1 = 0,
-    FORCE_MSB: u2 = 0,
-    _reserved_15: u11 = 0,
-};
-
-pub const SIO = extern struct {
-    CPUID: Mmio(u32, .r),
-    GPIO_IN: Mmio(packed struct(u32) {
-        GPIO_IN: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_HI_IN: Mmio(packed struct(u32) {
-        GPIO_HI_IN: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    _reserved_c: [4]u8 = undefined,
-    GPIO_OUT: Mmio(packed struct(u32) {
-        GPIO_OUT: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_OUT_SET: Mmio(packed struct(u32) {
-        GPIO_OUT_SET: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_OUT_CLR: Mmio(packed struct(u32) {
-        GPIO_OUT_CLR: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_OUT_XOR: Mmio(packed struct(u32) {
-        GPIO_OUT_XOR: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_OE: Mmio(packed struct(u32) {
-        GPIO_OE: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_OE_SET: Mmio(packed struct(u32) {
-        GPIO_OE_SET: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_OE_CLR: Mmio(packed struct(u32) {
-        GPIO_OE_CLR: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_OE_XOR: Mmio(packed struct(u32) {
-        GPIO_OE_XOR: u30 = 0,
-        _reserved_1e: u2 = 0,
-    }, .rw),
-    GPIO_HI_OUT: Mmio(packed struct(u32) {
-        GPIO_HI_OUT: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    GPIO_HI_OUT_SET: Mmio(packed struct(u32) {
-        GPIO_HI_OUT_SET: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    GPIO_HI_OUT_CLR: Mmio(packed struct(u32) {
-        GPIO_HI_OUT_CLR: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    GPIO_HI_OUT_XOR: Mmio(packed struct(u32) {
-        GPIO_HI_OUT_XOR: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    GPIO_HI_OE: Mmio(packed struct(u32) {
-        GPIO_HI_OE: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    GPIO_HI_OE_SET: Mmio(packed struct(u32) {
-        GPIO_HI_OE_SET: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    GPIO_HI_OE_CLR: Mmio(packed struct(u32) {
-        GPIO_HI_OE_CLR: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    GPIO_HI_OE_XOR: Mmio(packed struct(u32) {
-        GPIO_HI_OE_XOR: u6 = 0,
-        _reserved_6: u26 = 0,
-    }, .rw),
-    FIFO_ST: Mmio(packed struct(u32) {
-        VLD: u1 = 0,
-        RDY: u1 = 1,
-        WOF: u1 = 0,
-        ROE: u1 = 0,
-        _reserved_4: u28 = 0,
-    }, .rw),
-    FIFO_WR: Mmio(u32, .w),
-    FIFO_RD: Mmio(u32, .r),
-    SPINLOCK_ST: Mmio(u32, .r),
-    DIV_UDIVIDEND: Mmio(u32, .rw),
-    DIV_UDIVISOR: Mmio(u32, .rw),
-    DIV_SDIVIDEND: Mmio(u32, .rw),
-    DIV_SDIVISOR: Mmio(u32, .rw),
-    DIV_QUOTIENT: Mmio(u32, .rw),
-    DIV_REMAINDER: Mmio(u32, .rw),
-    DIV_CSR: Mmio(packed struct(u32) {
-        READY: u1 = 1,
-        DIRTY: u1 = 0,
-        _reserved_2: u30 = 0,
-    }, .rw),
-    _reserved_7c: [4]u8 = undefined,
-    INTERP0_ACCUM0: Mmio(u32, .rw),
-    INTERP0_ACCUM1: Mmio(u32, .rw),
-    INTERP0_BASE0: Mmio(u32, .rw),
-    INTERP0_BASE1: Mmio(u32, .rw),
-    INTERP0_BASE2: Mmio(u32, .rw),
-    INTERP0_POP_LANE0: Mmio(u32, .r),
-    INTERP0_POP_LANE1: Mmio(u32, .r),
-    INTERP0_POP_FULL: Mmio(u32, .r),
-    INTERP0_PEEK_LANE0: Mmio(u32, .r),
-    INTERP0_PEEK_LANE1: Mmio(u32, .r),
-    INTERP0_PEEK_FULL: Mmio(u32, .r),
-    INTERP0_CTRL_LANE0: Mmio(packed struct(u32) {
-        SHIFT: u5 = 0,
-        MASK_LSB: u5 = 0,
-        MASK_MSB: u5 = 0,
-        SIGNED: u1 = 0,
-        CROSS_INPUT: u1 = 0,
-        CROSS_RESULT: u1 = 0,
-        ADD_RAW: u1 = 0,
-        FORCE_MSB: u2 = 0,
-        BLEND: u1 = 0,
-        _reserved_16: u1 = 0,
-        OVERF0: u1 = 0,
-        OVERF1: u1 = 0,
-        OVERF: u1 = 0,
-        _reserved_1a: u6 = 0,
-    }, .rw),
-    INTERP0_CTRL_LANE1: Mmio(INTERP, .rw),
-    INTERP0_ACCUM0_ADD: Mmio(packed struct(u32) {
-        INTERP0_ACCUM0_ADD: u24 = 0,
-        _reserved_18: u8 = 0,
-    }, .rw),
-    INTERP0_ACCUM1_ADD: Mmio(packed struct(u32) {
-        INTERP0_ACCUM1_ADD: u24 = 0,
-        _reserved_18: u8 = 0,
-    }, .rw),
-    INTERP0_BASE_1AND0: Mmio(u32, .w),
-    INTERP1_ACCUM0: Mmio(u32, .rw),
-    INTERP1_ACCUM1: Mmio(u32, .rw),
-    INTERP1_BASE0: Mmio(u32, .rw),
-    INTERP1_BASE1: Mmio(u32, .rw),
-    INTERP1_BASE2: Mmio(u32, .rw),
-    INTERP1_POP_LANE0: Mmio(u32, .r),
-    INTERP1_POP_LANE1: Mmio(u32, .r),
-    INTERP1_POP_FULL: Mmio(u32, .r),
-    INTERP1_PEEK_LANE0: Mmio(u32, .r),
-    INTERP1_PEEK_LANE1: Mmio(u32, .r),
-    INTERP1_PEEK_FULL: Mmio(u32, .r),
-    INTERP1_CTRL_LANE0: Mmio(packed struct(u32) {
-        SHIFT: u5 = 0,
-        MASK_LSB: u5 = 0,
-        MASK_MSB: u5 = 0,
-        SIGNED: u1 = 0,
-        CROSS_INPUT: u1 = 0,
-        CROSS_RESULT: u1 = 0,
-        ADD_RAW: u1 = 0,
-        FORCE_MSB: u2 = 0,
-        _reserved_15: u1 = 0,
-        CLAMP: u1 = 0,
-        OVERF0: u1 = 0,
-        OVERF1: u1 = 0,
-        OVERF: u1 = 0,
-        _reserved_1a: u6 = 0,
-    }, .rw),
-    INTERP1_CTRL_LANE1: Mmio(INTERP, .rw),
-    INTERP1_ACCUM0_ADD: Mmio(packed struct(u32) {
-        INTERP1_ACCUM0_ADD: u24 = 0,
-        _reserved_18: u8 = 0,
-    }, .rw),
-    INTERP1_ACCUM1_ADD: Mmio(packed struct(u32) {
-        INTERP1_ACCUM1_ADD: u24 = 0,
-        _reserved_18: u8 = 0,
-    }, .rw),
-    INTERP1_BASE_1AND0: Mmio(u32, .w),
-    SPINLOCK0: Mmio(u32, .rw),
-    SPINLOCK1: Mmio(u32, .rw),
-    SPINLOCK2: Mmio(u32, .rw),
-    SPINLOCK3: Mmio(u32, .rw),
-    SPINLOCK4: Mmio(u32, .rw),
-    SPINLOCK5: Mmio(u32, .rw),
-    SPINLOCK6: Mmio(u32, .rw),
-    SPINLOCK7: Mmio(u32, .rw),
-    SPINLOCK8: Mmio(u32, .rw),
-    SPINLOCK9: Mmio(u32, .rw),
-    SPINLOCK10: Mmio(u32, .rw),
-    SPINLOCK11: Mmio(u32, .rw),
-    SPINLOCK12: Mmio(u32, .rw),
-    SPINLOCK13: Mmio(u32, .rw),
-    SPINLOCK14: Mmio(u32, .rw),
-    SPINLOCK15: Mmio(u32, .rw),
-    SPINLOCK16: Mmio(u32, .rw),
-    SPINLOCK17: Mmio(u32, .rw),
-    SPINLOCK18: Mmio(u32, .rw),
-    SPINLOCK19: Mmio(u32, .rw),
-    SPINLOCK20: Mmio(u32, .rw),
-    SPINLOCK21: Mmio(u32, .rw),
-    SPINLOCK22: Mmio(u32, .rw),
-    SPINLOCK23: Mmio(u32, .rw),
-    SPINLOCK24: Mmio(u32, .rw),
-    SPINLOCK25: Mmio(u32, .rw),
-    SPINLOCK26: Mmio(u32, .rw),
-    SPINLOCK27: Mmio(u32, .rw),
-    SPINLOCK28: Mmio(u32, .rw),
-    SPINLOCK29: Mmio(u32, .rw),
-    SPINLOCK30: Mmio(u32, .rw),
-    SPINLOCK31: Mmio(u32, .rw),
-};
-
 pub const VREG_AND_CHIP_RESET = extern struct {
     VREG: Mmio(packed struct(u32) {
         EN: u1 = 1,
@@ -519,14 +302,106 @@ pub const XIP_CTRL = extern struct {
     STREAM_FIFO: Mmio(u32, .r),
 };
 
-pub const SYSINFO = extern struct {
-    chip_id: Mmio(packed struct(u32) {
-        mfr: u12 = 0,
-        part: u16 = 0,
-        revision: u4 = 0,
-    }, .rw),
-    _reserved_4: [60]u8 = undefined,
-    git_revision: Mmio(u32, .r),
+pub const ValueSetClearToggle = extern struct {
+    value: Mmio(u32, .rw),
+    set: Mmio(u32, .w),
+    clear: Mmio(u32, .w),
+    toggle: Mmio(u32, .w),
+};
+
+pub const SIO = extern struct {
+    core_id: Mmio(u32, .r),
+    io: extern struct {
+        in: Mmio(u32, .r),
+        in_qspi: Mmio(u32, .r),
+        _reserved_8: [4]u8 = undefined,
+        out: ValueSetClearToggle,
+        oe: ValueSetClearToggle,
+        out_qspi: ValueSetClearToggle,
+        oe_qspi: ValueSetClearToggle,
+    },
+    fifo: extern struct {
+        status: Mmio(packed struct(u32) {
+            /// inbox can be read at least once
+            readable: bool = false,
+
+            /// outbox can be written at least once
+            writable: bool = false,
+
+            /// was written when full; write to clear
+            write_error_flag: bool = false,
+
+            /// was read when empty; write to clear
+            read_error_flag: bool = false,
+
+            _reserved_4: u28 = 0,
+        }, .rw),
+        outbox: Mmio(u32, .w),
+        inbox: Mmio(u32, .r),
+    },
+    spinlock_status: Mmio(u32, .r),
+    divider: extern struct {
+        unsigned_dividend: Mmio(u32, .rw),
+        unsigned_divisor: Mmio(u32, .rw),
+        signed_dividend: Mmio(u32, .rw),
+        signed_divisor: Mmio(u32, .rw),
+        quotient: Mmio(u32, .r),
+        remainder: Mmio(u32, .r),
+        control_status: Mmio(packed struct(u32) {
+            ready: bool = false,
+            dirty: bool = false,
+            _reserved_2: u30 = 0,
+        }, .r),
+    },
+    _reserved_7c: [4]u8 = undefined,
+    interpolator: [2]extern struct {
+        accumulator: [2]Mmio(u32, .rw),
+        base: [3]Mmio(u32, .rw),
+        pop_lane0: Mmio(u32, .r),
+        pop_lane1: Mmio(u32, .r),
+        pop_full: Mmio(u32, .r),
+        peek_lane0: Mmio(u32, .r),
+        peek_lane1: Mmio(u32, .r),
+        peek_full: Mmio(u32, .r),
+        control_lane0: Mmio(packed struct(u32) {
+            shift: u5 = 0,
+            mask_lsb: u5 = 0,
+            mask_msb: u5 = 0,
+            signed: bool = false,
+            cross_input: bool = false,
+            cross_result: bool = false,
+            overflow0: bool = false,
+            add_raw: bool = false,
+            overflow1: bool = false,
+            force_msb: u2 = 0,
+            overflow: bool = false,
+
+            /// only for interpolator 0
+            blend: bool = false,
+
+            _reserved_19: u7 = 0,
+        }, .rw),
+        control_lane1: Mmio(packed struct(u32) {
+            shift: u5 = 0,
+            mask_lsb: u5 = 0,
+            mask_msb: u5 = 0,
+            signed: bool = false,
+            cross_input: bool = false,
+            cross_result: bool = false,
+            add_raw: bool = false,
+            force_msb: u2 = 0,
+            _reserved_15: u11 = 0,
+        }, .rw),
+        accumulator_add: [2]Mmio(packed struct(u32) {
+            value: u24 = 0,
+            _reserved_18: u8 = 0,
+        }, .rw),
+        base_split_write: Mmio(packed struct(u32) {
+            base0: i16 = 0,
+            base1: i16 = 0,
+        }, .w),
+    },
+    spinlock: [32]Mmio(u32, .rw),
 };
 
 pub const SSI = extern struct {
@@ -788,4 +663,14 @@ pub const SSI = extern struct {
         TDE: u8 = 0,
         _reserved_8: u24 = 0,
     }, .rw),
+};
+
+pub const SYSINFO = extern struct {
+    chip_id: Mmio(packed struct(u32) {
+        mfr: u12 = 0,
+        part: u16 = 0,
+        revision: u4 = 0,
+    }, .rw),
+    _reserved_4: [60]u8 = undefined,
+    git_revision: Mmio(u32, .r),
 };

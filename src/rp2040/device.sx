@@ -1326,17 +1326,98 @@
     )
 )
 (group sys
-    (peripheral SYSINFO
+    (create-type ValueSetClearToggle
+        (struct
+            (value (type (reg u32)))
+            (set (type (reg w u32)))
+            (clear (type (reg w u32)))
+            (toggle (type (reg w u32)))
+        )
+    )
+    (create-type InterpolatorControlLane0
+        (bits 32)
+        (packed
+            (shift (type u5))
+            (mask_lsb (type u5))
+            (mask_msb (type u5))
+            (signed (type bool))
+            (cross_input (type bool))
+            (cross_result (type bool))
+            (add_raw (type bool))
+            (force_msb (type u2))
+            (blend "only for interpolator 0" (type bool))
+            (overflow0 (type bool) (offset 17))
+            (overflow1 (type bool))
+            (overflow (type bool))
+        )
+    )
+    (create-type InterpolatorControlLane1
+        (bits 32)
+        (packed
+            (shift (type u5))
+            (mask_lsb (type u5))
+            (mask_msb (type u5))
+            (signed (type bool))
+            (cross_input (type bool))
+            (cross_result (type bool))
+            (add_raw (type bool))
+            (force_msb (type u2))
+        )
+    )
+    (peripheral SIO
         (type
-            (field CHIP_ID (rename chip_id)
-                (type (inner
-                    (field MANUFACTURER (rename mfr))
-                    (field PART (rename part))
-                    (field REVISION (rename revision))
-                ))
-            )
-            (delete-field PLATFORM)
-            (field GITREF_RP2040 (rename git_revision))
+            (field CPUID (rename core_id))
+            (merge-field GPIO_IN io (struct
+                (in (type (reg r u32)))
+                (in_qspi (type (reg r u32)))
+                (out (type ValueSetClearToggle) (offset 0xC))
+                (oe (type ValueSetClearToggle))
+                (out_qspi (type ValueSetClearToggle))
+                (oe_qspi (type ValueSetClearToggle))
+            ))
+            (merge-field FIFO_ST fifo (struct
+                (status (type (reg (bits 32) (packed
+                    (readable "inbox can be read at least once" (type bool))
+                    (writable "outbox can be written at least once" (type bool))
+                    (write_error_flag "was written when full; write to clear" (type bool))
+                    (read_error_flag "was read when empty; write to clear" (type bool))
+                ))))
+                (outbox (type (reg w u32)))
+                (inbox (type (reg r u32)))
+            ))
+            (field SPINLOCK_ST (rename spinlock_status))
+            (merge-field DIV_UDIVIDEND divider (struct
+                (unsigned_dividend (type (reg u32)))
+                (unsigned_divisor (type (reg u32)))
+                (signed_dividend (type (reg i32)))
+                (signed_divisor (type (reg i32)))
+                (quotient (type (reg r u32)))
+                (remainder (type (reg r u32)))
+                (control_status (type (reg r (bits 32) (packed
+                    (ready (type bool))
+                    (dirty (type bool))
+                ))))
+            ))
+            (merge-field INTERP0_ACCUM0 interpolator (array 2 (struct
+                (accumulator (type (array 2 (reg u32))))
+                (base (type (array 3 (reg u32))))
+                (pop_lane0 (type (reg r u32)))
+                (pop_lane1 (type (reg r u32)))
+                (pop_full (type (reg r u32)))
+                (peek_lane0 (type (reg r u32)))
+                (peek_lane1 (type (reg r u32)))
+                (peek_full (type (reg r u32)))
+                (control_lane0 (type (reg InterpolatorControlLane0)))
+                (control_lane1 (type (reg InterpolatorControlLane1)))
+                (accumulator_add (type (array 2 (reg (bits 32) (packed
+                    (value (type u24))
+                )))))
+                (base_split_write (type (reg w (packed
+                    (base0 (type i16))
+                    (base1 (type i16))
+                ))))
+            )))
+            (merge-field SPINLOCK0 spinlock (array 32 (reg u32)))
         )
     )
     (peripheral XIP_SSI
@@ -1555,6 +1636,19 @@
             (rename SSI)
         )
         (rename SSI)
+    )
+    (peripheral SYSINFO
+        (type
+            (field CHIP_ID (rename chip_id)
+                (type (inner
+                    (field MANUFACTURER (rename mfr))
+                    (field PART (rename part))
+                    (field REVISION (rename revision))
+                ))
+            )
+            (delete-field PLATFORM)
+            (field GITREF_RP2040 (rename git_revision))
+        )
     )
 )
 (group cortex
