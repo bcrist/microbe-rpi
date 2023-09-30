@@ -22,7 +22,7 @@ pub const XOSC = extern struct {
         _,
     }, .rw),
     startup_delay: Mmio(packed struct(u32) {
-        cycles: u14 = 0xC4,
+        cycles_div256: u14 = 0xC4,
         _reserved_e: u18 = 0,
     }, .rw),
 };
@@ -48,7 +48,7 @@ pub const ROSC = extern struct {
             high = 0xFA7,
 
             _,
-        } = .high,
+        } = .low,
         enabled: enum(u12) {
             disabled = 0xD1E,
             enabled = 0xFAB,
@@ -147,6 +147,7 @@ pub const PLL = extern struct {
     }, .rw),
     power: Mmio(enum(u32) {
         run = 0x4,
+        vco_startup = 0xC,
         bypass = 0x2C,
         shutdown = 0x2D,
         _,
@@ -170,6 +171,13 @@ pub const PLL = extern struct {
 
         _reserved_13: u13 = 0,
     }, .rw),
+};
+
+pub const Div123 = enum(u2) {
+    none = 1,
+    div2 = 2,
+    div3 = 3,
+    _,
 };
 
 pub const GpoutClockGenerator = extern struct {
@@ -225,12 +233,7 @@ pub const RefClockGenerator = extern struct {
     }, .rw),
     divisor: Mmio(packed struct(u32) {
         _reserved_0: u8 = 0,
-        divisor: enum(u2) {
-            div65536 = 0,
-            none = 1,
-            div2 = 2,
-            div3 = 3,
-        } = .div65536,
+        divisor: Div123 = .none,
         _reserved_a: u22 = 0,
     }, .rw),
     status: Mmio(packed struct(u32) {
@@ -320,12 +323,7 @@ pub const UsbAdcClockGenerator = extern struct {
     }, .rw),
     divisor: Mmio(packed struct(u32) {
         _reserved_0: u8 = 0,
-        divisor: enum(u2) {
-            div65536 = 0,
-            none = 1,
-            div2 = 2,
-            div3 = 3,
-        } = .div65536,
+        divisor: Div123 = .none,
         _reserved_a: u22 = 0,
     }, .rw),
     _reserved_8: [4]u8 = undefined,

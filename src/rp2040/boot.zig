@@ -1,8 +1,9 @@
 const std = @import("std");
 const root = @import("root");
 const chip = @import("chip");
+const config = @import("config");
 const microbe = @import("microbe");
-// const clocks = @import("clocks.zig");
+const clocks = @import("clocks.zig");
 const reg_types = chip.reg_types;
 const VectorTable = reg_types.VectorTable;
 const Exception = chip.interrupts.Exception;
@@ -16,9 +17,6 @@ const ExceptionHandler = chip.interrupts.Handler;
 // constant VectorTable.
 extern fn _core0_stack_end() void;
 extern fn _core1_stack_end() void;
-
-// Defined in the config module
-extern fn _init_ram() void;
 
 /// This is the entry point after XIP has been enabled by boot2.
 /// All it does is initialize core 0's SP and then call _start()
@@ -36,11 +34,20 @@ pub fn boot3() callconv(.Naked) noreturn {
 /// This is the logical entry point for microbe.
 /// It will invoke the main function from the root source file and provide error return handling
 fn start() linksection(".boot3") callconv(.C) noreturn {
-    _init_ram();
-
     chip.SCB.vector_table.write(&core0_vt);
 
-    // clocks.init(root.clocks);
+    if (@hasDecl(root, "earlyInit")) {
+        root.earlyInit();
+    }
+
+    chip.RESETS.force.modify(.{
+        .pads_bank0 = 0,
+        .io_bank0 = 0,
+    });
+
+    clocks.init();
+
+    config.initRam();
 
     if (@hasDecl(root, "init")) {
         root.init();
@@ -70,7 +77,7 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
         main_fn();
     }
 
-    resetCurrentCore();
+    @panic("main() returned!");
 }
 
 pub const core0_vt: VectorTable linksection(".core0_vt") = initVectorTable("core0");
@@ -112,19 +119,25 @@ fn initVectorTable(comptime core_id: []const u8) VectorTable {
 }
 
 pub fn resetCurrentCore() noreturn {
-    // TODO if core0, we should reset the whole chip.  Otherwise just reset core1
     chip.SCB.reset_control.write(.{ .request_core_reset = true });
     unreachable;
 }
 
-pub const ChipResetSource = enum {
+pub const ResetSource = enum {
     unknown,
+    watchdog_forced,
+    watchdog_timeout,
     power_on_or_brown_out,
     external_run_pin,
     debug_port,
 };
-/// Note this doesn't track watchdog resets, core resets, etc.
-pub fn getLastChipResetSource() ChipResetSource {
+/// Note this doesn't track individual core resets (i.e. resetCurrentCore())
+pub fn getLastResetSource() ResetSource {
+    switch (chip.WATCHDOG.last_reset_reason.read().reason) {
+        .watchdog_timeout => return .watchdog_timeout,
+        .watchdog_forced => return .watchdog_forced,
+        .chip_reset => {},
+    }
     const data = chip.VREG_AND_CHIP_RESET.CHIP_RESET.read();
     if (data.HAD_POR) return .power_on_or_brown_out;
     if (data.HAD_RUN) return .external_run_pin;
@@ -137,5 +150,5 @@ pub const CoreID = enum(u8) {
     core1 = 1,
 };
 pub fn getCurrentCoreID() CoreID {
-    return @enumFromInt(chip.SIO.CPUID.read());
+    return @enumFromInt(chip.SIO.core_id.read());
 }

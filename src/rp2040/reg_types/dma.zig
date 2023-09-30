@@ -20,7 +20,7 @@ pub const ChannelBitmap = packed struct(u32) {
 pub const InterruptEnableForceStatus = extern struct {
     enable: Mmio(ChannelBitmap, .rw),
     force: Mmio(ChannelBitmap, .rw),
-    status: Mmio(ChannelBitmap, .r),
+    status: Mmio(ChannelBitmap, .rw),
 };
 
 pub const ChannelControl = packed struct(u32) {

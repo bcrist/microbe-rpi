@@ -145,68 +145,6 @@ pub const BUSCTRL = extern struct {
     }, .rw),
 };
 
-pub const RESET_DONE = packed struct(u32) {
-    adc: u1 = 0,
-    busctrl: u1 = 0,
-    dma: u1 = 0,
-    i2c0: u1 = 0,
-    i2c1: u1 = 0,
-    io_bank0: u1 = 0,
-    io_qspi: u1 = 0,
-    jtag: u1 = 0,
-    pads_bank0: u1 = 0,
-    pads_qspi: u1 = 0,
-    pio0: u1 = 0,
-    pio1: u1 = 0,
-    pll_sys: u1 = 0,
-    pll_usb: u1 = 0,
-    pwm: u1 = 0,
-    rtc: u1 = 0,
-    spi0: u1 = 0,
-    spi1: u1 = 0,
-    syscfg: u1 = 0,
-    sysinfo: u1 = 0,
-    tbman: u1 = 0,
-    timer: u1 = 0,
-    uart0: u1 = 0,
-    uart1: u1 = 0,
-    usbctrl: u1 = 0,
-    _reserved_19: u7 = 0,
-};
-
-pub const RESETS = extern struct {
-    RESET: Mmio(packed struct(u32) {
-        adc: u1 = 1,
-        busctrl: u1 = 1,
-        dma: u1 = 1,
-        i2c0: u1 = 1,
-        i2c1: u1 = 1,
-        io_bank0: u1 = 1,
-        io_qspi: u1 = 1,
-        jtag: u1 = 1,
-        pads_bank0: u1 = 1,
-        pads_qspi: u1 = 1,
-        pio0: u1 = 1,
-        pio1: u1 = 1,
-        pll_sys: u1 = 1,
-        pll_usb: u1 = 1,
-        pwm: u1 = 1,
-        rtc: u1 = 1,
-        spi0: u1 = 1,
-        spi1: u1 = 1,
-        syscfg: u1 = 1,
-        sysinfo: u1 = 1,
-        tbman: u1 = 1,
-        timer: u1 = 1,
-        uart0: u1 = 1,
-        uart1: u1 = 1,
-        usbctrl: u1 = 1,
-        _reserved_19: u7 = 0,
-    }, .rw),
-    WDSEL: Mmio(RESET_DONE, .rw),
-    RESET_DONE: Mmio(RESET_DONE, .rw),
-};
-
 pub const DONE = packed struct(u32) {
     rosc: u1 = 0,
     xosc: u1 = 0,
@@ -233,42 +171,6 @@ pub const PSM = extern struct {
     FRCE_OFF: Mmio(DONE, .rw),
     WDSEL: Mmio(DONE, .rw),
     DONE: Mmio(DONE, .rw),
-};
-
-pub const WATCHDOG = extern struct {
-    CTRL: Mmio(packed struct(u32) {
-        TIME: u24 = 0,
-        PAUSE_JTAG: u1 = 1,
-        PAUSE_DBG0: u1 = 1,
-        PAUSE_DBG1: u1 = 1,
-        _reserved_1b: u3 = 0,
-        ENABLE: u1 = 0,
-        TRIGGER: u1 = 0,
-    }, .rw),
-    LOAD: Mmio(packed struct(u32) {
-        LOAD: u24 = 0,
-        _reserved_18: u8 = 0,
-    }, .rw),
-    REASON: Mmio(packed struct(u32) {
-        TIMER: u1 = 0,
-        FORCE: u1 = 0,
-        _reserved_2: u30 = 0,
-    }, .rw),
-    SCRATCH0: Mmio(u32, .rw),
-    SCRATCH1: Mmio(u32, .rw),
-    SCRATCH2: Mmio(u32, .rw),
-    SCRATCH3: Mmio(u32, .rw),
-    SCRATCH4: Mmio(u32, .rw),
-    SCRATCH5: Mmio(u32, .rw),
-    SCRATCH6: Mmio(u32, .rw),
-    SCRATCH7: Mmio(u32, .rw),
-    TICK: Mmio(packed struct(u32) {
-        CYCLES: u9 = 0,
-        ENABLE: u1 = 1,
-        RUNNING: u1 = 0,
-        COUNT: u9 = 0,
-        _reserved_14: u12 = 0,
-    }, .rw),
 };
 
 pub const XIP_CTRL = extern struct {
@@ -300,6 +202,41 @@ pub const XIP_CTRL = extern struct {
         _reserved_16: u10 = 0,
     }, .rw),
     STREAM_FIFO: Mmio(u32, .r),
+};
+
+pub const ResetBitmap = packed struct(u32) {
+    adc: u1 = 0,
+    busctrl: u1 = 0,
+    dma: u1 = 0,
+    i2c0: u1 = 0,
+    i2c1: u1 = 0,
+    io_bank0: u1 = 0,
+    io_qspi: u1 = 0,
+    jtag: u1 = 0,
+    pads_bank0: u1 = 0,
+    pads_qspi: u1 = 0,
+    pio0: u1 = 0,
+    pio1: u1 = 0,
+    pll_sys: u1 = 0,
+    pll_usb: u1 = 0,
+    pwm: u1 = 0,
+    rtc: u1 = 0,
+    spi0: u1 = 0,
+    spi1: u1 = 0,
+    syscfg: u1 = 0,
+    sysinfo: u1 = 0,
+    tbman: u1 = 0,
+    timer: u1 = 0,
+    uart0: u1 = 0,
+    uart1: u1 = 0,
+    usbctrl: u1 = 0,
+    _reserved_19: u7 = 0,
+};
+
+pub const RESETS = extern struct {
+    force: Mmio(ResetBitmap, .rw),
+    watchdog: Mmio(ResetBitmap, .rw),
+    done: Mmio(ResetBitmap, .rw),
 };
 
 pub const ValueSetClearToggle = extern struct {
@@ -343,8 +280,8 @@ pub const SIO = extern struct {
     divider: extern struct {
         unsigned_dividend: Mmio(u32, .rw),
         unsigned_divisor: Mmio(u32, .rw),
-        signed_dividend: Mmio(u32, .rw),
-        signed_divisor: Mmio(u32, .rw),
+        signed_dividend: Mmio(i32, .rw),
+        signed_divisor: Mmio(i32, .rw),
         quotient: Mmio(u32, .r),
         remainder: Mmio(u32, .r),
         control_status: Mmio(packed struct(u32) {
@@ -402,6 +339,39 @@ pub const SIO = extern struct {
         }, .w),
     },
     spinlock: [32]Mmio(u32, .rw),
+};
+
+pub const WATCHDOG = extern struct {
+    control: Mmio(packed struct(u32) {
+        ticks_remaining_x2: u24 = 0,
+        pause_during_jtag: bool = true,
+        pause_when_core0_debugging: bool = true,
+        pause_when_core1_debugging: bool = true,
+        _reserved_1b: u3 = 0,
+        enable_countdown: bool = false,
+        trigger_immediately: bool = false,
+    }, .rw),
+    reload: Mmio(packed struct(u32) {
+        ticks_x2: u24 = 0,
+        _reserved_18: u8 = 0,
+    }, .rw),
+    last_reset_reason: Mmio(packed struct(u32) {
+        reason: enum(u2) {
+            chip_reset = 0,
+            watchdog_timeout = 1,
+            watchdog_forced = 2,
+            _,
+        } = .chip_reset,
+        _reserved_2: u30 = 0,
+    }, .rw),
+    scratch: [8]Mmio(u32, .rw),
+    tick: Mmio(packed struct(u32) {
+        divisor: u9 = 0,
+        enabled: bool = true,
+        running: bool = false,
+        current_count: u9 = 0,
+        _reserved_14: u12 = 0,
+    }, .rw),
 };
 
 pub const SSI = extern struct {

@@ -126,6 +126,7 @@
     )
     (create-type IoFunction
         (bits 5)
+        (inline never)
         (enum
             (0 jtag)
             (1 spi)
@@ -142,6 +143,7 @@
     )
     (create-type QspiFunction
         (bits 5)
+        (inline never)
         (enum
             (0 ssi)
             (5 sio)
@@ -454,7 +456,7 @@
         (struct
             (enable (type (reg ChannelBitmap)))
             (force (type (reg ChannelBitmap)))
-            (status (type (reg r ChannelBitmap)))
+            (status (type (reg ChannelBitmap)))
         )
     )
     (create-type Checksum
@@ -775,7 +777,7 @@
             (field STARTUP
                 (rename startup_delay)
                 (set-type (reg (bits 32) (packed
-                    (cycles (type u14) (default 0xC4))
+                    (cycles_div256 (type u14) (default 0xC4))
                 )))
             )
             (delete-field COUNT)
@@ -795,7 +797,7 @@
                 (rename control)
                 (set-type (reg (bits 32) (packed
                     (range
-                        (default 0xFA7)
+                        (default 0xFA4)
                         (type (enum
                             (0xFA4 low "8 stages")
                             (0xFA5 medium "6 stages")
@@ -917,7 +919,8 @@
             (set-type (reg (bits 32) (enum
                 (0x2D shutdown)
                 (0x2C bypass)
-                (0x4 run)
+                (0x0C vco_startup)
+                (0x04 run)
             )))
         )
         (field FBDIV_INT
@@ -943,7 +946,15 @@
             ))
         )
     ))
-
+    (create-type Div123
+        (bits 2)
+        (inline never)
+        (enum
+            (1 none)
+            (2 div2)
+            (3 div3)
+        )
+    )
     (create-type GpoutClockGenerator
         (inline never)
         (bits 96)
@@ -1006,12 +1017,8 @@
                 (divisor (type (reg (bits 32) (packed
                     (divisor
                         (offset 8)
-                        (type (enum
-                            (0 div65536)
-                            (1 none)
-                            (2 div2)
-                            (3 div3)
-                        ))
+                        (type Div123)
+                        (default 1)
                     )
                 ))))
                 (status (type (reg r (bits 32) (packed
@@ -1110,12 +1117,8 @@
                 (divisor (type (reg (bits 32) (packed
                     (divisor
                         (offset 8)
-                        (type (enum
-                            (0 div65536)
-                            (1 none)
-                            (2 div2)
-                            (3 div3)
-                        ))
+                        (type Div123)
+                        (default 1)
                     )
                 ))))
             )
@@ -1147,12 +1150,8 @@
                 (divisor (type (reg (bits 32) (packed
                     (divisor
                         (offset 8)
-                        (type (enum
-                            (0 div65536)
-                            (1 none)
-                            (2 div2)
-                            (3 div3)
-                        ))
+                        (type Div123)
+                        (default 1)
                     )
                 ))))
             )
@@ -1326,6 +1325,20 @@
     )
 )
 (group sys
+    (peripheral RESETS (type
+        (field RESET_DONE
+            (rename done)
+            (type (inner (set-name ResetBitmap)))
+        )
+        (field WDSEL
+            (rename watchdog)
+            (type (inner (set-name ResetBitmap)))
+        )
+        (field RESET
+            (rename force)
+            (set-type (reg ResetBitmap))
+        )
+    ))
     (create-type ValueSetClearToggle
         (struct
             (value (type (reg u32)))
@@ -1418,6 +1431,47 @@
                 ))))
             )))
             (merge-field SPINLOCK0 spinlock (array 32 (reg u32)))
+        )
+    )
+    (peripheral WATCHDOG
+        (type
+            (field CTRL
+                (rename control)
+                (type (inner
+                    (field TIME (rename ticks_remaining_x2))
+                    (field PAUSE_JTAG (rename pause_during_jtag) (set-type bool))
+                    (field PAUSE_DBG0 (rename pause_when_core0_debugging) (set-type bool))
+                    (field PAUSE_DBG1 (rename pause_when_core1_debugging) (set-type bool))
+                    (field ENABLE (rename enable_countdown) (set-type bool))
+                    (field TRIGGER (rename trigger_immediately) (set-type bool))
+                ))
+            )
+            (field LOAD
+                (rename reload)
+                (type (inner
+                    (field LOAD (rename ticks_x2))
+                ))
+            )
+            (field REASON
+                (rename last_reset_reason)
+                (type (inner
+                    (merge-field TIMER reason (enum
+                        (0 chip_reset)
+                        (1 watchdog_timeout)
+                        (2 watchdog_forced)
+                    ))
+                ))
+            )
+            (merge-field SCRATCH0 scratch (array 8 (reg u32)))
+            (field TICK
+                (rename tick)
+                (type (inner
+                    (field CYCLES (rename divisor))
+                    (field ENABLE (rename enabled) (set-type bool))
+                    (field RUNNING (rename running) (set-type bool))
+                    (field COUNT (rename current_count))
+                ))
+            )
         )
     )
     (peripheral XIP_SSI

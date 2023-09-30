@@ -137,15 +137,32 @@ pub const IoStatus = packed struct(u32) {
     _reserved_1b: u5 = 0,
 };
 
+pub const IoFunction = enum(u5) {
+    jtag = 0x0,
+    spi = 0x1,
+    uart = 0x2,
+    i2c = 0x3,
+    pwm = 0x4,
+    sio = 0x5,
+    pio0 = 0x6,
+    pio1 = 0x7,
+    clock = 0x8,
+    usb = 0x9,
+    disable = 0x1F,
+    _,
+};
+
+pub const QspiFunction = enum(u5) {
+    ssi = 0x0,
+    sio = 0x5,
+    disable = 0x1F,
+    _,
+};
+
 pub const QspiStatusControl = extern struct {
     status: Mmio(IoStatus, .rw),
     control: Mmio(packed struct(u32) {
-        func: enum(u5) {
-            ssi = 0x0,
-            sio = 0x5,
-            disable = 0x1F,
-            _,
-        } = .disable,
+        func: QspiFunction = .disable,
         _reserved_5: u3 = 0,
         output_override: ModeOverride = .normal,
         _reserved_a: u2 = 0,
@@ -161,20 +178,7 @@ pub const QspiStatusControl = extern struct {
 pub const IO = [30]extern struct {
     status: Mmio(IoStatus, .rw),
     control: Mmio(packed struct(u32) {
-        func: enum(u5) {
-            jtag = 0x0,
-            spi = 0x1,
-            uart = 0x2,
-            i2c = 0x3,
-            pwm = 0x4,
-            sio = 0x5,
-            pio0 = 0x6,
-            pio1 = 0x7,
-            clock = 0x8,
-            usb = 0x9,
-            disable = 0x1F,
-            _,
-        } = .disable,
+        func: IoFunction = .disable,
         _reserved_5: u3 = 0,
         output_override: ModeOverride = .normal,
         _reserved_a: u2 = 0,

@@ -1,6 +1,5 @@
 
-pub fn initExports(comptime ConfigModule: type) void {
-    @export(ConfigModule.initRam, .{ .name = "_init_ram" });
+pub fn initExports() void {
     @export(boot.boot3, .{ .name = "_boot3", .section = ".boot3_entry" });
     @export(boot.core0_vt, .{ .name = "_core0_vt", .section = ".core0_vt" });
     @export(boot.core1_vt, .{ .name = "_core1_vt", .section = ".core1_vt" });
@@ -15,10 +14,11 @@ pub const interrupts = @import("rp2040/interrupts.zig");
 pub const Interrupt = interrupts.Interrupt;
 pub const Exception = interrupts.Exception;
 
-//pub const gpio = @import("gpio.zig");
+pub const gpio = @import("rp2040/gpio.zig");
+pub const dma = @import("rp2040/dma.zig");
+pub const clocks = @import("rp2040/clocks.zig");
+pub const timing = @import("rp2040/timing.zig");
 //pub const uart = @import("rp2040/uart.zig");
-//pub const dma = @import("rp2040/dma.zig");
-//pub const clocks = @import("rp2040/clocks.zig");
 
 pub const base_name = "RP2040";
 pub const core_name = "ARM Cortex-M0+";
@@ -54,8 +54,18 @@ pub const PadID = enum {
     GPIO27, // pin 39
     GPIO28, // pin 40
     GPIO29, // pin 41
+
+    // SWD pins:
     SWCLK, // pin 24
     SWDIO, // pin 25
+
+    // QSPI pins:
+    SCLK,
+    SS,
+    SD0,
+    SD1,
+    SD2,
+    SD3,
 };
 
 pub fn flushInstructionCache() void {
