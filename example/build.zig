@@ -5,10 +5,10 @@ const rpi = @import("microbe-rpi");
 pub fn build(b: *std.Build) void {
     var rpi_dep = b.dependency("microbe-rpi", .{});
 
-    const chip = rpi.rp2040(1024, 2, 50_000_000); // clk_sys is limited to 100MHz
+    const chip = rpi.rp2040(rpi.zd25q80c_div2());
 
-    const boot2_module = rpi.addChecksummedBoot2Module(b, .{
-        .source = .{ .module = rpi_dep.module("boot2-zd25q") },
+    const boot2_object = rpi.addBoot2Object(b, .{
+        .source = .{ .module = rpi_dep.module("boot2-default") },
         .chip = chip,
     });
 
@@ -19,22 +19,16 @@ pub fn build(b: *std.Build) void {
         .sections = rpi.defaultSections(),
         .optimize = b.standardOptimizeOption(.{}),
     });
-    exe.addModule("boot2", boot2_module);
+    exe.addObject(boot2_object);
+
+    const bin = exe.addObjCopy(.{ .format = .bin });
+    const checksummed_bin = rpi.Boot2ChecksumStep.create(b, bin.getOutput());
+    const install_bin = b.addInstallBinFile(checksummed_bin.getOutput(), "example.bin");
+
+    const uf2 = rpi.addBinToUf2(b, checksummed_bin.getOutput());
+    const install_uf2 = b.addInstallBinFile(uf2.getOutput(), "example.uf2");
+
     b.installArtifact(exe);
-
-    // var objcopy_step = example.addObjCopy(.{ .format = .bin });
-    // const install_bin_step = b.addInstallBinFile(objcopy_step.getOutputSource(), "example.bin");
-    // install_bin_step.step.dependOn(&objcopy_step.step);
-    // b.default_step.dependOn(&install_bin_step.step);
-
-    // var flash = b.addSystemCommand(&.{
-    //     "C:\\Program Files (x86)\\STMicroelectronics\\STM32 ST-LINK Utility\\ST-LINK Utility\\ST-LINK_CLI.exe",
-    //     "-c", "SWD", "UR", "LPM",
-    //     "-P", b.getInstallPath(.bin, "example.bin"), "0x08000000",
-    //     "-V", "after_programming",
-    //     "-HardRst", "PULSE=100",
-    // });
-    // flash.step.dependOn(&install_bin_step.step);
-    // const flash_step = b.step("flash", "Flash firmware with ST-LINK");
-    // flash_step.dependOn(&flash.step);
+    b.getInstallStep().dependOn(&install_bin.step);
+    b.getInstallStep().dependOn(&install_uf2.step);
 }
