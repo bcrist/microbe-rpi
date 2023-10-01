@@ -33,9 +33,13 @@ pub const Handler = extern union {
     }
 };
 
-pub const unhandled = Handler { .C = _unhandled };
-fn _unhandled() callconv(.C) noreturn {
-    @panic("unhandled");
+pub fn unhandled(comptime e: Exception) Handler {
+    const H = struct {
+        pub fn unhandled() callconv(.C) noreturn {
+            @panic("unhandled " ++ @tagName(e));
+        }
+    };
+    return .{ .C = H.unhandled };
 }
 
 pub fn isEnabled(comptime irq: Interrupt) bool {

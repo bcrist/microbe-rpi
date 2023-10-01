@@ -45,6 +45,10 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
         .io_bank0 = 0,
     });
 
+    chip.WATCHDOG.control.modify(.{
+        .enable_countdown = false,
+    });
+
     clocks.init();
 
     config.initRam();
@@ -80,8 +84,8 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
     @panic("main() returned!");
 }
 
-pub const core0_vt: VectorTable linksection(".core0_vt") = initVectorTable("core0");
-pub const core1_vt: VectorTable linksection(".core1_vt") = initVectorTable("core1");
+pub const core0_vt: VectorTable align(0x100) linksection(".core0_vt") = initVectorTable("core0");
+pub const core1_vt: VectorTable align(0x100) linksection(".core1_vt") = initVectorTable("core1");
 
 fn initVectorTable(comptime core_id: []const u8) VectorTable {
     var vt: VectorTable = .{
