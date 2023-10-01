@@ -22,7 +22,7 @@ pub fn blockUntilTick(tick: microbe.Tick) void {
     }
 }
 
-pub fn getTickFrequency() comptime_int {
+pub fn getTickFrequencyHz() comptime_int {
     return clocks.getConfig().tick.frequency_hz;
 }
 
@@ -51,6 +51,6 @@ pub fn blockUntilMicrotick(tick: microbe.Microtick) void {
     }
 }
 
-pub fn getMicrotickFrequency() comptime_int {
+pub fn getMicrotickFrequencyHz() comptime_int {
     return clocks.getConfig().microtick.frequency_hz;
 }
