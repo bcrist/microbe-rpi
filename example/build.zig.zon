@@ -3,12 +3,11 @@
     .version = "0.0.0",
     .dependencies = .{
         .microbe = .{
-            .url = "https://github.com/bcrist/microbe/archive/9440ef047251ebe1afedd5c0bb2194ba4e10e735.tar.gz",
-            .hash = "12205e7258232c10cd346be634652a27dc43b36e92420999d01ccddb6b9fe4f84c8e",
+            .url = "https://github.com/bcrist/microbe/archive/ebe2f3104bf00167f1f3ae9a0abb0987492b156d.tar.gz",
+            .hash = "1220ce45b8ee06755c5b0e64f82feee411f537ce9fdc71f867e3f96a0bdc551b0fb7",
         },
         .@"microbe-rpi" = .{
-            .url = "https://github.com/bcrist/microbe-rpi/archive/b164a2e35788198a476b153b54cda7b9bc2e8730.tar.gz",
-            .hash = "1220b248b0f82c776bb476083b40f2cc1adbf3e3342bf5b7f0e847a2461714cefaf5",
+            .url = "https://github.com/bcrist/microbe-rpi/archive/656ea6a3a55e32431ecfec2a0ebc92c689e2ba95.tar.gz",
         },
     },
 }

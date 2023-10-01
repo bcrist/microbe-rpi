@@ -814,8 +814,8 @@ pub fn pllParamsAuto(comptime options: PllParamsAutoOptions) ParsedPllConfig {
                         }
 
                         if (closest_match) |closest| {
-                            const delta = std.math.absCast(f1 - options.out_frequency_hz);
-                            const closest_delta = std.math.absCast(closest.frequency_hz - options.out_frequency_hz);
+                            const delta = @abs(f1 - options.out_frequency_hz);
+                            const closest_delta = @abs(closest.frequency_hz - options.out_frequency_hz);
                             if (delta > closest_delta) {
                                 continue;
                             }
