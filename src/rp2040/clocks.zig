@@ -163,7 +163,7 @@ pub const GenericSource = enum {
     rtc,
     microtick,
 
-    pub fn getFrequencyFromConfig(self: GenericSource, parsed: ParsedConfig) comptime_int {
+    pub fn getFrequencyFromConfig(comptime self: GenericSource, comptime parsed: ParsedConfig) comptime_int {
         return switch (self) {
             .sys_pll => parsed.sys_pll.frequency_hz,
             .usb_pll => parsed.usb_pll.frequency_hz,
@@ -187,7 +187,7 @@ pub const GenericClockGeneratorConfig = struct {
     frequency_hz: comptime_int,
     period_ns: comptime_int,
 
-    pub fn init(source: GenericSource, target_frequency_hz: comptime_int, fractional_divisor: bool, parsed: ParsedConfig) GenericClockGeneratorConfig {
+    pub fn init(comptime source: GenericSource, comptime target_frequency_hz: comptime_int, comptime fractional_divisor: bool, comptime parsed: ParsedConfig) GenericClockGeneratorConfig {
         const source_frequency_hz = source.getFrequencyFromConfig(parsed);
 
         var divisor_256ths = util.divRound(source_frequency_hz * 256, target_frequency_hz);
@@ -319,8 +319,22 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
             .sys_pll = ParsedPllConfig.disabled,
             .usb_pll = ParsedPllConfig.disabled,
             .gpin = .{
-                .{ .pad = null, .frequency_hz = 0 },
-                .{ .pad = null, .frequency_hz = 0 },
+                .{
+                    .pad = .GPIO20,
+                    .frequency_hz = 0,
+                    .period_ns = 0,
+                    .invert = false,
+                    .hysteresis = true,
+                    .maintenance = .float,
+                },
+                .{
+                    .pad = .GPIO22,
+                    .frequency_hz = 0,
+                    .period_ns = 0,
+                    .invert = false,
+                    .hysteresis = true,
+                    .maintenance = .float,
+                },
             },
             .ref = GenericClockGeneratorConfig.default,
             .sys = GenericClockGeneratorConfig.default,
@@ -332,19 +346,64 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
                 .source = .ref,
                 .period_ns = 0,
                 .frequency_hz = 0,
-                .reload_value = 0,
+                .watchdog_cycles = 0,
             },
             .tick = .{
                 .source = .ref,
                 .period_ns = 0,
                 .frequency_hz = 0,
+                .reload_value = 0,
             },
-            .gpout = .{ .{
-                .source = .ref,
-                .pad = null,
-                .divisor_256ths = 256,
-                .frequency_hz = 0,
-            } } ** 4,
+            .gpout = .{
+                .{
+                    .pad = .GPIO21,
+                    .invert = false,
+                    .slew = .slow,
+                    .strength = .@"2mA",
+                    .generator = .{
+                        .source = .ref,
+                        .divisor_256ths = 256,
+                        .frequency_hz = 0,
+                        .period_ns = 0,
+                    },
+                },
+                .{
+                    .pad = .GPIO23,
+                    .invert = false,
+                    .slew = .slow,
+                    .strength = .@"2mA",
+                    .generator = .{
+                        .source = .ref,
+                        .divisor_256ths = 256,
+                        .frequency_hz = 0,
+                        .period_ns = 0,
+                    },
+                },
+                .{
+                    .pad = .GPIO24,
+                    .invert = false,
+                    .slew = .slow,
+                    .strength = .@"2mA",
+                    .generator = .{
+                        .source = .ref,
+                        .divisor_256ths = 256,
+                        .frequency_hz = 0,
+                        .period_ns = 0,
+                    },
+                },
+                .{
+                    .pad = .GPIO25,
+                    .invert = false,
+                    .slew = .slow,
+                    .strength = .@"2mA",
+                    .generator = .{
+                        .source = .ref,
+                        .divisor_256ths = 256,
+                        .frequency_hz = 0,
+                        .period_ns = 0,
+                    },
+                },
+            },
         };
 
         if (config.rosc) |rosc| {
@@ -412,6 +471,12 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
             const source_frequency_hz = parsed.microtick.source.getFrequencyFromConfig(parsed);
 
             parsed.microtick.watchdog_cycles = util.divRound(source_frequency_hz * parsed.microtick.period_ns, 1_000_000_000);
+            if (parsed.microtick.watchdog_cycles == 0) {
+                @compileError(std.fmt.comptimePrint("Ref clock ({}) too slow for microtick period ({} ns)", .{
+                    util.fmtFrequency(source_frequency_hz),
+                    parsed.microtick.period_ns,
+                }));
+            }
             parsed.microtick.frequency_hz = util.divRound(source_frequency_hz, parsed.microtick.watchdog_cycles);
             if (parsed.microtick.watchdog_cycles >= 512) {
                 @compileError("Ref clock too fast for microtick frequency!");
@@ -537,20 +602,34 @@ pub const ParsedPllConfig = struct {
             .divisor = 1,
             .multiplier = 16,
             .frequency_hz = 0,
+            .period_ns = 0,
         },
         .output_divisor0 = 7,
         .output_divisor1 = 7,
         .frequency_hz = 0,
+        .period_ns = 0,
     };
 };
 
-pub fn parsePllConfig(comptime config: PllConfig, xosc_frequency_hz: comptime_int) ParsedPllConfig {
+pub fn parsePllConfig(comptime config: PllConfig, comptime xosc_frequency_hz: comptime_int) ParsedPllConfig {
     if (config.frequency_hz == 0) @compileError("PLL output frequency must be > 0; use .sys_pll = null or .usb_pll = null to disable");
 
     return switch (config.vco) {
-        .auto => pllParamsAuto(xosc_frequency_hz, config.frequency_hz),
-        .frequency_hz => |vco_freq| pllParamsExplicitVco(xosc_frequency_hz, vco_freq, config.frequency_hz),
-        .manual => |params| pllParamsManual(xosc_frequency_hz, params.divisor, params.multiplier, config.frequency_hz),
+        .auto => pllParamsAuto(.{
+            .xosc_frequency_hz = xosc_frequency_hz,
+            .out_frequency_hz = config.frequency_hz,
+        }),
+        .frequency_hz => |vco_freq| pllParamsExplicitVco(.{
+            .xosc_frequency_hz = xosc_frequency_hz,
+            .vco_frequency_hz = vco_freq,
+            .out_frequency_hz = config.frequency_hz,
+        }),
+        .manual => |params| pllParamsManual(.{
+            .xosc_frequency_hz = xosc_frequency_hz,
+            .divisor = params.divisor,
+            .multiplier = params.multiplier,
+            .out_frequency_hz = config.frequency_hz,
+        }),
     };
 }
 
@@ -692,7 +771,7 @@ pub fn pllParamsAuto(comptime options: PllParamsAutoOptions) ParsedPllConfig {
         var closest_match: ?ParsedPllConfig = null;
         var closest_low_match_freq = 0;
         for (1..64) |divisor| {
-            const input = util.divRound(options.xosc_frequency_hz, options.divisor);
+            const input = util.divRound(options.xosc_frequency_hz, divisor);
             if (input < 5_000_000) break;
 
             for (16..321) |multiplier| {
@@ -714,10 +793,12 @@ pub fn pllParamsAuto(comptime options: PllParamsAutoOptions) ParsedPllConfig {
                                     .divisor = divisor,
                                     .multiplier = multiplier,
                                     .frequency_hz = vco,
+                                    .period_ns = util.divRound(1_000_000_000, vco),
                                 },
                                 .output_divisor0 = divisor0,
                                 .output_divisor1 = divisor1,
                                 .frequency_hz = f1,
+                                .period_ns = util.divRound(1_000_000_000, f1),
                             };
                         } else if (f1 < closest_low_match_freq) {
                             break;
@@ -726,8 +807,8 @@ pub fn pllParamsAuto(comptime options: PllParamsAutoOptions) ParsedPllConfig {
                         }
 
                         if (closest_match) |closest| {
-                            const delta = std.math.absInt(f1 - options.out_frequency_hz);
-                            const closest_delta = std.math.absInt(closest.frequency_hz - options.out_frequency_hz);
+                            const delta = std.math.absCast(f1 - options.out_frequency_hz);
+                            const closest_delta = std.math.absCast(closest.frequency_hz - options.out_frequency_hz);
                             if (delta > closest_delta) {
                                 continue;
                             }
@@ -738,6 +819,7 @@ pub fn pllParamsAuto(comptime options: PllParamsAutoOptions) ParsedPllConfig {
                                 .divisor = divisor,
                                 .multiplier = multiplier,
                                 .frequency_hz = vco,
+                                .period_ns = util.divRound(1_000_000_000, vco),
                             },
                             .output_divisor0 = divisor0,
                             .output_divisor1 = divisor1,
@@ -804,7 +886,7 @@ const PllConfigChange = struct {
     change_input_divisor: ?u6 = null,
     change_multiplier: ?u12 = null,
     wait_for_stable: bool = false,
-    change_output_divisor: ?chip.PLL_SYS.output.Type = null,
+    change_output_divisor: ?@TypeOf(chip.PLL_SYS.output).Type = null,
     enable_output_divisor: bool = false,
     shutdown: bool = false,
 
@@ -851,9 +933,9 @@ const ConfigChange = struct {
     start_xosc: bool = false,
 
     change_rosc_divisor_early: ?RoscDivisor = null,
-    change_rosc_drive0: ?chip.ROSC.drive0.Type = null,
-    change_rosc_drive1: ?chip.ROSC.drive1.Type = null,
-    start_rosc: ?chip.ROSC.control.Type = null,
+    change_rosc_drive0: ?@TypeOf(chip.ROSC.drive0).Type = null,
+    change_rosc_drive1: ?@TypeOf(chip.ROSC.drive1).Type = null,
+    start_rosc: ?@TypeOf(chip.ROSC.control).Type = null,
     change_rosc_divisor_late: ?RoscDivisor = null,
 
     wait_for_rosc_stable: bool = false,
@@ -882,33 +964,33 @@ const ConfigChange = struct {
     sys_pll: PllConfigChange = .{ .pll = chip.PLL_SYS },
     usb_pll: PllConfigChange = .{ .pll = chip.PLL_USB },
 
-    switch_sys_aux: ?std.meta.fieldInfo(chip.CLOCKS.sys.control.Type, .aux_source).type = null,
+    switch_sys_aux: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.control).Type, .aux_source).type = null,
     switch_sys_to_aux: bool = false,
     change_sys_divisor_late: ?u32 = null,
 
-    switch_ref_aux: ?std.meta.fieldInfo(chip.CLOCKS.ref.control.Type, .aux_source).type = null,
+    switch_ref_aux: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.ref.control).Type, .aux_source).type = null,
     switch_ref_to_aux: bool = false,
     change_ref_divisor_late: ?chip.reg_types.clk.Div123 = null,
 
-    enable_peri: ?std.meta.fieldInfo(chip.CLOCKS.peri.control.Type, .source).type = null,
+    enable_peri: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.peri.control).Type, .source).type = null,
     change_usb_divisor: ?chip.reg_types.clk.Div123 = null,
-    enable_usb: ?std.meta.fieldInfo(chip.CLOCKS.usb.control.Type, .source).type = null,
+    enable_usb: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.usb.control).Type, .source).type = null,
     change_adc_divisor: ?chip.reg_types.clk.Div123 = null,
-    enable_adc: ?std.meta.fieldInfo(chip.CLOCKS.adc.control.Type, .source).type = null,
+    enable_adc: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.adc.control).Type, .source).type = null,
     change_rtc_divisor: ?u32 = null,
-    enable_rtc: ?std.meta.fieldInfo(chip.CLOCKS.rtc.control.Type, .source).type = null,
+    enable_rtc: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.rtc.control).Type, .source).type = null,
 
     setup_gpout_slew: [4]?chip.reg_types.io.SlewRate = .{ null, null, null, null },
     setup_gpout_strength: [4]?chip.reg_types.io.DriveStrength = .{ null, null, null, null },
     setup_gpout_io: [4]?enum { disabled, normal, inverted } = .{ null, null, null, null },
     change_gpout_divisor: [4]?u32 = .{ null, null, null, null },
-    change_gpout_control: [4]?chip.reg_types.clk.GpoutClockGenerator.control.Type = .{ null, null, null, null },
-    enable_gpout: [4]?chip.reg_types.clk.GpoutClockGenerator.control.Type = .{ null, null, null, null },
+    change_gpout_control: [4]?std.meta.fieldInfo(chip.reg_types.clk.GpoutClockGenerator, .control).type = .{ null, null, null, null },
+    enable_gpout: [4]?std.meta.fieldInfo(chip.reg_types.clk.GpoutClockGenerator, .control).type = .{ null, null, null, null },
 
     disable_microtick: bool = false,
     disable_systick: bool = false,
     change_microtick_divisor: ?u9 = null,
-    change_systick_source: ?std.meta.fieldInfo(chip.SYSTICK.control_status.Type, .clock_source).type = null,
+    change_systick_source: ?std.meta.fieldInfo(@TypeOf(chip.SYSTICK.control_status).Type, .clock_source).type = null,
     change_systick_reload: ?u24 = null,
     enable_systick: bool = false,
     enable_microtick: bool = false,
@@ -1178,8 +1260,8 @@ const ConfigChange = struct {
     }
 
     fn setGlitchlessRefSource(comptime source: anytype) void {
-        const ControlSource = std.meta.fieldInfo(chip.CLOCKS.ref.control.Type, .source).type;
-        const StatusSource = std.meta.fieldInfo(chip.CLOCKS.ref.status.Type, .source).type;
+        const ControlSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.ref.control).Type, .source).type;
+        const StatusSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.ref.status).Type, .source).type;
         chip.CLOCKS.ref.control.modify(.{
             .source = std.enums.nameCast(ControlSource, source),
         });
@@ -1188,8 +1270,8 @@ const ConfigChange = struct {
     }
 
     fn setGlitchlessSysSource(comptime source: anytype) void {
-        const ControlSource = std.meta.fieldInfo(chip.CLOCKS.sys.control.Type, .source).type;
-        const StatusSource = std.meta.fieldInfo(chip.CLOCKS.sys.control.Type, .source).type;
+        const ControlSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.control).Type, .source).type;
+        const StatusSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.control).Type, .source).type;
         chip.CLOCKS.sys.control.modify(.{
             .source = std.enums.nameCast(ControlSource, source),
         });
@@ -1446,7 +1528,7 @@ pub fn init() void {
                 cc.disable_gpout[n] = true;
                 cc.setup_gpout_io[n] = .disabled;
             } else {
-                var ctrl: chip.reg_types.clk.GpoutClockGenerator.control.Type = .{
+                var ctrl: std.meta.fieldInfo(chip.reg_types.clk.GpoutClockGenerator, .control).type = .{
                     .source = switch (gpout.generator.source) {
                         .sys_pll => .pll_sys,
                         .gpin0 => .gpin0,

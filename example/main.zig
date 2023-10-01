@@ -68,7 +68,7 @@ pub fn main() !void {
             // }
 
             // try writer.writeAll("\r\n");
-        }
+        // }
 
         chip.timing.blockUntilMicrotick(chip.timing.currentMicrotick().plus(.{ .seconds = 2 }));
     }
