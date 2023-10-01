@@ -49,7 +49,7 @@ pub const Config = struct {
     } = .{ null, null },
 
     ref: struct {
-        source: enum {
+        source: ?enum {
             rosc,
             xosc,
             usb_pll,
@@ -57,10 +57,10 @@ pub const Config = struct {
             gpin1,
         },
         frequency_hz: ?comptime_int,
-    } = .{ .source = .xosc, .frequency_hz = null },
+    } = .{ .source = null, .frequency_hz = null },
 
     sys: struct {
-        source: enum {
+        source: ?enum {
             ref,
             sys_pll,
             usb_pll,
@@ -70,7 +70,7 @@ pub const Config = struct {
             gpin1,
         },
         frequency_hz: ?comptime_int,
-    } = .{ .source = .sys_pll, .frequency_hz = null },
+    } = .{ .source = null, .frequency_hz = null },
 
     microtick: struct {
         source: enum {
@@ -122,12 +122,12 @@ pub const Config = struct {
     } = null,
 
     usb: ?struct {
-        source: UsbAdcRtcSource,
+        source: ?UsbAdcRtcSource = null,
         frequency_hz: comptime_int = 48_000_000,
     } = null,
 
     adc: ?struct {
-        source: UsbAdcRtcSource,
+        source: ?UsbAdcRtcSource = null,
         frequency_hz: comptime_int = 48_000_000,
     } = null,
 
@@ -189,6 +189,9 @@ pub const GenericClockGeneratorConfig = struct {
 
     pub fn init(comptime source: GenericSource, comptime target_frequency_hz: comptime_int, comptime fractional_divisor: bool, comptime parsed: ParsedConfig) GenericClockGeneratorConfig {
         const source_frequency_hz = source.getFrequencyFromConfig(parsed);
+        if (source_frequency_hz == 0) {
+            @compileError("Source clock is disabled");
+        }
 
         var divisor_256ths = util.divRound(source_frequency_hz * 256, target_frequency_hz);
         if (fractional_divisor) {
@@ -458,11 +461,26 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
             }
         }
 
-        const ref_source = std.enums.nameCast(GenericSource, @tagName(config.ref.source));
-        parsed.ref = GenericClockGeneratorConfig.init(ref_source, config.ref.frequency_hz orelse ref_source.getFrequencyFromConfig(parsed), false, parsed);
+        const ref_source = src: {
+            if (config.ref.source) |source| {
+                break :src std.enums.nameCast(GenericSource, @tagName(source));
+            }
+            break :src if (parsed.xosc.frequency_hz > 0) .xosc else .rosc;
+        };
+        const ref_source_freq = ref_source.getFrequencyFromConfig(parsed);
+        if (ref_source_freq == 0) @compileError(std.fmt.comptimePrint("Ref clock source (.{s}) is not configured!", .{ @tagName(ref_source) }));
+        parsed.ref = GenericClockGeneratorConfig.init(ref_source, config.ref.frequency_hz orelse ref_source_freq, false, parsed);
         checkFrequency("ref", parsed.ref.frequency_hz, 1, 133_000_000);
 
-        const sys_source = std.enums.nameCast(GenericSource, @tagName(config.sys.source));
+        const sys_source = src: {
+            if (config.sys_source) |source| {
+                break :src std.enums.nameCast(GenericSource, @tagName(source));
+            }
+            if (parsed.sys_pll.frequency_hz > 0) break :src .sys_pll;
+            break :src if (parsed.xosc.frequency_hz > 0) .xosc else .rosc;
+        };
+        const sys_source_freq = sys_source.getFrequencyFromConfig(parsed);
+        if (sys_source_freq == 0) @compileError(std.fmt.comptimePrint("Sys clock source (.{s}) is not configured!", .{ @tagName(sys_source) }));
         parsed.sys = GenericClockGeneratorConfig.init(sys_source, config.sys.frequency_hz orelse sys_source.getFrequencyFromConfig(parsed), true, parsed);
         checkFrequency("sys", parsed.sys.frequency_hz, 1, 133_000_000);
 
@@ -532,13 +550,23 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
         }
 
         if (config.usb) |usb| {
-            const source = std.enums.nameCast(GenericSource, @tagName(usb.source));
+            const source = src: {
+                if (usb.source) |source| {
+                    break :src std.enums.nameCast(GenericSource, @tagName(source));
+                }
+                break :src if (parsed.usb_pll.frequency_hz > 0) .usb_pll else .sys_pll;
+            };
             parsed.usb = GenericClockGeneratorConfig.init(source, usb.frequency_hz, false, parsed);
             checkFrequency("USB", parsed.usb.frequency_hz, 47_999_000, 48_001_000);
         }
 
         if (config.adc) |adc| {
-            const source = std.enums.nameCast(GenericSource, @tagName(adc.source));
+            const source = src: {
+                if (adc.source) |source| {
+                    break :src std.enums.nameCast(GenericSource, @tagName(source));
+                }
+                break :src if (parsed.usb_pll.frequency_hz > 0) .usb_pll else .sys_pll;
+            };
             parsed.usb = GenericClockGeneratorConfig.init(source, adc.frequency_hz, false, parsed);
             checkFrequency("ADC", parsed.adc.frequency_hz, 47_990_000, 48_010_000);
         }
