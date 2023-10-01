@@ -4,9 +4,11 @@
     .dependencies = .{
         .microbe = .{
             .url = "https://github.com/bcrist/microbe/archive/9440ef047251ebe1afedd5c0bb2194ba4e10e735.tar.gz",
+            .hash = "12205e7258232c10cd346be634652a27dc43b36e92420999d01ccddb6b9fe4f84c8e",
         },
         .@"microbe-rpi" = .{
-            .url = "https://github.com/bcrist/microbe-rpi/archive/.tar.gz",
+            .url = "https://github.com/bcrist/microbe-rpi/archive/122940027cb0e39479bf6d13e70002a8b2de3caf.tar.gz",
+            .hash = "12202b079d4598220abbce15408c30b3c68fe06b27840b835364ec1e058241cde10c",
         },
     },
 }

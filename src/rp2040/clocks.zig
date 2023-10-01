@@ -33,7 +33,7 @@ pub const Config = struct {
 
     xosc: ?struct {
         /// Depends on crystal; typically 12 MHz for compatibility with USB boot ROM
-        frequency_hz: comptime_int,
+        frequency_hz: comptime_int = 12_000_000,
         startup_delay_cycles: comptime_int = 50_000,
     } = null,
 
@@ -84,8 +84,8 @@ pub const Config = struct {
             sys,
             microtick,
         } = .microtick,
-        period_ns: comptime_int = 10_000_000,
-    } = null,
+        period_ns: comptime_int,
+    } = .{ .period_ns = 10_000_000 },
 
     gpout: [4]?struct {
         pad: chip.PadID,
@@ -118,7 +118,7 @@ pub const Config = struct {
             xosc,
             gpin0,
             gpin1,
-        },
+        } = .sys,
     } = null,
 
     usb: ?struct {
