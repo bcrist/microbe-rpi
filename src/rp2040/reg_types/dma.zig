@@ -175,7 +175,7 @@ pub const DMA = extern struct {
     abort: Mmio(ChannelBitmap, .w),
 };
 
-pub const DMA_CH = [12]union {
+pub const DMA_CH = [12]extern union {
     config: extern struct {
         /// N.B. erratum RP2040-E12
         read_ptr: Mmio(*allowzero const anyopaque, .rw),

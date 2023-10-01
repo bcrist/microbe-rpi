@@ -22,7 +22,7 @@ pub const TIMER = extern struct {
         low: Mmio(u32, .r),
     },
     alarm_tick: [4]Mmio(u32, .rw),
-    alarm: union {
+    alarm: extern union {
         pending: Mmio(AlarmBitmap, .r),
         cancel: Mmio(AlarmBitmap, .w),
     },

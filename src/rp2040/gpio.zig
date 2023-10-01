@@ -17,15 +17,17 @@ pub fn getPort(comptime pad: PadID) PortID {
 
 pub fn getPorts(comptime pads: []const PadID) []const PortID {
     comptime {
-        var ports: []const PortID = &[_]PortID{};
+        var ports: [pads.len]PortID = undefined;
+        var n = 0;
         outer: inline for (pads) |pad| {
             const port = getPort(pad);
-            inline for (ports) |p| {
+            inline for (ports[0..n]) |p| {
                 if (p == port) continue :outer;
             }
-            ports = ports ++ &.{ port };
+            ports[n] = port;
+            n += 1;
         }
-        return ports;
+        return ports[0..n];
     }
 }
 
@@ -285,4 +287,3 @@ pub inline fn clearOutputEnables(comptime pads: []const PadID) void {
         clearOutputPortEnableBits(port, mask);
     }
 }
-
