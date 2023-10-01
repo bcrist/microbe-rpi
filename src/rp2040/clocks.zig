@@ -461,7 +461,7 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
             }
         }
 
-        const ref_source = src: {
+        const ref_source: GenericSource = src: {
             if (config.ref.source) |source| {
                 break :src std.enums.nameCast(GenericSource, @tagName(source));
             }
@@ -472,8 +472,8 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
         parsed.ref = GenericClockGeneratorConfig.init(ref_source, config.ref.frequency_hz orelse ref_source_freq, false, parsed);
         checkFrequency("ref", parsed.ref.frequency_hz, 1, 133_000_000);
 
-        const sys_source = src: {
-            if (config.sys_source) |source| {
+        const sys_source: GenericSource = src: {
+            if (config.sys.source) |source| {
                 break :src std.enums.nameCast(GenericSource, @tagName(source));
             }
             if (parsed.sys_pll.frequency_hz > 0) break :src .sys_pll;
@@ -550,7 +550,7 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
         }
 
         if (config.usb) |usb| {
-            const source = src: {
+            const source: GenericSource = src: {
                 if (usb.source) |source| {
                     break :src std.enums.nameCast(GenericSource, @tagName(source));
                 }
@@ -561,7 +561,7 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
         }
 
         if (config.adc) |adc| {
-            const source = src: {
+            const source: GenericSource = src: {
                 if (adc.source) |source| {
                     break :src std.enums.nameCast(GenericSource, @tagName(source));
                 }
