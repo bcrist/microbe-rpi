@@ -165,7 +165,7 @@ pub const Boot2Options = struct {
 };
 
 pub fn addBoot2Object(b: *std.Build, options: Boot2Options) *std.Build.Step.Compile {
-    const config_step = microbe.ConfigStep.create(b, options.chip, defaultSections());
+    const config_step = microbe.ConfigStep.create(b, options.chip, defaultSections(), false);
 
     const chip_dep = b.dependency(options.chip.dependency_name, .{});
     const chip_module = chip_dep.module(options.chip.module_name);
