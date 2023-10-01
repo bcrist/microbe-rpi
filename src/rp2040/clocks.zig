@@ -964,6 +964,7 @@ const PllConfigChange = struct {
 /// from one ParsedConfig to another, or to set up the initial ParsedConfig.
 /// It's generated at comptime so that the run() function optimizes to just the necessary operations.
 const ConfigChange = struct {
+    resets_to_clear: ?chip.reg_types.sys.ResetBitmap = null,
     change_xosc_startup_delay_div256: ?u14 = null,
     start_xosc: bool = false,
 
@@ -1034,6 +1035,13 @@ const ConfigChange = struct {
     stop_rosc: bool = false,
 
     pub inline fn run(comptime self: ConfigChange) void {
+        if (self.resets_to_clear) |resets_to_clear| {
+            var resets: u32 = @bitCast(chip.RESETS.force.read());
+            const clear_mask: u32 = @bitCast(resets_to_clear);
+            resets &= ~clear_mask;
+            chip.RESETS.force.write(@bitCast(resets));
+        }
+
         if (self.change_xosc_startup_delay_div256) |delay| {
             chip.XOSC.startup_delay.write(.{ .cycles_div256 = delay });
         }
@@ -1389,6 +1397,11 @@ pub fn init() void {
         if (config.sys_pll.frequency_hz == 0) {
             cc.sys_pll.shutdown = true;
         } else {
+            if (cc.resets_to_clear) |*resets_to_clear| {
+                resets_to_clear.pll_sys = 1;
+            } else {
+                cc.resets_to_clear = .{ .pll_sys = 1 };
+            }
             cc.sys_pll.disable_output_divisor = true;
             cc.sys_pll.change_input_divisor = config.sys_pll.vco.divisor;
             cc.sys_pll.change_multiplier = config.sys_pll.vco.multiplier;
@@ -1403,6 +1416,11 @@ pub fn init() void {
         if (config.usb_pll.frequency_hz == 0) {
             cc.usb_pll.shutdown = true;
         } else {
+            if (cc.resets_to_clear) |*resets_to_clear| {
+                resets_to_clear.pll_usb = 1;
+            } else {
+                cc.resets_to_clear = .{ .pll_usb = 1 };
+            }
             cc.usb_pll.disable_output_divisor = true;
             cc.usb_pll.change_input_divisor = config.usb_pll.vco.divisor;
             cc.usb_pll.change_multiplier = config.usb_pll.vco.multiplier;
