@@ -17,7 +17,7 @@ pub const clocks: chip.clocks.Config = .{
     .uart_spi = .{},
 };
 
-pub const interrupts = struct {
+pub const handlers = struct {
     pub const SysTick = chip.timing.handleTickInterrupt;
 };
 

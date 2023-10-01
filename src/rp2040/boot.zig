@@ -99,7 +99,7 @@ fn initVectorTable(comptime core_id: []const u8) VectorTable {
 
         inline for (@typeInfo(root.handlers).Struct.decls) |decl| {
             const field = @field(root.handlers, decl.name);
-            switch (@typeInfo(field)) {
+            switch (@typeInfo(@TypeOf(field))) {
                 .Struct => |struct_info| if (std.mem.eql(u8, decl.name, core_id)) {
                     inline for (struct_info.decls) |core_decl| {
                         const core_field = @field(field, core_decl.name);

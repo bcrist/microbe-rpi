@@ -13,7 +13,7 @@ pub inline fn blockAtLeastCycles(min_cycles: u32) void {
 
 var current_tick: u32 = 0;
 pub fn currentTick() microbe.Tick {
-    return @enumFromInt(@atomicLoad(u32, &current_tick, .SeqCst));
+    return @enumFromInt(current_tick);
 }
 
 pub fn blockUntilTick(tick: microbe.Tick) void {
@@ -28,7 +28,7 @@ pub fn getTickFrequencyHz() comptime_int {
 
 pub fn handleTickInterrupt() callconv(.C) void {
     if (chip.SYSTICK.control_status.read().overflow_flag) {
-        @atomicRmw(u32, &current_tick, .Add, 1, .SeqCst);
+        current_tick +%= 1;
     }
 }
 
