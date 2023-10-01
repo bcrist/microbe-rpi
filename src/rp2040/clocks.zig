@@ -1275,6 +1275,7 @@ const ConfigChange = struct {
         }
         if (self.change_systick_reload) |reload| {
             chip.SYSTICK.reload_value.write(.{ .value = reload });
+            chip.SYSTICK.current_value.write(.{ .value = 0 });
         }
         if (self.enable_systick) {
             chip.SYSTICK.control_status.modify(.{
