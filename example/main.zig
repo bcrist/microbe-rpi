@@ -30,7 +30,7 @@ pub const interrupts = struct {
 // }) = undefined;
 
 
-const TestBus = microbe.bus.Bus(.{ .PA2, .PA3, .PA4, .PB4, .PB6 }, .{ .name = "Test", .gpio_config = .{} });
+const TestBus = microbe.bus.Bus(&.{ .GPIO2, .GPIO3, .GPIO4, .GPIO6, .GPIO7 }, .{ .name = "Test", .gpio_config = .{} });
 
 pub fn main() !void {
     TestBus.init();
