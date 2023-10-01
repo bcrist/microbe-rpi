@@ -222,7 +222,7 @@ pub const GenericClockGeneratorConfig = struct {
         };
     }
 
-    pub fn integerDivisor(self: GenericClockGeneratorConfig) chip.reg_types.clk.Div123 {
+    pub fn integerDivisor(comptime self: GenericClockGeneratorConfig) chip.reg_types.clk.Div123 {
         return switch (self.divisor_256ths) {
             0x100 => .none,
             0x200 => .div2,
@@ -470,22 +470,29 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
             parsed.microtick.source = std.enums.nameCast(GenericSource, @tagName(config.microtick.source));
             const source_frequency_hz = parsed.microtick.source.getFrequencyFromConfig(parsed);
 
-            parsed.microtick.watchdog_cycles = util.divRound(source_frequency_hz * parsed.microtick.period_ns, 1_000_000_000);
-            if (parsed.microtick.watchdog_cycles == 0) {
+            parsed.microtick.period_ns = config.microtick.period_ns;
+            const divisor = util.divRound(source_frequency_hz * parsed.microtick.period_ns, 1_000_000_000);
+            if (divisor == 0) {
                 @compileError(std.fmt.comptimePrint("Ref clock ({}) too slow for microtick period ({} ns)", .{
                     util.fmtFrequency(source_frequency_hz),
                     parsed.microtick.period_ns,
                 }));
+            } else if (divisor >= 512) {
+                @compileError(std.fmt.comptimePrint("Ref clock ({}) too fast for microtick priod ({} ns); div={}!", .{
+                    util.fmtFrequency(source_frequency_hz),
+                    parsed.microtick.period_ns,
+                    divisor,
+                }));
             }
-            parsed.microtick.frequency_hz = util.divRound(source_frequency_hz, parsed.microtick.watchdog_cycles);
-            if (parsed.microtick.watchdog_cycles >= 512) {
-                @compileError("Ref clock too fast for microtick frequency!");
-            }
-            const actual_period = util.divRound(parsed.microtick.watchdog_cycles * 1_000_000_000, parsed.ref.frequency_hz);
+
+            parsed.microtick.watchdog_cycles = divisor;
+            parsed.microtick.frequency_hz = util.divRound(source_frequency_hz, divisor);
+            
+            const actual_period = util.divRound(divisor * 1_000_000_000, parsed.ref.frequency_hz);
                 if (actual_period != parsed.microtick.period_ns) {
                     @compileError(std.fmt.comptimePrint("Invalid microtick period; closest match is {} ns ({} cycles, {} microtick, {} source clock)", .{
                         actual_period,
-                        parsed.microtick.watchdog_cycles,
+                        divisor,
                         util.fmtFrequency(parsed.microtick.frequency_hz),
                         util.fmtFrequency(source_frequency_hz),
                     }));
@@ -542,7 +549,7 @@ pub fn parseConfig(comptime config: Config) ParsedConfig {
             checkFrequency("RTC", parsed.rtc.frequency_hz, 1, 65536);
         }
 
-        for (0.., config.gpout, parsed.gpout) |n, maybe_gpout, *parsed_gpout| {
+        for (0.., config.gpout, &parsed.gpout) |n, maybe_gpout, *parsed_gpout| {
             if (maybe_gpout) |gpout| {
                 const io: chip.PadID = switch (n) {
                     0 => .GPIO21,
@@ -1044,6 +1051,7 @@ const ConfigChange = struct {
             const io = switch (n) {
                 0 => 20,
                 1 => 22,
+                else => unreachable,
             };
             if (maybe_hyst != null or maybe_pull != null) {
                 var io_cfg = chip.PADS.gpio[io].read();
@@ -1054,17 +1062,17 @@ const ConfigChange = struct {
             }
             if (maybe_io_mode) |mode| {
                 switch (mode) {
-                    .disabled => chip.IO[io].modify(.{
+                    .disabled => chip.IO[io].control.modify(.{
                         .func = .disable,
                         .oe_override = .normal,
                         .input_override = .normal,
                     }),
-                    .normal   => chip.IO[io].modify(.{
+                    .normal   => chip.IO[io].control.modify(.{
                         .func = .clock,
                         .oe_override = .force_low,
                         .input_override = .normal,
                     }),
-                    .inverted => chip.IO[io].modify(.{
+                    .inverted => chip.IO[io].control.modify(.{
                         .func = .clock,
                         .oe_override = .force_low,
                         .input_override = .invert,
@@ -1097,13 +1105,13 @@ const ConfigChange = struct {
             setGlitchlessRefSource(.xosc);
         }
         if (self.change_ref_divisor_mid) |div| {
-            self.CLOCKS.ref.divisor.write(.{ .divisor = div });
+            chip.CLOCKS.ref.divisor.write(.{ .divisor = div });
         }
         if (self.switch_sys_to_ref) {
-            setGlitchlessSysSource(.ref);
+            setGlitchlessSysSource(.clk_ref);
         }
         if (self.change_sys_divisor_ref) |div| {
-            self.CLOCKS.sys.divisor.write(.{ .divisor = div });
+            chip.CLOCKS.sys.divisor.write(.{ .divisor = div });
         }
         self.sys_pll.init();
         self.usb_pll.init();
@@ -1116,7 +1124,7 @@ const ConfigChange = struct {
             setGlitchlessSysSource(.aux);
         }
         if (self.change_sys_divisor_late) |div| {
-            self.CLOCKS.sys.divisor.write(.{ .divisor = div });
+            chip.CLOCKS.sys.divisor.write(div);
         }
         if (self.switch_ref_aux) |aux_src| {
             chip.CLOCKS.ref.control.modify(.{ .aux_source = aux_src });
@@ -1125,7 +1133,7 @@ const ConfigChange = struct {
             setGlitchlessRefSource(.aux);
         }
         if (self.change_ref_divisor_late) |div| {
-            self.CLOCKS.ref.divisor.write(.{ .divisor = div });
+            chip.CLOCKS.ref.divisor.write(.{ .divisor = div });
         }
         if (self.enable_peri) |src| {
             chip.CLOCKS.peri.control.write(.{
@@ -1206,17 +1214,17 @@ const ConfigChange = struct {
             }
             if (maybe_io_mode) |mode| {
                 switch (mode) {
-                    .disabled => chip.IO[io].modify(.{
+                    .disabled => chip.IO[io].control.modify(.{
                         .func = .disable,
                         .output_override = .normal,
                         .oe_override = .normal,
                     }),
-                    .normal   => chip.IO[io].modify(.{
+                    .normal   => chip.IO[io].control.modify(.{
                         .func = .clock,
                         .output_override = .normal,
                         .oe_override = .force_high,
                     }),
-                    .inverted => chip.IO[io].modify(.{
+                    .inverted => chip.IO[io].control.modify(.{
                         .func = .clock,
                         .output_override = .invert,
                         .oe_override = .force_high,
@@ -1271,7 +1279,7 @@ const ConfigChange = struct {
 
     fn setGlitchlessSysSource(comptime source: anytype) void {
         const ControlSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.control).Type, .source).type;
-        const StatusSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.control).Type, .source).type;
+        const StatusSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.status).Type, .source).type;
         chip.CLOCKS.sys.control.modify(.{
             .source = std.enums.nameCast(ControlSource, source),
         });
@@ -1289,7 +1297,7 @@ fn encodeRoscDivisor(comptime divisor: comptime_int) RoscDivisor {
 }
 
 pub fn init() void {
-    comptime change: {
+    const ch = comptime change: {
         var cc = ConfigChange {};
         const config = getConfig();
 
@@ -1478,6 +1486,7 @@ pub fn init() void {
                 .xosc => .xosc,
                 .gpin0 => .gpin0,
                 .gpin1 => .gpin1,
+                else => unreachable,
             };
         }
 
@@ -1492,6 +1501,7 @@ pub fn init() void {
                 .xosc => .xosc,
                 .gpin0 => .gpin0,
                 .gpin1 => .gpin1,
+                else => unreachable,
             };
         }
 
@@ -1506,6 +1516,7 @@ pub fn init() void {
                 .xosc => .xosc,
                 .gpin0 => .gpin0,
                 .gpin1 => .gpin1,
+                else => unreachable,
             };
         }
 
@@ -1520,6 +1531,7 @@ pub fn init() void {
                 .xosc => .xosc,
                 .gpin0 => .gpin0,
                 .gpin1 => .gpin1,
+                else => unreachable,
             };
         }
 
@@ -1541,6 +1553,7 @@ pub fn init() void {
                         .adc => .clk_adc,
                         .rtc => .clk_rtc,
                         .ref => .clk_ref,
+                        else => unreachable,
                     },
                 };
                 cc.change_gpout_divisor = gpout.generator.divisor_256ths;
@@ -1554,7 +1567,8 @@ pub fn init() void {
         }
 
         break :change cc;
-    }.run();
+    };
+    ch.run();
 }
 
 pub fn applyConfig(comptime config: anytype, comptime previous_config: anytype) void {
