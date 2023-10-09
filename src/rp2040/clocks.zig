@@ -1398,9 +1398,9 @@ pub fn init() void {
             cc.sys_pll.shutdown = true;
         } else {
             if (cc.resets_to_clear) |*resets_to_clear| {
-                resets_to_clear.pll_sys = 1;
+                resets_to_clear.pll_sys = true;
             } else {
-                cc.resets_to_clear = .{ .pll_sys = 1 };
+                cc.resets_to_clear = .{ .pll_sys = true };
             }
             cc.sys_pll.disable_output_divisor = true;
             cc.sys_pll.change_input_divisor = config.sys_pll.vco.divisor;
@@ -1417,9 +1417,9 @@ pub fn init() void {
             cc.usb_pll.shutdown = true;
         } else {
             if (cc.resets_to_clear) |*resets_to_clear| {
-                resets_to_clear.pll_usb = 1;
+                resets_to_clear.pll_usb = true;
             } else {
-                cc.resets_to_clear = .{ .pll_usb = 1 };
+                cc.resets_to_clear = .{ .pll_usb = true };
             }
             cc.usb_pll.disable_output_divisor = true;
             cc.usb_pll.change_input_divisor = config.usb_pll.vco.divisor;

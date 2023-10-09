@@ -1,590 +1,1021 @@
-// const std = @import("std");
-// const microbe = @import("microbe");
-// const chip = @import("chip");
-// const dma = chip.dma;
-
-// const PadID = chip.PadID;
-
-// const checkPad = microbe.pads.isInSet;
-
-// pub const Config = struct {
-//     baud_rate: comptime_int,
-//     data_bits: enum(u4) {
-//         seven = 7,
-//         eight = 8,
-//     } = .eight,
-//     parity: ?chip.registers.types.usart.Parity = null,
-//     stop_bits: chip.registers.types.usart.StopBits = .one,
-//     which: ?enum {
-//         USART1,
-//         USART2,
-//     } = null,
-//     tx: ?PadID,
-//     rx: ?PadID,
-//     cts: ?PadID = null,
-//     rts: ?PadID = null,
-//     tx_buffer_size: comptime_int = 0,
-//     rx_buffer_size: comptime_int = 0,
-//     tx_dma_channel: ?dma.Channel = null,
-//     rx_dma_channel: ?dma.Channel = null,
-// };
-
-// const Registers = struct {
-//     basic_uart: bool,
-//     CR1: @TypeOf(chip.registers.USART1.CR1),
-//     CR2: @TypeOf(chip.registers.USART1.CR2),
-//     CR3: @TypeOf(chip.registers.USART1.CR3),
-//     BRR: @TypeOf(chip.registers.USART1.BRR),
-//     GTPR: @TypeOf(chip.registers.USART1.GTPR),
-//     RTOR: @TypeOf(chip.registers.USART1.RTOR),
-//     RQR: @TypeOf(chip.registers.USART1.RQR),
-//     ISR: @TypeOf(chip.registers.USART1.ISR),
-//     ICR: @TypeOf(chip.registers.USART1.ICR),
-//     RDR: @TypeOf(chip.registers.USART1.RDR),
-//     TDR: @TypeOf(chip.registers.USART1.TDR),
-//     PRESC: @TypeOf(chip.registers.USART1.PRESC),
-// };
-
-// const Usart = enum {
-//     USART1,
-//     USART1_swap_TX_RX,
-//     USART2,
-//     USART2_swap_TX_RX,
-// };
-
-// pub fn Impl(comptime config: Config) type {
-//     const tx_usart: ?Usart = if (config.tx) |tx| blk: {
-//         if (checkPad(tx, .{ .PA9, .PB6 })) break :blk .USART1;
-//         if (checkPad(tx, .{ .PA10, .PB7 })) break :blk .USART1_swap_TX_RX;
-//         if (checkPad(tx, .{ .PA2, .PA14 })) break :blk .USART2;
-//         if (checkPad(tx, .{ .PA3, .PA15 })) break :blk .USART2_swap_TX_RX;
-//         @compileError("Invalid TX pin");
-//     } else null;
-
-//     const rx_usart: ?Usart = if (config.rx) |rx| blk: {
-//         if (checkPad(rx, .{ .PA9, .PB6 })) break :blk .USART1_swap_TX_RX;
-//         if (checkPad(rx, .{ .PA10, .PB7 })) break :blk .USART1;
-//         if (checkPad(rx, .{ .PA2, .PA14 })) break :blk .USART2_swap_TX_RX;
-//         if (checkPad(rx, .{ .PA3, .PA15 })) break :blk .USART2;
-//         @compileError("Invalid RX pin");
-//     } else null;
-
-//     const which = tx_usart orelse (rx_usart orelse @compileError("UART with neither TX nor RX is useless"));
-//     const half_duplex = std.meta.eql(config.tx, config.rx);
-//     if ((rx_usart orelse which) != which and !half_duplex) {
-//         @compileError(std.fmt.comptimePrint("TX requires {s} but RX requires {s}", .{
-//             @tagName(tx_usart.?),
-//             @tagName(rx_usart.?),
-//         }));
-//     }
-
-//     if (config.which) |config_usart| {
-//         if (config_usart != switch (which) {
-//             .USART1, .USART1_swap_TX_RX => .USART1,
-//             .USART2, .USART2_swap_TX_RX => .USART2,
-//         }) @compileError(std.fmt.comptimePrint("Asked for {s} but pad configuration requires {s}", .{
-//             @tagName(config_usart),
-//             @tagName(which),
-//         }));
-//     }
-
-//     comptime var pads: []const PadID = &.{};
-
-//     if (config.tx) |tx| {
-//         pads = pads ++ &[_]PadID{tx};
-//         if (config.cts) |cts| {
-//             pads = pads ++ &[_]PadID{cts};
-//             if (!switch (which) {
-//                 .USART1, .USART1_swap_TX_RX => checkPad(cts, .{ .PA11, .PB4 }),
-//                 .USART2, .USART2_swap_TX_RX => checkPad(cts, .{ .PA0, .PD3 }),
-//             }) @compileError("Invalid CTS pin");
-//         }
-//     } else if (config.cts != null) {
-//         @compileError("CTS without TX is useless");
-//     }
-
-//     if (config.rx) |rx| {
-//         pads = pads ++ &[_]PadID{rx};
-//         if (config.rts) |rts| {
-//             pads = pads ++ &[_]PadID{rts};
-//             if (!switch (which) {
-//                 .USART1, .USART1_swap_TX_RX => checkPad(rts, .{ .PA12, .PB3 }),
-//                 .USART2, .USART2_swap_TX_RX => checkPad(rts, .{.PA1}),
-//             }) @compileError("Invalid RTS pin");
-//         }
-//     } else if (config.rts != null) {
-//         @compileError("RTS without RX is useless");
-//     }
-
-//     if (config.rx_dma_channel != null and std.meta.eql(config.rx_dma_channel, config.tx_dma_channel)) {
-//         @compileError("RX and TX may not use the same DMA channel");
-//     }
-
-//     comptime var afs: []const []const u8 = &.{};
-//     for (pads) |pad| {
-//         if (checkPad(pad, .{.PA1})) {
-//             afs = afs ++ &[_][]const u8{"USART2_RTS"};
-//         } else if (checkPad(pad, .{ .PA0, .PD3 })) {
-//             afs = afs ++ &[_][]const u8{"USART2_CTS"};
-//         } else if (checkPad(pad, .{ .PA2, .PA14 })) {
-//             afs = afs ++ &[_][]const u8{"USART2_TX"};
-//         } else if (checkPad(pad, .{ .PA3, .PA15 })) {
-//             afs = afs ++ &[_][]const u8{"USART2_RX"};
-//         } else if (checkPad(pad, .{ .PA9, .PB6 })) {
-//             afs = afs ++ &[_][]const u8{"USART1_TX"};
-//         } else if (checkPad(pad, .{ .PA10, .PB7 })) {
-//             afs = afs ++ &[_][]const u8{"USART1_RX"};
-//         } else if (checkPad(pad, .{ .PA11, .PB4 })) {
-//             afs = afs ++ &[_][]const u8{"USART1_CTS"};
-//         } else if (checkPad(pad, .{ .PA12, .PB3 })) {
-//             afs = afs ++ &[_][]const u8{"USART1_RTS"};
-//         }
-//     }
-
-//     const registers: Registers = switch (which) {
-//         .USART1, .USART1_swap_TX_RX => .{
-//             .basic_uart = false,
-//             .CR1 = chip.registers.USART1.CR1,
-//             .CR2 = chip.registers.USART1.CR2,
-//             .CR3 = chip.registers.USART1.CR3,
-//             .BRR = chip.registers.USART1.BRR,
-//             .GTPR = chip.registers.USART1.GTPR,
-//             .RTOR = chip.registers.USART1.RTOR,
-//             .RQR = chip.registers.USART1.RQR,
-//             .ISR = chip.registers.USART1.ISR,
-//             .ICR = chip.registers.USART1.ICR,
-//             .RDR = chip.registers.USART1.RDR,
-//             .TDR = chip.registers.USART1.TDR,
-//             .PRESC = chip.registers.USART1.PRESC,
-//         },
-//         .USART2, .USART2_swap_TX_RX => .{
-//             .basic_uart = true,
-//             .CR1 = chip.registers.USART2.CR1,
-//             .CR2 = chip.registers.USART2.CR2,
-//             .CR3 = chip.registers.USART2.CR3,
-//             .BRR = chip.registers.USART2.BRR,
-//             .GTPR = chip.registers.USART2.GTPR,
-//             .RTOR = chip.registers.USART2.RTOR,
-//             .RQR = chip.registers.USART2.RQR,
-//             .ISR = chip.registers.USART2.ISR,
-//             .ICR = chip.registers.USART2.ICR,
-//             .RDR = chip.registers.USART2.RDR,
-//             .TDR = chip.registers.USART2.TDR,
-//             .PRESC = chip.registers.USART2.PRESC,
-//         },
-//     };
-
-//     return struct {
-//         rxi: Rx = .{},
-//         txi: Tx = .{},
-
-//         pub const DataType = u8;
-//         pub const ExactDataType = std.meta.Int(.unsigned, @intFromEnum(config.data_bits));
-//         const Self = @This();
-
-//         const Rx = blk: {
-//             if (config.rx == null) {
-//                 break :blk NoRx;
-//             } else if (config.rx_buffer_size == 0) {
-//                 break :blk UnbufferedRx(Self, registers, config.parity != null);
-//             } else if (config.rx_dma_channel) |channel| {
-//                 break :blk DmaRx(Self, registers, channel);
-//             } else {
-//                 break :blk InterruptRx(Self, registers);
-//             }
-//         };
-
-//         const Tx = blk: {
-//             if (config.tx == null) {
-//                 break :blk NoTx;
-//             } else if (config.tx_buffer_size == 0) {
-//                 break :blk UnbufferedTx(Self, registers);
-//             } else if (config.tx_dma_channel) |channel| {
-//                 break :blk DmaTx(Self, registers, channel);
-//             } else {
-//                 break :blk InterruptTx(Self, registers);
-//             }
-//         };
-
-//         pub fn init() Self {
-//             microbe.pads.reserve(pads, "UART");
-
-//             switch (which) {
-//                 .USART1, .USART1_swap_TX_RX => chip.registers.RCC.APBENR2.modify(.{ .USART1EN = .clock_enabled }),
-//                 .USART2, .USART2_swap_TX_RX => chip.registers.RCC.APBENR1.modify(.{ .USART2EN = .clock_enabled }),
-//             }
-
-//             registers.CR1.modify(.{
-//                 .UE = .usart_disabled,
-//             });
-
-//             chip.gpio.ensurePortsEnabled(pads);
-
-//             if (config.tx) |tx| {
-//                 chip.gpio.configureSlewRate(&[_]PadID{tx}, .slow);
-//                 if (half_duplex) {
-//                     chip.gpio.configureDriveMode(&[_]PadID{tx}, .open_drain);
-//                 } else {
-//                     chip.gpio.configureDriveMode(&[_]PadID{tx}, .push_pull);
-//                 }
-//             }
-//             if (config.rts) |rts| {
-//                 chip.gpio.configureDriveMode(&[_]PadID{rts}, .push_pull);
-//                 chip.gpio.configureSlewRate(&[_]PadID{rts}, .slow);
-//             }
-
-//             if (config.rx) |rx| {
-//                 if (half_duplex) {
-//                     chip.gpio.configureTermination(&[_]PadID{rx}, .pull_up);
-//                 } else {
-//                     chip.gpio.configureTermination(&[_]PadID{rx}, .pull_down);
-//                 }
-//             }
-//             if (config.cts) |cts| {
-//                 chip.gpio.configureTermination(&[_]PadID{cts}, .pull_up);
-//             }
-
-//             chip.gpio.configureAsAlternateFunction(pads, afs);
-
-//             const ker_clk = chip.clocks.getFrequency(.usart);
-//             const raw_brr = @divTrunc(ker_clk + config.baud_rate / 2, config.baud_rate);
-
-//             // TODO Do some checks to see if the baud rate is too high (or perhaps too low)
-//             // TODO Use OVER8 = .oversample_x8 if baud rate is too high compared to clock source
-//             var cr1 = chip.registers.types.usart.CR1{
-//                 .OVER8 = .oversample_x16,
-//             };
-
-//             comptime var raw_bits: u4 = @intFromEnum(config.data_bits);
-//             if (config.parity != null) {
-//                 raw_bits += 1;
-//             }
-//             std.debug.assert(raw_bits >= 7);
-//             std.debug.assert(raw_bits <= 9);
-//             cr1.M0 = if (raw_bits == 9) 1 else 0;
-//             cr1.M1 = if (raw_bits == 7) 1 else 0;
-
-//             if (config.parity) |parity| {
-//                 cr1.PCE = .parity_enabled;
-//                 cr1.PS = parity;
-//             }
-
-//             if (!registers.basic_uart) {
-//                 cr1.FIFOEN = .fifo_enabled;
-//             }
-
-//             var cr2 = chip.registers.types.usart.CR2{
-//                 .STOP = config.stop_bits,
-//             };
-
-//             switch (which) {
-//                 .USART1, .USART2 => {},
-//                 .USART1_swap_TX_RX, .USART2_swap_TX_RX => {
-//                     cr2.SWAP = .swap_tx_rx;
-//                 },
-//             }
-
-//             var cr3 = chip.registers.types.usart.CR3{};
-//             if (half_duplex) cr3.HDSEL = .half_duplex;
-//             if (config.rts != null) cr3.RTSE = .RTS_enabled;
-//             if (config.cts != null) cr3.CTSE = .CTS_enabled;
-
-//             registers.CR1.write(cr1);
-//             registers.CR2.write(cr2);
-//             registers.CR3.write(cr3);
-
-//             // TODO use prescaler when it won't affect baud rate accuracy much (for non-basic UART)
-//             registers.PRESC.write(.{
-//                 .PRESC = .div1,
-//             });
-
-//             registers.BRR.write(.{
-//                 .BRR_0_3 = @as(u4, @truncate(raw_brr)),
-//                 .BRR_4_15 = @as(u12, @intCast(raw_brr >> 4)),
-//             });
-
-//             registers.RQR.write(.{
-//                 .RXFRQ = .request_flush_RX_data,
-//                 .TXFRQ = .request_flush_TX_data,
-//             });
-
-//             var self = Self{};
-//             self.rxi.initRx();
-//             self.txi.initTx();
-//             return self;
-//         }
-
-//         pub fn start(self: *Self) void {
-//             self.rxi.startRx();
-//             self.txi.startTx();
-//             registers.CR1.modify(.{
-//                 .UE = .usart_enabled,
-//             });
-//         }
-
-//         pub fn stop(self: *Self) void {
-//             self.txi.stopTx();
-//             self.rxi.stopRx();
-//             while (!self.txi.isTxIdle()) {}
-//             registers.CR1.modify(.{
-//                 .UE = .usart_disabled,
-//             });
-//         }
-
-//         pub fn deinit(self: *Self) void {
-//             self.txi.deinitTx();
-//             self.rxi.deinitRx();
-
-//             registers.CR1.modify(.{
-//                 .UE = .usart_disabled,
-//                 .RE = .receiver_disabled,
-//                 .TE = .transmitter_disabled,
-//             });
-//             switch (which) {
-//                 .USART1, .USART1_swap_TX_RX => chip.registers.RCC.APBENR2.modify(.{ .USART1EN = .clock_disabled }),
-//                 .USART2, .USART2_swap_TX_RX => chip.registers.RCC.APBENR1.modify(.{ .USART2EN = .clock_disabled }),
-//             }
-//             chip.gpio.configureMODER(pads, .analog);
-//             chip.gpio.configureTermination(pads, .float);
-//             microbe.pads.release(pads, "UART");
-//         }
-
-//         pub usingnamespace Rx;
-//         pub usingnamespace Tx;
-//     };
-// }
-
-// const NoRx = struct {
-//     pub fn initRx(_: NoRx) void {}
-//     pub fn deinitRx(_: NoRx) void {}
-//     pub fn startRx(_: NoRx) void {}
-//     pub fn stopRx(_: NoRx) void {}
-// };
-
-// const NoTx = struct {
-//     pub fn initTx(_: NoTx) void {}
-//     pub fn deinitTx(_: NoTx) void {}
-//     pub fn startTx(_: NoTx) void {}
-//     pub fn stopTx(_: NoTx) void {}
-// };
-
-// fn UnbufferedRx(comptime I: type, comptime registers: Registers, comptime parity_enabled: bool) type {
-//     return struct {
-//         peek_byte: ?u8 = null,
-//         bytes_til_overrun: ?u4 = null,
-//         pending_error: ?ReadError = null,
-
-//         const Self = @This();
-//         pub const GenericReader = std.io.Reader;
-//         pub const ReadError = if (parity_enabled) error{
-//             Overrun,
-//             ParityError,
-//             FramingError,
-//             BreakInterrupt,
-//             NoiseError,
-//         } else error{
-//             Overrun,
-//             FramingError,
-//             BreakInterrupt,
-//             NoiseError,
-//         };
-
-//         pub fn initRx(_: Self) void {}
-
-//         pub fn deinitRx(_: Self) void {}
-
-//         pub fn startRx(_: Self) void {
-//             registers.CR1.modify(.{
-//                 .RE = .receiver_enabled,
-//             });
-//         }
-//         pub fn stopRx(_: Self) void {
-//             registers.CR1.modify(.{
-//                 .RE = .receiver_disabled,
-//             });
-//         }
-
-//         pub fn isRxIdle(_: I) bool {
-//             return registers.ISR.read().BUSY == .RX_idle;
-//         }
-
-//         pub fn canRead(impl: I) bool {
-//             return impl.rxi.peek_byte != null or impl.rxi.pending_error != null or registers.ISR.read().RXNE_RXFNE == .RXD_available;
-//         }
-
-//         pub fn peek(impl: *I, out: []u8) []const u8 {
-//             if (out.len == 0) {
-//                 return out[0..0];
-//             } else if (impl.rxi.peek_byte) |b| {
-//                 out[0] = b;
-//             } else if (impl.rxi.pending_error) |_| {
-//                 return out[0..0];
-//             } else {
-//                 const isr = registers.ISR.read();
-//                 if (isr.RXNE_RXFNE == .RXD_available) {
-//                     checkNewByteErrors(&impl.rxi, isr) catch {
-//                         return out[0..0];
-//                     };
-//                     const b = @as(I.ExactDataType, @truncate(impl.rxi.readByte()));
-//                     impl.rxi.peek_byte = b;
-//                     out[0] = b;
-//                 } else {
-//                     return out[0..0];
-//                 }
-//             }
-//             return out[0..1];
-//         }
-
-//         pub fn rx(impl: *I) ReadError!u8 {
-//             if (impl.rxi.peek_byte) |b| {
-//                 impl.rxi.peek_byte = null;
-//                 return b;
-//             }
-
-//             if (impl.rxi.pending_error) |err| return err;
-
-//             // block until we've received something
-//             var isr = registers.ISR.read();
-//             while (isr.RXNE_RXFNE == .RXD_empty) {
-//                 isr = registers.ISR.read();
-//             }
-
-//             try checkNewByteErrors(&impl.rxi, isr);
-
-//             return @as(I.ExactDataType, @truncate(impl.rxi.readByte()));
-//         }
-
-//         pub fn getReadError(impl: *I) ReadError!void {
-//             if (impl.rxi.peek_byte) |_| return;
-//             if (impl.rxi.pending_error) |err| return err;
-//             try checkNewByteErrors(&impl.rxi, registers.ISR.read());
-//         }
-
-//         fn checkNewByteErrors(self: *Self, isr: chip.registers.types.usart.ISR) ReadError!void {
-//             if (isr.FE == .framing_error_detected) {
-//                 registers.ICR.write(.{
-//                     .FECF = .clear_error,
-//                     .PECF = .clear_error,
-//                     .NCF = .clear_error,
-//                 });
-//                 const b = self.readByte();
-//                 const err: ReadError = if (b == 0) error.BreakInterrupt else error.FramingError;
-//                 self.pending_error = err;
-//                 return err;
-//             } else if (parity_enabled and isr.PE == .parity_error_detected) {
-//                 registers.ICR.write(.{
-//                     .PECF = .clear_error,
-//                     .NCF = .clear_error,
-//                 });
-//                 _ = self.readByte();
-//                 self.pending_error = error.ParityError;
-//                 return error.ParityError;
-//             } else if (isr.NF == .noise_error_detected) {
-//                 registers.ICR.write(.{
-//                     .NCF = .clear_error,
-//                 });
-//                 self.pending_error = error.NoiseError;
-//                 return error.NoiseError;
-//             }
-//         }
-
-//         pub fn clearReadError(impl: *I, _: ReadError) void {
-//             impl.rxi.pending_error = null;
-//         }
-
-//         // assumes peek_byte, pending_error, ISR.FE/PE/NF have already been checked/cleared, and ISR.RXNE_RXFNE == .RXD_available
-//         fn readByte(self: *Self) u8 {
-//             if (self.bytes_til_overrun) |bytes_remaining| {
-//                 if (bytes_remaining == 1) {
-//                     var data = @as(u8, @truncate(registers.RDR.read()));
-//                     registers.RQR.write(.{ .RXFRQ = .request_flush_RX_data });
-//                     registers.ICR.write(.{ .ORECF = .clear_error });
-//                     self.bytes_til_overrun = null;
-//                     self.pending_error = error.Overrun;
-//                     return data;
-//                 } else {
-//                     std.debug.assert(bytes_remaining != 0);
-//                     self.bytes_til_overrun = bytes_remaining - 1;
-//                     return @as(u8, @truncate(registers.RDR.read()));
-//                 }
-//             } else {
-//                 var data = @as(u8, @truncate(registers.RDR.read()));
-//                 if (registers.ISR.read().ORE == .rx_overrun_error_detected) {
-//                     if (registers.basic_uart) {
-//                         registers.ICR.write(.{ .ORECF = .clear_error });
-//                         self.pending_error = error.Overrun;
-//                     } else {
-//                         self.bytes_til_overrun = 8;
-//                     }
-//                 }
-//                 return data;
-//             }
-//         }
-//     };
-// }
-
-// fn UnbufferedTx(comptime I: type, comptime registers: Registers) type {
-//     return struct {
-//         const Self = @This();
-//         pub const GenericWriter = std.io.Writer;
-//         pub const WriteError = error{};
-
-//         pub fn initTx(_: Self) void {}
-//         pub fn deinitTx(_: Self) void {}
-//         pub fn startTx(_: Self) void {
-//             registers.CR1.modify(.{
-//                 .TE = .transmitter_enabled,
-//             });
-//         }
-
-//         pub fn stopTx(_: Self) void {
-//             registers.CR1.modify(.{
-//                 .TE = .transmitter_disabled,
-//             });
-//         }
-
-//         pub fn isTxIdle(_: I) bool {
-//             return registers.ISR.read().TC == .TX_complete;
-//         }
-
-//         pub fn canWrite(_: I) bool {
-//             return registers.ISR.read().TXE_TXFNF == .TXD_available;
-//         }
-
-//         pub fn tx(_: I, byte: u8) void {
-//             // block until we've got space
-//             var isr = registers.ISR.read();
-//             while (isr.TXE_TXFNF == .TXD_full) {
-//                 isr = registers.ISR.read();
-//             }
-
-//             registers.TDR.raw = byte;
-//         }
-//     };
-// }
-
-// fn InterruptRx(comptime I: type, comptime registers: Registers) type {
-//     _ = I;
-//     _ = registers;
-//     @compileError("Not implemented yet");
-// }
-
-// fn InterruptTx(comptime I: type, comptime registers: Registers) type {
-//     _ = I;
-//     _ = registers;
-//     @compileError("Not implemented yet");
-// }
-
-// fn DmaRx(comptime I: type, comptime registers: Registers, comptime channel: dma.Channel) type {
-//     _ = I;
-//     _ = registers;
-//     _ = channel;
-//     @compileError("Not implemented yet");
-// }
-
-// fn DmaTx(comptime I: type, comptime registers: Registers, comptime channel: dma.Channel) type {
-//     _ = I;
-//     _ = registers;
-//     _ = channel;
-//     @compileError("Not implemented yet");
-// }
+const std = @import("std");
+const microbe = @import("microbe");
+const chip = @import("chip");
+const util = @import("chip_util");
+const dma = @import("dma.zig");
+const clocks = @import("clocks.zig");
+const validation = @import("validation.zig");
+const reg_types = @import("reg_types.zig");
+const peripherals = @import("peripherals.zig");
+const interrupts = @import("interrupts.zig");
+const gpio = @import("gpio.zig");
+
+const PadID = chip.PadID;
+pub const DataBits = reg_types.uart.DataBits;
+pub const Parity = reg_types.uart.Parity;
+pub const StopBits = reg_types.uart.StopBits;
+const ReadErrorBitmap = reg_types.uart.ReadErrorBitmap;
+
+pub const Config = struct {
+    name: [*:0]const u8 = "UART",
+    clocks: clocks.ParsedConfig = clocks.getConfig(),
+    baud_rate: comptime_int,
+    data_bits: DataBits = .eight,
+    parity: Parity = .none,
+    stop_bits: StopBits = .one,
+    tx: ?PadID,
+    rx: ?PadID,
+    cts: ?PadID = null,
+    rts: ?PadID = null,
+    tx_buffer_size: comptime_int = 0,
+    rx_buffer_size: comptime_int = 0,
+    tx_dma_channel: ?dma.Channel = null,
+    rx_dma_channel: ?dma.Channel = null,
+};
+
+pub fn Uart(comptime config: Config) type {
+    return comptime blk: {
+        var want_uart0 = false;
+        var want_uart1 = false;
+        var want_dma = false;
+
+        var pads: []const PadID = &.{};
+        var output_pads: []const PadID = &.{};
+        var input_pads: []const PadID = &.{};
+
+        if (config.tx) |tx| {
+            switch (tx) {
+                .GPIO0, .GPIO12, .GPIO16, .GPIO28 => want_uart0 = true,
+                .GPIO4, .GPIO8, .GPIO20, .GPIO24 => want_uart1 = true,
+                else => @compileError("Invalid TX pad ID"),
+            }
+            pads = pads ++ [_]PadID{tx};
+            output_pads = output_pads ++ [_]PadID{tx};
+            validation.pads.reserve(tx, config.name ++ ".TX");
+
+            if (config.cts) |cts| {
+                switch (cts) {
+                    .GPIO2, .GPIO14, .GPIO18 => want_uart0 = true,
+                    .GPIO6, .GPIO10, .GPIO22, .GPIO26 => want_uart1 = true,
+                    else => @compileError("Invalid CTS pad ID"),
+                }
+                if (want_uart0 and want_uart1) {
+                    @compileError("CTS and TX pads must be associated with the same UART interface");
+                }
+                pads = pads ++ [_]PadID{cts};
+                input_pads = input_pads ++ [_]PadID{cts};
+                validation.pads.reserve(cts, config.name ++ ".CTS");
+            }
+
+            if (config.tx_dma_channel) |_| {
+                want_dma = true;
+            }
+        } else if (config.tx_dma_channel) |_| {
+            @compileError("TX pad not specified!");
+        } else if (config.tx_buffer_size > 0) {
+            @compileError("TX pad not specified!");
+        }
+
+        if (config.rx) |rx| {
+            switch (rx) {
+                .GPIO1, .GPIO13, .GPIO17, .GPIO29 => want_uart0 = true,
+                .GPIO5, .GPIO9, .GPIO21, .GPIO25 => want_uart1 = true,
+                else => @compileError("Invalid RX pad ID"),
+            }
+            if (want_uart0 and want_uart1) {
+                @compileError("TX and RX pads must be associated with the same UART interface");
+            }
+            pads = pads ++ [_]PadID{rx};
+            input_pads = input_pads ++ [_]PadID{rx};
+            validation.pads.reserve(rx, config.name ++ ".RX");
+
+            if (config.rts) |rts| {
+                switch (rts) {
+                    .GPIO3, .GPIO15, .GPIO19 => want_uart0 = true,
+                    .GPIO7, .GPIO11, .GPIO23, .GPIO27 => want_uart1 = true,
+                    else => @compileError("Invalid RTS pad ID"),
+                }
+                if (want_uart0 and want_uart1) {
+                    @compileError("RX and RTS pads must be associated with the same UART interface");
+                }
+                pads = pads ++ [_]PadID{rts};
+                output_pads = output_pads ++ [_]PadID{rts};
+                validation.pads.reserve(rts, config.name ++ ".RTS");
+            }
+
+            if (config.rx_dma_channel) |_| {
+                want_dma = true;
+            }
+        } else if (config.rx_dma_channel) |_| {
+            @compileError("RX pad not specified!");
+        } else if (config.rx_buffer_size > 0) |_| {
+            @compileError("RX pad not specified!");
+        }
+
+        if (!want_uart0 and !want_uart1) {
+            @compileError("UART without TX or RX is useless!");
+        }
+
+        if (config.rx_dma_channel != null and std.meta.eql(config.rx_dma_channel, config.tx_dma_channel)) {
+            @compileError("RX and TX may not use the same DMA channel");
+        }
+
+        if (config.clocks.uart_spi.frequency_hz == 0) {
+            @compileError("UART clock not configured!");
+        }
+
+        if (config.baud_rate == 0) {
+            @compileError("Baud rate too low!");
+        }
+
+        const sys_clk = config.clocks.sys.frequency_hz;
+        const uart_clk = config.clocks.uart_spi.frequency_hz;
+        if (uart_clk * 3 > sys_clk * 5) {
+            @compileError(std.fmt.comptimePrint("System clock must be at least {} for UART clock of {}", .{
+                util.fmtFrequency(util.divRound(uart_clk * 3, 5)),
+                util.fmtFrequency(uart_clk),
+            }));
+        }
+
+        var divisor_64ths = util.divRound(uart_clk * 4, config.baud_rate);
+        if (divisor_64ths < 0x40) divisor_64ths = 0x40;
+        if (divisor_64ths > 0x3FFFC0) divisor_64ths = 0x3FFFC0;
+        const actual_baud_rate = util.divRound(uart_clk * 4, divisor_64ths);
+        if (actual_baud_rate != config.baud_rate) {
+            @compileError(std.fmt.comptimePrint("Cannot achieve baud rate {}; closest possible is {}", .{
+                config.baud_rate,
+                actual_baud_rate,
+            }));
+        }
+
+        const div_int: u16 = @intCast(divisor_64ths >> 6);
+        const div_frac: u6 = @truncate(divisor_64ths);
+
+        const periph: *volatile reg_types.uart.UART = if (want_uart0) peripherals.UART0 else peripherals.UART1;
+
+        const Data = switch (config.data_bits) {
+            .five => u5,
+            .six => u6,
+            .seven => u7,
+            .eight => u8,
+        };
+
+        const Errors = struct {
+            const ReadBase = error {
+                Overrun,
+                BreakInterrupt,
+                FramingError,
+            };
+            const ReadBaseNonBlocking = ReadBase || error.WouldBlock;
+
+            const Read            = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) ReadBase else (ReadBase || error {ParityError});
+            const ReadNonBlocking = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) ReadBaseNonBlocking else (ReadBaseNonBlocking || error.ParityError);
+
+            const Write            = if (config.tx == null) error { Unimplemented } else error {};
+            const WriteNonBlocking = if (config.tx == null) error { Unimplemented } else error { WouldBlock };
+        };
+
+        const Rx = rx: {
+            if (config.rx == null) {
+                break :rx NoRx(Data);
+            } else if (config.rx_buffer_size == 0) {
+                break :rx UnbufferedRx(Data, periph, Errors.Read);
+            } else if (config.rx_dma_channel) |channel| {
+                break :rx DmaRx(Data, periph, config.rx_buffer_size, channel);
+            } else {
+                break :rx InterruptRx(Data, periph, config.rx_buffer_size, Errors.Read);
+            }
+        };
+
+        const Tx = tx: {
+            if (config.tx == null) {
+                break :tx NoTx(Data);
+            } else if (config.tx_buffer_size == 0) {
+                break :tx UnbufferedTx(Data, periph);
+            } else if (config.tx_dma_channel) |channel| {
+                break :tx DmaTx(Data, periph, config.tx_buffer_size, channel);
+            } else {
+                break :tx InterruptTx(Data, periph, config.tx_buffer_size);
+            }
+        };
+
+        break :blk struct {
+            rxi: Rx = .{},
+            txi: Tx = .{},
+
+            const Self = @This();
+            pub const DataType = Data;
+
+            pub const ReadError = Errors.Read;
+            pub const Reader = std.io.Reader(*Rx, ReadError, Rx.readBlocking);
+
+            pub const ReadErrorNonBlocking = Errors.ReadNonBlocking;
+            pub const ReaderNonBlocking = std.io.Reader(*Rx, ReadErrorNonBlocking, Rx.readNonBlocking);
+
+            pub const WriteError = Errors.Write;
+            pub const Writer = std.io.Writer(*Tx, WriteError, Tx.writeBlocking);
+
+            pub const WriteErrorNonBlocking = Errors.WriteNonBlocking;
+            pub const WriterNonBlocking = std.io.Writer(*Tx, WriteErrorNonBlocking, Tx.writeNonBlocking);
+
+            pub fn init() Self {
+                { // ensure nothing we need is still in reset:
+                    var resets = chip.RESETS.force.read();
+                    resets.pads_bank0 = false;
+                    resets.io_bank0 = false;
+                    if (want_dma) resets.dma = false;
+                    if (want_uart0) resets.uart0 = false;
+                    if (want_uart1) resets.uart1 = false;
+                    chip.RESETS.force.write(resets);
+                }
+
+                periph.control.modify(.{ .enabled = false });
+
+                gpio.setFunctionAll(pads, .uart);
+                gpio.configure(output_pads, .{
+                    .speed = .slow,
+                    .strength = .@"4mA",
+                    .output_disabled = false,
+                });
+                gpio.configure(input_pads, .{
+                    .hysteresis = false,
+                    .maintenance = .pull_up,
+                    .input_enabled = true,
+                });
+
+                periph.baud_rate_int.write(.{
+                    .div = div_int,
+                });
+                periph.baud_rate_frac.write(.{
+                    .div_64ths = div_frac,
+                });
+                periph.line_control.write(.{
+                    .parity = config.parity,
+                    .stop_bits = config.stop_bits,
+                    .data_bits = config.data_bits,
+                    .fifos_enabled = true,
+                });
+
+                periph.control.write(.{
+                    .tx_enabled = config.tx != null,
+                    .rx_enabled = config.rx != null,
+                    .rx_fifo_controls_rts = config.rts != null,
+                    .cts_controls_tx = config.cts != null,
+                });
+
+                periph.fifo_interrupt_threshold.write(.{
+                    .tx = .at_most_one_half_full,
+                    .rx = .at_least_one_half_full,
+                });
+
+                var self: Self = .{};
+                self.rxi.init();
+                self.txi.init();
+                return self;
+            }
+
+            pub fn start(self: *Self) void {
+                self.rxi.start();
+                self.txi.start();
+                periph.control.modify(.{ .enabled = true });
+            }
+
+            pub fn stop(self: *Self) void {
+                self.txi.stop();
+                self.rxi.stop();
+                while (!self.txi.isIdle()) {}
+                periph.control.modify(.{ .enabled = false });
+            }
+
+            pub fn deinit(self: *Self) void {
+                self.txi.deinit();
+                self.rxi.deinit();
+
+                periph.control.write(.{});
+
+                gpio.setFunctionAll(pads, .disable);
+
+                if (want_uart0) {
+                    chip.RESETS.force.modify(.{ .uart0 = true });
+                } else {
+                    chip.RESETS.force.modify(.{ .uart1 = true });
+                }
+            }
+
+            pub fn getRxAvailableCount(self: *Self) usize {
+                return self.rxi.getAvailableCount();
+            }
+
+            pub fn canRead(self: *Self) bool {
+                return self.rxi.getAvailableCount() > 0;
+            }
+
+            pub fn peek(self: *Self, buffer: []DataType) ReadError![]const DataType {
+                return self.rxi.peek(buffer);
+            }
+
+            pub fn peekOne(self: *Self) ReadError!?DataType {
+                return @call(.always_inline, self.rxi.peekByte, .{});
+            }
+
+            pub fn reader(self: *Self) Reader {
+                return .{ .context = &self.rxi };
+            }
+
+            pub fn readerNonBlocking(self: *Self) ReaderNonBlocking {
+                return .{ .context = &self.rxi };
+            }
+
+            pub fn isTxIdle(self: *Self) bool {
+                return self.txi.isIdle();
+            }
+
+            pub fn getTxAvailableCount(self: *Self) usize {
+                return self.txi.getAvailableCount();
+            }
+
+            pub fn canWrite(self: *Self) bool {
+                return self.txi.getAvailableCount() > 0;
+            }
+
+            pub fn writer(self: *Self) Writer {
+                return .{ .context = &self.txi };
+            }
+
+            pub fn writerNonBlocking(self: *Self) WriterNonBlocking {
+                return .{ .context = &self.txi };
+            }
+
+            pub fn handleInterrupt(self: *Self) void {
+                const status = periph.interrupt_status_masked.read();
+                self.rxi.handleInterrupt(status);
+                self.txi.handleInterrupt(status);
+            }
+
+        };
+    };
+}
+
+fn NoRx(comptime DataType: type) type {
+    return struct {
+        const Self = @This();
+
+        pub fn init(_: Self) void {}
+        pub fn deinit(_: Self) void {}
+        pub fn start(_: Self) void {}
+        pub fn stop(_: Self) void {}
+
+        pub fn getAvailableCount(_: Self) usize {
+            return 0;
+        }
+
+        pub fn peek(_: Self, _: []DataType) ![]const DataType {
+            return error.Unimplemented;
+        }
+        pub fn peekByte(_: Self) !?DataType {
+            return error.Unimplemented;
+        }
+
+        pub fn readBlocking(_: *Self, _: []DataType) !usize {
+            return error.Unimplemented;
+        }
+
+        pub fn readNonBlocking(_: *Self, _: []DataType) !usize {
+            return error.Unimplemented;
+        }
+
+        pub fn handleInterrupt(_: Self, _: reg_types.uart.InterruptBitmap) void {}
+    };
+}
+
+fn NoTx(comptime DataType: type) type {
+    return struct {
+        const Self = @This();
+
+        pub fn init(_: Self) void {}
+        pub fn deinit(_: Self) void {}
+        pub fn start(_: Self) void {}
+        pub fn stop(_: Self) void {}
+
+        pub fn getAvailableCount(_: Self) usize {
+            return 0;
+        }
+
+        pub fn writeBlocking(_: *Self, _: []const DataType) !usize {
+            return error.Unimplemented;
+        }
+
+        pub fn writeNonBlocking(_: *Self, _: []const DataType) !usize {
+            return error.Unimplemented;
+        }
+
+        pub fn handleInterrupt(_: Self, _: reg_types.uart.InterruptBitmap) void {}
+    };
+}
+
+fn UnbufferedRx(comptime DataType: type, comptime periph: *volatile reg_types.uart.UART, comptime ReadError: type) type {
+    const check_parity = util.errorSetContainsAny(ReadError, error {ParityError});
+
+    return struct {
+        peek_byte: ?DataType = null,
+        pending_error: ReadErrorBitmap = .{},
+
+        const Self = @This();
+
+        pub fn init(_: *const Self) void {}
+        pub fn deinit(_: *const Self) void {}
+        pub fn start(_: *const Self) void {}
+        pub fn stop(_: *const Self) void {}
+
+        pub fn getAvailableCount(self: *const Self) usize {
+            if (self.peek_byte) |_| return 1;
+            if (0 != @as(u4, @bitCast(self.pending_error))) return 1;
+            if (!periph.flags.read().rx_fifo_empty) return 1;
+            return 0;
+        }
+
+        pub fn peek(self: *Self, out: []u8) ![]const DataType {
+            if (out.len == 0) return out[0..0];
+
+            if (try self.peekByte()) |b| {
+                out[0] = b;
+                return out[0..1];
+            } else {
+                return out[0..0];
+            }
+        }
+
+        pub fn peekByte(self: *Self) !?DataType {
+            if (0 != @as(u4, @bitCast(self.pending_error))) {
+                if (self.pending_error.overrun) return error.Overrun;
+                if (self.pending_error.framing_error) return error.FramingError;
+                if (self.pending_error.break_error) return error.BreakInterrupt;
+                if (check_parity and self.pending_error.parity_error) return error.ParityError;
+            }
+
+            if (self.peek_byte) |b| return b;
+
+            if (periph.flags.read().rx_fifo_empty) return null;
+
+            const item = periph.data.read();
+            self.pending_error = item.errors;
+            if (item.errors.overrun) {
+                self.peek_byte = @intCast(item.data);
+                return error.Overrun;
+            } else if (item.errors.framing_error) {
+                return error.FramingError;
+            } else if (item.errors.break_error) {
+                return error.BreakInterrupt;
+            } else if (check_parity and item.errors.parity_error) {
+                return error.ParityError;
+            } else {
+                const data: DataType = @intCast(item.data);
+                self.peek_byte = data;
+                return data;
+            }
+        }
+
+        pub fn readBlocking(self: *Self, buffer: []DataType) !usize {
+            for (0.., buffer) |i, *out| {
+                const result = self.peekByte() catch |err| {
+                    if (i > 0) return i;
+
+                    if (err == error.Overrun) {
+                        self.pending_error.overrun = false;
+                    } else {
+                        self.pending_error = .{};
+                    }
+                    return err;
+                };
+
+                if (result) |b| {
+                    out.* = b;
+                } else {
+                    while (periph.flags.read().rx_fifo_empty) {}
+
+                    out.* = (self.peekByte() catch |err| {
+                        if (i > 0) return i;
+
+                        if (err == error.Overrun) {
+                            self.pending_error.overrun = false;
+                        } else {
+                            self.pending_error = .{};
+                        }
+                        return err;
+                    }).?;
+                }
+
+                self.peek_byte = null;
+            }
+
+            return buffer.len;
+        }
+
+        pub fn readNonBlocking(self: *Self, buffer: []DataType) !usize {
+            for (0.., buffer) |i, *out| {
+                const result = self.peekByte() catch |err| {
+                    if (i > 0) return i;
+
+                    if (err == error.Overrun) {
+                        self.pending_error.overrun = false;
+                    } else {
+                        self.pending_error = .{};
+                    }
+                    return err;
+                };
+
+                if (result) |b| {
+                    out.* = b;
+                    self.peek_byte = null;
+                } else if (i > 0) {
+                    return i;
+                } else {
+                    return error.WouldBlock;
+                }
+            }
+
+            return buffer.len;
+        }
+
+        pub fn handleInterrupt(_: Self, _: reg_types.uart.InterruptBitmap) void {}
+    };
+}
+
+fn UnbufferedTx(comptime DataType: type, comptime periph: *volatile reg_types.uart.UART) type {
+    return struct {
+        const Self = @This();
+
+        pub fn init(_: Self) void {}
+        pub fn deinit(_: Self) void {}
+        pub fn start(_: Self) void {}
+        pub fn stop(_: Self) void {}
+
+        pub fn isIdle(_: Self) bool {
+            return !periph.flags.read().tx_in_progress;
+        }
+
+        pub fn getAvailableCount(_: Self) usize {
+            return if (periph.flags.read().tx_fifo_full) 0 else 1;
+        }
+
+        pub fn writeBlocking(_: *Self, data: []const DataType) !usize {
+            for (data) |b| {
+                while (periph.flags.read().tx_fifo_full) {}
+                periph.data.write(.{ .data = b });
+            }
+            return data.len;
+        }
+
+        pub fn writeNonBlocking(_: *Self, data: []const DataType) !usize {
+            for (0.., data) |i, b| {
+                if (periph.flags.read().tx_fifo_full) {
+                    return if (i > 0) i else error.WouldBlock;
+                }
+                periph.data.write(.{ .data = b });
+            }
+        }
+
+        pub fn handleInterrupt(_: Self, _: reg_types.uart.InterruptBitmap) void {}
+    };
+}
+
+const ReadErrorPack = packed struct (u16) {
+    bytes_before_errors: u12 = 0,
+    errors: ReadErrorBitmap = .{},
+
+    pub fn hasError(self: ReadErrorPack) bool {
+        return 0 != @as(u4, @bitCast(self.errors));
+    }
+};
+
+fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime ReadError: type) type {
+    const check_parity = util.errorSetContainsAll(ReadError, error{ParityError});
+    const pack_buffer_size = @max(@min(8, buffer_size), buffer_size / 8);
+    const DataFifo = std.fifo.LinearFifo(DataType, .{ .Static = buffer_size });
+    const PackFifo = std.fifo.LinearFifo(ReadErrorPack, .{ .Static = pack_buffer_size });
+
+    if (!std.math.isPowerOfTwo(buffer_size)) {
+        @compileError("UART buffer size must be a power of two!");
+    }
+
+    return struct {
+        data: DataFifo = undefined,
+        packs: PackFifo = undefined,
+        stopped: bool = true,
+
+        const Self = @This();
+
+        pub fn init(self: *Self) void {
+            self.data = DataFifo.init();
+            self.packs = PackFifo.init();
+            self.stopped = true;
+        }
+        pub fn deinit(self: *Self) void {
+            self.stop();
+            self.packs.deinit();
+            self.data.deinit();
+        }
+        pub fn start(self: *Self) void {
+            self.stopped = false;
+            self.setInterruptEnabled(true);
+        }
+        pub fn stop(self: *Self) void {
+            self.stopped = true;
+            self.setInterruptEnabled(false);
+        }
+
+        pub fn getAvailableCount(self: *Self) usize {
+            const amount = self.data.readableLength();
+            if (amount == 0) {
+                return self.packs.readableLength();
+            }
+            return amount;
+        }
+
+        pub fn peek(self: *Self, out: []DataType) ![]const DataType {
+            if (out.len == 0) return out[0..0];
+
+            // Note since we never modify the FIFOs here, we don't need to disable the interrupt handler.
+            // If it interrupts us and adds more data it's not a problem.
+
+            var dest_offset: usize = 0;
+            outer: for (0..self.packs.readableLength()) |pack_index| {
+                const pack: ReadErrorPack = self.packs.peekItem(pack_index);
+
+                var bytes_before_errors = pack.bytes_before_errors;
+                while (bytes_before_errors > 0) {
+                    const bytes = self.data.readableSlice(dest_offset);
+                    if (bytes.len > bytes_before_errors) {
+                        bytes = bytes[0..bytes_before_errors];
+                    }
+
+                    if (dest_offset + bytes.len >= out.len) {
+                        @memcpy(out[dest_offset..], bytes.ptr);
+                        break :outer;
+                    }
+
+                    @memcpy(out[dest_offset..].ptr, bytes);
+                    dest_offset += bytes.len;
+                    bytes_before_errors -= bytes.len;
+                }
+
+                if (pack.hasError()) {
+                    if (dest_offset == 0) {
+                        if (pack.errors.overrun) return error.Overrun;
+                        if (pack.errors.framing_error) return error.FramingError;
+                        if (pack.errors.break_error) return error.BreakInterrupt;
+                        if (check_parity) {
+                            if (pack.errors.parity_error) return error.ParityError;
+                        } else std.debug.assert(!pack.errors.parity_error);
+                    } else {
+                        break :outer;
+                    }
+                }
+            }
+
+            return out[0..dest_offset];
+        }
+
+        pub fn peekByte(self: *Self) !?DataType {
+            var buf: [1]DataType = undefined;
+            const result = try self.peek(&buf);
+            if (result.len > 0) return result[0];
+            return null;
+        }
+
+        fn checkReadError(self: *Self, errors: ReadErrorBitmap) !void {
+            if (errors.overrun) {
+                self.packs.buf[self.packs.head].errors.overrun = false;
+                if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
+                    self.packs.discard(1);
+                }
+                return error.Overrun;
+            }
+            if (errors.framing_error) {
+                self.packs.buf[self.packs.head].errors.framing_error = false;
+                if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
+                    self.packs.discard(1);
+                }
+                return error.FramingError;
+            }
+            if (errors.break_error) {
+                self.packs.buf[self.packs.head].errors.break_error = false;
+                if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
+                    self.packs.discard(1);
+                }
+                return error.BreakInterrupt;
+            }
+            if (check_parity) {
+                if (errors.parity_error) {
+                    self.packs.buf[self.packs.head].errors.parity_error = false;
+                    if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
+                        self.packs.discard(1);
+                    }
+                    return error.ParityError;
+                }
+            } else std.debug.assert(!errors.parity_error);
+        }
+
+        pub fn readBlocking(self: *Self, out: []DataType) !usize {
+            self.setInterruptEnabled(false);
+            defer self.setInterruptEnabled(true);
+
+            var remaining = out;
+            while (remaining.len > 0) {
+                while (self.packs.readableLength() == 0) {
+                    self.setInterruptEnabled(true);
+                    interrupts.waitForInterrupt();
+                }
+                self.setInterruptEnabled(false);
+
+                const pack: ReadErrorPack = self.packs.peekItem(0);
+
+                const bytes_to_read = @min(remaining.len, pack.bytes_before_errors);
+                if (bytes_to_read > 0) {
+                    const bytes_read = self.data.read(remaining[0..bytes_to_read]);
+                    std.debug.assert(bytes_read == bytes_to_read);
+                    remaining = remaining[bytes_read..];
+
+                    if (bytes_to_read < pack.bytes_before_errors) {
+                        self.packs.buf[self.packs.head].bytes_before_errors -= bytes_to_read;
+                        continue;
+                    }
+
+                    self.packs.buf[self.packs.head].bytes_before_errors = 0;
+                }
+
+                if (pack.hasError()) {
+                    if (remaining.ptr != out.ptr) break;
+                    try self.checkReadError(pack.errors);
+                    unreachable;
+                } else {
+                    self.packs.discard(1);
+                }
+            }
+
+            return out.len - remaining.len;
+        }
+
+        pub fn readNonBlocking(self: *Self, out: []DataType) !usize {
+            self.setInterruptEnabled(false);
+            defer self.setInterruptEnabled(true);
+
+            var remaining = out;
+            while (remaining.len > 0) {
+                if (self.packs.readableLength() == 0) {
+                    if (remaining.ptr != out.ptr) break;
+
+                    return error.WouldBlock;
+                }
+
+                const pack: ReadErrorPack = self.packs.peekItem(0);
+
+                const bytes_to_read = @min(remaining.len, pack.bytes_before_errors);
+                if (bytes_to_read > 0) {
+                    const bytes_read = self.data.read(remaining[0..bytes_to_read]);
+                    std.debug.assert(bytes_read == bytes_to_read);
+                    remaining = remaining[bytes_read..];
+
+                    if (bytes_to_read < pack.bytes_before_errors) {
+                        self.packs.buf[self.packs.head].bytes_before_errors -= bytes_to_read;
+                        continue;
+                    }
+
+                    self.packs.buf[self.packs.head].bytes_before_errors = 0;
+                }
+
+                if (pack.hasError()) {
+                    if (remaining.ptr != out.ptr) break;
+                    try self.checkReadError(pack.errors);
+                    unreachable;
+                } else {
+                    self.packs.discard(1);
+                }
+            }
+
+            return out.len - remaining.len;
+        }
+
+        pub fn isInterruptEnabled(_: Self) bool {
+            return periph.interrupt_mask.read().rx;
+        }
+
+        pub fn setInterruptEnabled(self: *Self, comptime enabled: bool) void {
+            if (enabled and (self.stopped or self.packs.writableLength() == 0 or self.data.writableLength() == 0)) return;
+
+            var cs = microbe.CriticalSection.enter();
+            defer cs.leave();
+
+            periph.interrupt_mask.modify(.{
+                .rx = enabled,
+                .rx_timeout = enabled,
+            });
+        }
+
+        pub fn handleInterrupt(self: *Self, status: reg_types.uart.InterruptBitmap) void {
+            if (status.rx or status.rx_timeout) {
+                if (self.tryProcessInterruptData()) {
+                    periph.interrupt_clear.write(.{
+                        .rx = true,
+                        .rx_timeout = true,
+                    });
+                    _ = self.tryProcessInterruptData();
+                }
+            }
+        }
+
+        fn tryProcessInterruptData(self: *Self) bool {
+            const writable_len = self.data.writableLength();
+            if (writable_len == 0 or self.packs.writableLength() == 0) {
+                self.setInterruptEnabled(false);
+                return false;
+            }
+
+            var buf: [32]DataType = undefined;
+            const max_read_count = @min(buf.len, writable_len);
+            var read_count: u12 = 0;
+
+            const errors: ReadErrorBitmap = for (0..max_read_count) |i| {
+                if (periph.flags.read().rx_fifo_empty) {
+                    if (read_count == 0) return true;
+                    break .{};
+                }
+
+                const item = periph.data.read();
+                buf[i] = @intCast(item.data);
+                read_count += 1;
+
+                if (item.errors.break_error or item.errors.framing_error or item.errors.parity_error) {
+                    read_count -= 1;
+                    break item.errors;
+                }
+                if (item.errors.overrun) {
+                    break item.errors;
+                }
+            } else .{};
+
+            self.data.writeAssumeCapacity(buf[0..read_count]);
+
+            if (self.packs.readableLength() > 0) {
+                var last_index = self.packs.head + self.packs.count - 1;
+                last_index &= self.packs.buf.len - 1;
+                var last_pack = self.packs.buf[last_index];
+
+                if (!last_pack.hasError()) {
+                    const last_pack_bytes: u32 = last_pack.bytes_before_errors;
+                    if (last_pack_bytes + read_count <= std.math.maxInt(u12)) {
+                        last_pack.bytes_before_errors += read_count;
+                        last_pack.errors = errors;
+                        self.packs.buf[last_index] = last_pack;
+                        return true;
+                    }
+                }
+            }
+
+            self.packs.writeItemAssumeCapacity(.{
+                .bytes_before_errors = read_count,
+                .errors = errors,
+            });
+
+            return true;
+        }
+    };
+}
+
+fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize) type {
+    const Fifo = std.fifo.LinearFifo(DataType, .{ .Static = buffer_size });
+
+    if (!std.math.isPowerOfTwo(buffer_size)) {
+        @compileError("UART buffer size must be a power of two!");
+    }
+
+    return struct {
+        data: Fifo = undefined,
+        stopped: bool = true,
+
+        const Self = @This();
+
+        pub fn init(self: *Self) void {
+            self.data = Fifo.init();
+            self.stopped = true;
+        }
+        pub fn deinit(self: *Self) void {
+            self.stop();
+            self.data.deinit();
+        }
+        pub fn start(self: *Self) void {
+            self.stopped = false;
+            self.setInterruptEnabled(true);
+        }
+        pub fn stop(self: *Self) void {
+            self.stopped = true;
+            self.setInterruptEnabled(false);
+        }
+
+        pub fn getAvailableCount(self: *Self) usize {
+            return self.data.writableLength();
+        }
+
+        pub fn writeBlocking(self: *Self, data_to_write: []const DataType) !usize {
+            if (data_to_write.len == 0) return 0;
+
+            self.setInterruptEnabled(false);
+            defer self.setInterruptEnabled(true);
+
+            var remaining = data_to_write;
+            while (remaining.len > 0) {
+                var bytes_to_write = self.data.writableLength();
+                while (bytes_to_write == 0) {
+                    self.setInterruptEnabled(true);
+                    interrupts.waitForInterrupt();
+                    bytes_to_write = self.data.writableLength();
+                }
+                self.setInterruptEnabled(false);
+
+                if (bytes_to_write > remaining.len) {
+                    bytes_to_write = remaining.len;
+                }
+
+                self.data.writeAssumeCapacity(remaining[0..bytes_to_write]);
+                remaining = remaining[bytes_to_write..];
+            }
+
+            return data_to_write.len;
+        }
+
+        pub fn writeNonBlocking(self: *Self, data_to_write: []const DataType) !usize {
+            if (data_to_write.len == 0) return 0;
+
+            self.setInterruptEnabled(false);
+            defer self.setInterruptEnabled(true);
+
+            const bytes_to_write = @min(self.data.writableLength(), data_to_write.len);
+            if (bytes_to_write == 0) {
+                return error.WouldBlock;
+            }
+
+            self.data.writeAssumeCapacity(data_to_write[0..bytes_to_write]);
+            return bytes_to_write;
+        }
+
+        pub fn isInterruptEnabled(_: Self) bool {
+            return periph.interrupt_mask.read().tx;
+        }
+
+        pub fn setInterruptEnabled(self: *Self, comptime enabled: bool) void {
+            if (enabled and (self.stopped or self.data.readableLength() == 0)) return;
+
+            var cs = microbe.CriticalSection.enter();
+            defer cs.leave();
+
+            periph.interrupt_mask.modify(.{
+                .rx = enabled,
+                .rx_timeout = enabled,
+            });
+        }
+
+        pub fn handleInterrupt(self: *Self, status: reg_types.uart.InterruptBitmap) void {
+            if (status.tx) {
+                if (self.tryProcessInterruptData()) {
+                    periph.interrupt_clear.write(.{ .tx = true });
+                    _ = self.tryProcessInterruptData();
+                }
+            }
+        }
+
+        pub fn tryProcessInterruptData(self: *Self) bool {
+            const readable = self.data.readableSlice(0);
+            var bytes_written: usize = 0;
+            for (readable) |b| {
+                if (periph.flags.read().tx_fifo_full) break;
+                periph.data.write(.{ .data = b });
+                bytes_written += 1;
+            }
+            self.data.discard(bytes_written);
+
+            if (self.data.readableLength() == 0) {
+                self.setInterruptEnabled(false);
+                return false;
+            }
+
+            return true;
+        }
+
+    };
+}
+
+fn DmaRx(comptime DataType: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime channel: dma.Channel) type {
+    _ = buffer_size;
+    _ = periph;
+    _ = DataType;
+    _ = channel;
+    @compileError("Not implemented yet");
+}
+
+fn DmaTx(comptime DataType: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime channel: dma.Channel) type {
+    _ = buffer_size;
+    _ = periph;
+    _ = DataType;
+    _ = channel;
+    @compileError("Not implemented yet");
+}

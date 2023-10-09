@@ -94,18 +94,17 @@ fn configureInternal(comptime pad: anytype, new_config: Config) void {
     pad.write(config);
 }
 
-
 pub fn ensureInit(comptime pads: []const PadID) void {
     var resets = chip.RESETS.force.read();
     inline for (comptime getPorts(pads)) |port| {
         switch (port) {
             .gpio => {
-                resets.pads_bank0 = 0;
-                resets.io_bank0 = 0;
+                resets.pads_bank0 = false;
+                resets.io_bank0 = false;
             },
             .qspi => {
-                resets.pads_qspi = 0;
-                resets.io_qspi = 0;
+                resets.pads_qspi = false;
+                resets.io_qspi = false;
             },
         }
     }
@@ -118,6 +117,12 @@ pub fn ensureInit(comptime pads: []const PadID) void {
 
 pub fn setFunctions(comptime pads: []const PadID, comptime functions: anytype) void {
     inline for (pads, functions) |pad, function| {
+        setFunction(pad, function);
+    }
+}
+
+pub fn setFunctionAll(comptime pads: []const PadID, comptime function: anytype) void {
+    inline for (pads) |pad| {
         setFunction(pad, function);
     }
 }

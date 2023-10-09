@@ -19,57 +19,64 @@ pub const clocks: chip.clocks.Config = .{
 
 pub const handlers = struct {
     pub const SysTick = chip.timing.handleTickInterrupt;
+
+    pub fn UART0_IRQ() callconv(.C) void {
+        debug_uart.handleInterrupt();
+    }
 };
 
-// pub var uart1: microbe.uart.Uart(.{
-//     .baud_rate = 9600,
-//     .tx = .PA9,
-//     .rx = .PA10,
-//     // .cts = .PA11,
-//     // .rts = .PA12,
-// }) = undefined;
+pub var debug_uart: chip.Uart(.{
+    .baud_rate = 9600,
+    .parity = .even,
+    .tx = .GPIO0,
+    .rx = .GPIO1,
+    .cts = .GPIO2,
+    .rts = .GPIO3,
+    .tx_buffer_size = 256,
+    .rx_buffer_size = 256,
+}) = undefined;
 
 
-const TestBus = microbe.bus.Bus(&.{ .GPIO2, .GPIO3, .GPIO4, .GPIO6, .GPIO7 }, .{ .name = "Test", .gpio_config = .{} });
+const TestBus = microbe.bus.Bus(&.{ .GPIO4, .GPIO5, .GPIO6, .GPIO11, .GPIO10 }, .{ .name = "Test", .gpio_config = .{} });
 
-pub fn main() !void {
+pub fn main() void {
+    debug_uart = @TypeOf(debug_uart).init();
+    debug_uart.start();
+
     TestBus.init();
     TestBus.modifyInline(7);
     TestBus.modifyInline(17);
     TestBus.modifyInline(7);
 
-    // uart1 = @TypeOf(uart1).init();
-    // uart1.start();
+    var writer = debug_uart.writer();
+    var reader = debug_uart.reader();
 
     while (true) {
-        // if (uart1.canRead()) {
-            // var writer = uart1.writer();
-            // var reader = uart1.reader();
+        if (debug_uart.canRead()) {
+            writer.writeByte(':') catch unreachable;
 
-            // try writer.writeAll(":");
+            while (debug_uart.canRead()) {
+                var b = reader.readByte() catch |err| {
+                    const s = switch (err) {
+                        error.Overrun => "!ORE!",
+                        error.FramingError => "!FE!",
+                        error.ParityError => "!PE!",
+                        error.BreakInterrupt => "!BRK!",
+                        error.EndOfStream => unreachable,
+                    };
+                    writer.writeAll(s) catch unreachable;
+                    continue;
+                };
 
-            // while (uart1.canRead()) {
-            //     var b = reader.readByte() catch |err| {
-            //         const s = switch (err) {
-            //             error.Overrun => "!ORE!",
-            //             error.FramingError => "!FE!",
-            //             error.NoiseError =>   "!NE!",
-            //             error.EndOfStream => "!EOS!",
-            //             error.BreakInterrupt => "!BRK!",
-            //         };
-            //         try writer.writeAll(s);
-            //         continue;
-            //     };
+                switch (b) {
+                    ' '...'[', ']'...'~' => writer.writeByte(b) catch unreachable,
+                    else => writer.print("\\x{x}", .{ b }) catch unreachable,
+                }
+            }
 
-            //     switch (b) {
-            //         ' '...'[', ']'...'~' => try writer.writeByte(b),
-            //         else => try writer.print("\\x{x}", .{ b }),
-            //     }
-            // }
+            writer.writeAll("\r\n") catch unreachable;
 
-            // try writer.writeAll("\r\n");
-        // }
-
-        chip.timing.blockUntilMicrotick(chip.timing.currentMicrotick().plus(.{ .seconds = 2 }));
+            microbe.Tick.delay(.{ .seconds = 2 });
+        }
     }
 }

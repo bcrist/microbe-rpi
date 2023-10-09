@@ -431,6 +431,170 @@
 (group spi
 )
 (group uart
+    (create-type Parity
+        (inline never)
+        (enum
+            (0 none)
+            (1 odd)
+            (3 even)
+        )
+    )
+    (create-type StopBits
+        (inline never)
+        (enum
+            (0 one)
+            (1 two)
+        )
+    )
+    (create-type DataBits
+        (inline never)
+        (enum
+            (0 five)
+            (1 six)
+            (2 seven)
+            (3 eight)
+        )
+    )
+    (create-type ReadErrorBitmap (bits 4)
+        (packed
+            (framing_error (type bool))
+            (parity_error (type bool))
+            (break_error (type bool))
+            (overrun (type bool))
+        )
+    )
+    (create-type InterruptBitmap (bits 32)
+        (packed
+            (cts_change (type bool) (offset 1))
+            (rx (type bool) (offset 4))
+            (tx (type bool))
+            (rx_timeout (type bool))
+            (rx_framing_error (type bool))
+            (rx_parity_error (type bool))
+            (rx_break_error (type bool))
+            (rx_overrun (type bool))
+        )
+    )
+    (peripheral UART*
+        (type
+            (field UARTDR
+                (rename data)
+                (type (inner
+                    (field DATA (rename data))
+                    (merge-field FE errors ReadErrorBitmap)
+                ))
+            )
+            (field UARTRSR
+                (rename rx_status)
+                (type (inner
+                    (merge-field FE errors ReadErrorBitmap)
+                ))
+            )
+            (field UARTFR
+                (rename flags)
+                (type
+                    (set-access r)
+                    (inner
+                        (field CTS (set-type bool) (rename cts))
+                        (delete-field DSR)
+                        (delete-field DCD)
+                        (field BUSY (set-type bool) (rename tx_in_progress))
+                        (field RXFE (set-type bool) (rename rx_fifo_empty))
+                        (field TXFF (set-type bool) (rename tx_fifo_full))
+                        (field RXFF (set-type bool) (rename rx_fifo_full))
+                        (field TXFE (set-type bool) (rename tx_fifo_empty))
+                        (delete-field RI)
+                    )
+                )
+            )
+            (delete-field UARTILPR)
+            (field UARTIBRD
+                (rename baud_rate_int)
+                (type (inner
+                    (field BAUD_DIVINT (rename div))
+                ))
+            )
+            (field UARTFBRD
+                (rename baud_rate_frac)
+                (type (inner
+                    (field BAUD_DIVFRAC (rename div_64ths))
+                ))
+            )
+            (field UARTLCR_H
+                (rename line_control)
+                (type (inner
+                    (field BRK (set-type bool) (rename request_send_break))
+                    (merge-field PEN parity Parity)
+                    (field STP2 (rename stop_bits) (set-type StopBits))
+                    (field FEN (rename fifos_enabled) (set-type bool))
+                    (field WLEN (rename data_bits) (set-type DataBits))
+                    (field SPS (rename sticky_parity_enabled) (set-type bool))
+                ))
+            )
+            (field UARTCR
+                (rename control)
+                (type (inner
+                    (field UARTEN (set-type bool) (rename enabled))
+                    (delete-field SIREN)
+                    (delete-field SIRLP)
+                    (delete-field LBE)
+                    (field TXE (set-type bool) (rename tx_enabled))
+                    (field RXE (set-type bool) (rename rx_enabled))
+                    (delete-field DTR)
+                    (field RTS (set-type bool) (rename rts))
+                    (delete-field OUT1)
+                    (delete-field OUT2)
+                    (field RTSEN (set-type bool) (rename rx_fifo_controls_rts))
+                    (field CTSEN (set-type bool) (rename cts_controls_tx))
+                ))
+            )
+            (field UARTIFLS
+                (rename fifo_interrupt_threshold)
+                (type (inner
+                    (field TXIFLSEL (rename tx) (set-type (enum
+                        (0 at_most_one_eighth_full)
+                        (1 at_most_one_quarter_full)
+                        (2 at_most_one_half_full)
+                        (3 at_most_three_quarters_full)
+                        (4 at_most_seven_eighths_full)
+                    )))
+                    (field RXIFLSEL (rename rx) (set-type (enum
+                        (0 at_least_one_eighth_full)
+                        (1 at_least_one_quarter_full)
+                        (2 at_least_one_half_full)
+                        (3 at_least_three_quarters_full)
+                        (4 at_least_seven_eighths_full)
+                    )))
+                ))
+            )
+            (field UARTIMSC
+                (rename interrupt_mask)
+                (set-type (reg rw InterruptBitmap))
+            )
+            (field UARTRIS
+                (rename interrupt_status)
+                (set-type (reg r InterruptBitmap))
+            )
+            (field UARTMIS
+                (rename interrupt_status_masked)
+                (set-type (reg r InterruptBitmap))
+            )
+            (field UARTICR
+                (rename interrupt_clear)
+                (set-type (reg w InterruptBitmap))
+            )
+            (field UARTDMACR
+                (rename dma_control)
+                (type (inner
+                    (field DMAONERR (set-type bool) (rename inhibit_rx_dma_on_error))
+                    (field TXDMAE (set-type bool) (rename tx_dma_enabled))
+                    (field RXDMAE (set-type bool) (rename rx_dma_enabled))
+                ))
+            )
+            (delete-field UARTPERIPHID*)
+            (delete-field UARTPCELLID*)
+        )
+    )
 )
 (group adc
 )
@@ -736,10 +900,22 @@
     )
     (peripheral USBCTRL_REGS
         (reg ADDR_ENDP* (set-fallback-name ADDR_ENDP))
-        (reg BUFF_STATUS (rename EndpointBitmap))
-        (reg BUFF_CPU_SHOULD_HANDLE (rename EndpointBitmap))
-        (reg EP_ABORT* (set-fallback-name EndpointBitmap))
-        (reg EP_STATUS_STALL_NAK (rename EndpointBitmap))
+        (reg BUFF_STATUS
+            (field * (set-type bool))
+            (rename EndpointBitmap)
+        )
+        (reg BUFF_CPU_SHOULD_HANDLE
+            (field * (set-type bool))
+            (rename EndpointBitmap)
+        )
+        (reg EP_ABORT*
+            (field * (set-type bool))
+            (rename EndpointBitmap)
+        )
+        (reg EP_STATUS_STALL_NAK
+            (field * (set-type bool))
+            (rename EndpointBitmap)
+        )
         (reg INT* (set-fallback-name USB_INT))
         (type (rename REGS))
         (rename USB)
@@ -1328,11 +1504,17 @@
     (peripheral RESETS (type
         (field RESET_DONE
             (rename done)
-            (type (inner (set-name ResetBitmap)))
+            (type (inner
+                (set-name ResetBitmap)
+                (field * (set-type bool))
+            ))
         )
         (field WDSEL
             (rename watchdog)
-            (type (inner (set-name ResetBitmap)))
+            (type (inner
+                (set-name ResetBitmap)
+                (field * (set-type bool))
+            ))
         )
         (field RESET
             (rename force)

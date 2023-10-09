@@ -41,8 +41,8 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
     }
 
     chip.RESETS.force.modify(.{
-        .pads_bank0 = 0,
-        .io_bank0 = 0,
+        .pads_bank0 = false,
+        .io_bank0 = false,
     });
 
     chip.WATCHDOG.control.modify(.{

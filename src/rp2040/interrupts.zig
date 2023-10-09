@@ -172,11 +172,11 @@ pub inline fn isInHandler() bool {
 }
 
 pub inline fn waitForInterrupt() void {
-    asm volatile ("wfi");
+    asm volatile ("wfi" ::: "memory");
 }
 
 pub inline fn waitForEvent() void {
-    asm volatile ("wfe");
+    asm volatile ("wfe" ::: "memory");
 }
 
 pub inline fn sendEvent() void {
