@@ -166,7 +166,7 @@ pub fn Uart(comptime config: Config) type {
                 BreakInterrupt,
                 FramingError,
             };
-            const ReadBaseNonBlocking = ReadBase || error.WouldBlock;
+            const ReadBaseNonBlocking = ReadBase || error{ WouldBlock };
 
             const Read            = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) ReadBase else (ReadBase || error {ParityError});
             const ReadNonBlocking = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) ReadBaseNonBlocking else (ReadBaseNonBlocking || error.ParityError);
@@ -267,6 +267,16 @@ pub fn Uart(comptime config: Config) type {
                     .tx = .at_most_one_half_full,
                     .rx = .at_least_one_half_full,
                 });
+
+                if (config.tx_buffer_size > 0 or config.rx_buffer_size > 0) {
+                    if (want_uart0) {
+                        peripherals.NVIC.interrupt_clear_pending.write(.{ .UART0_IRQ = true });
+                        peripherals.NVIC.interrupt_set_enable.write(.{ .UART0_IRQ = true });
+                    } else {
+                        peripherals.NVIC.interrupt_clear_pending.write(.{ .UART1_IRQ = true });
+                        peripherals.NVIC.interrupt_set_enable.write(.{ .UART1_IRQ = true });
+                    }
+                }
 
                 var self: Self = .{};
                 self.rxi.init();
@@ -580,7 +590,7 @@ fn UnbufferedTx(comptime DataType: type, comptime periph: *volatile reg_types.ua
 }
 
 const ReadErrorPack = packed struct (u16) {
-    bytes_before_errors: u12 = 0,
+    data_bytes: u12 = 0, // after errors chronologically
     errors: ReadErrorBitmap = .{},
 
     pub fn hasError(self: ReadErrorPack) bool {
@@ -642,23 +652,6 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             outer: for (0..self.packs.readableLength()) |pack_index| {
                 const pack: ReadErrorPack = self.packs.peekItem(pack_index);
 
-                var bytes_before_errors = pack.bytes_before_errors;
-                while (bytes_before_errors > 0) {
-                    const bytes = self.data.readableSlice(dest_offset);
-                    if (bytes.len > bytes_before_errors) {
-                        bytes = bytes[0..bytes_before_errors];
-                    }
-
-                    if (dest_offset + bytes.len >= out.len) {
-                        @memcpy(out[dest_offset..], bytes.ptr);
-                        break :outer;
-                    }
-
-                    @memcpy(out[dest_offset..].ptr, bytes);
-                    dest_offset += bytes.len;
-                    bytes_before_errors -= bytes.len;
-                }
-
                 if (pack.hasError()) {
                     if (dest_offset == 0) {
                         if (pack.errors.overrun) return error.Overrun;
@@ -670,6 +663,23 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
                     } else {
                         break :outer;
                     }
+                }
+
+                var num_data_byte = pack.data_bytes;
+                while (num_data_byte > 0) {
+                    const bytes = self.data.readableSlice(dest_offset);
+                    if (bytes.len > num_data_byte) {
+                        bytes = bytes[0..num_data_byte];
+                    }
+
+                    if (dest_offset + bytes.len >= out.len) {
+                        @memcpy(out[dest_offset..], bytes.ptr);
+                        break :outer;
+                    }
+
+                    @memcpy(out[dest_offset..].ptr, bytes);
+                    dest_offset += bytes.len;
+                    num_data_byte -= bytes.len;
                 }
             }
 
@@ -686,31 +696,19 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         fn checkReadError(self: *Self, errors: ReadErrorBitmap) !void {
             if (errors.overrun) {
                 self.packs.buf[self.packs.head].errors.overrun = false;
-                if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
-                    self.packs.discard(1);
-                }
                 return error.Overrun;
             }
             if (errors.framing_error) {
                 self.packs.buf[self.packs.head].errors.framing_error = false;
-                if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
-                    self.packs.discard(1);
-                }
                 return error.FramingError;
             }
             if (errors.break_error) {
                 self.packs.buf[self.packs.head].errors.break_error = false;
-                if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
-                    self.packs.discard(1);
-                }
                 return error.BreakInterrupt;
             }
             if (check_parity) {
                 if (errors.parity_error) {
                     self.packs.buf[self.packs.head].errors.parity_error = false;
-                    if (0 == @as(u4, @bitCast(self.packs.peekItem(0).errors))) {
-                        self.packs.discard(1);
-                    }
                     return error.ParityError;
                 }
             } else std.debug.assert(!errors.parity_error);
@@ -730,27 +728,25 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
                 const pack: ReadErrorPack = self.packs.peekItem(0);
 
-                const bytes_to_read = @min(remaining.len, pack.bytes_before_errors);
+                if (pack.hasError()) {
+                    if (remaining.ptr != out.ptr) break;
+                    try self.checkReadError(pack.errors);
+                    unreachable;
+                }
+
+                const bytes_to_read = @min(remaining.len, pack.data_bytes);
                 if (bytes_to_read > 0) {
                     const bytes_read = self.data.read(remaining[0..bytes_to_read]);
                     std.debug.assert(bytes_read == bytes_to_read);
                     remaining = remaining[bytes_read..];
 
-                    if (bytes_to_read < pack.bytes_before_errors) {
-                        self.packs.buf[self.packs.head].bytes_before_errors -= bytes_to_read;
+                    if (bytes_to_read < pack.data_bytes) {
+                        self.packs.buf[self.packs.head].data_bytes -= bytes_to_read;
                         continue;
                     }
-
-                    self.packs.buf[self.packs.head].bytes_before_errors = 0;
                 }
 
-                if (pack.hasError()) {
-                    if (remaining.ptr != out.ptr) break;
-                    try self.checkReadError(pack.errors);
-                    unreachable;
-                } else {
-                    self.packs.discard(1);
-                }
+                self.packs.discard(1);
             }
 
             return out.len - remaining.len;
@@ -770,27 +766,25 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
                 const pack: ReadErrorPack = self.packs.peekItem(0);
 
-                const bytes_to_read = @min(remaining.len, pack.bytes_before_errors);
+                if (pack.hasError()) {
+                    if (remaining.ptr != out.ptr) break;
+                    try self.checkReadError(pack.errors);
+                    unreachable;
+                }
+
+                const bytes_to_read = @min(remaining.len, pack.data_bytes);
                 if (bytes_to_read > 0) {
                     const bytes_read = self.data.read(remaining[0..bytes_to_read]);
                     std.debug.assert(bytes_read == bytes_to_read);
                     remaining = remaining[bytes_read..];
 
-                    if (bytes_to_read < pack.bytes_before_errors) {
-                        self.packs.buf[self.packs.head].bytes_before_errors -= bytes_to_read;
+                    if (bytes_to_read < pack.data_bytes) {
+                        self.packs.buf[self.packs.head].data_bytes -= bytes_to_read;
                         continue;
                     }
-
-                    self.packs.buf[self.packs.head].bytes_before_errors = 0;
                 }
 
-                if (pack.hasError()) {
-                    if (remaining.ptr != out.ptr) break;
-                    try self.checkReadError(pack.errors);
-                    unreachable;
-                } else {
-                    self.packs.discard(1);
-                }
+                self.packs.discard(1);
             }
 
             return out.len - remaining.len;
@@ -814,21 +808,15 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
         pub fn handleInterrupt(self: *Self, status: reg_types.uart.InterruptBitmap) void {
             if (status.rx or status.rx_timeout) {
-                if (self.tryProcessInterruptData()) {
-                    periph.interrupt_clear.write(.{
-                        .rx = true,
-                        .rx_timeout = true,
-                    });
-                    _ = self.tryProcessInterruptData();
-                }
+                self.tryProcessInterruptData();
             }
         }
 
-        fn tryProcessInterruptData(self: *Self) bool {
+        fn tryProcessInterruptData(self: *Self) void {
             const writable_len = self.data.writableLength();
-            if (writable_len == 0 or self.packs.writableLength() == 0) {
+            if (writable_len == 0 or self.packs.writableLength() < 2) {
                 self.setInterruptEnabled(false);
-                return false;
+                return;
             }
 
             var buf: [32]DataType = undefined;
@@ -837,47 +825,52 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
             const errors: ReadErrorBitmap = for (0..max_read_count) |i| {
                 if (periph.flags.read().rx_fifo_empty) {
-                    if (read_count == 0) return true;
+                    if (read_count == 0) return;
                     break .{};
                 }
 
                 const item = periph.data.read();
                 buf[i] = @intCast(item.data);
-                read_count += 1;
 
-                if (item.errors.break_error or item.errors.framing_error or item.errors.parity_error) {
-                    read_count -= 1;
+                if (0 != @as(u4, @bitCast(item.errors))) {
                     break item.errors;
-                }
-                if (item.errors.overrun) {
-                    break item.errors;
+                } else {
+                    read_count += 1;
                 }
             } else .{};
 
             self.data.writeAssumeCapacity(buf[0..read_count]);
+            self.recordPackDataBytes(read_count);
 
+            if (0 != @as(u4, @bitCast(errors))) {
+                self.packs.writeItemAssumeCapacity(.{
+                    .data_bytes = 0,
+                    .errors = errors,
+                });
+                if (errors.overrun) {
+                    self.data.writeAssumeCapacity(buf[read_count..][0..1]);
+                    self.recordPackDataBytes(1);
+                }
+            }
+        }
+
+        fn recordPackDataBytes(self: *Self, count: usize) void {
             if (self.packs.readableLength() > 0) {
                 var last_index = self.packs.head + self.packs.count - 1;
                 last_index &= self.packs.buf.len - 1;
                 var last_pack = self.packs.buf[last_index];
-
-                if (!last_pack.hasError()) {
-                    const last_pack_bytes: u32 = last_pack.bytes_before_errors;
-                    if (last_pack_bytes + read_count <= std.math.maxInt(u12)) {
-                        last_pack.bytes_before_errors += read_count;
-                        last_pack.errors = errors;
-                        self.packs.buf[last_index] = last_pack;
-                        return true;
-                    }
+                const last_pack_bytes: u32 = last_pack.data_bytes;
+                if (last_pack_bytes + count <= std.math.maxInt(u12)) {
+                    last_pack.data_bytes += count;
+                    self.packs.buf[last_index] = last_pack;
+                    return;
                 }
             }
 
             self.packs.writeItemAssumeCapacity(.{
-                .bytes_before_errors = read_count,
-                .errors = errors,
+                .data_bytes = count,
+                .errors = .{},
             });
-
-            return true;
         }
     };
 }
@@ -923,6 +916,13 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             defer self.setInterruptEnabled(true);
 
             var remaining = data_to_write;
+            if (self.data.readableLength() == 0) {
+                while (remaining.len > 0 and !periph.flags.read().tx_fifo_full) {
+                    periph.data.write(.{ .data = remaining[0] });
+                    remaining = remaining[1..];
+                }
+            }
+
             while (remaining.len > 0) {
                 var bytes_to_write = self.data.writableLength();
                 while (bytes_to_write == 0) {
@@ -949,13 +949,23 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             self.setInterruptEnabled(false);
             defer self.setInterruptEnabled(true);
 
-            const bytes_to_write = @min(self.data.writableLength(), data_to_write.len);
+            var remaining = data_to_write;
+            if (self.data.readableLength() == 0) {
+                while (remaining.len > 0 and !periph.flags.read().tx_fifo_full) {
+                    periph.data.write(.{ .data = remaining[0] });
+                    remaining = remaining[1..];
+                }
+            }
+
+            if (remaining.len == 0) return data_to_write.len;
+
+            const bytes_to_write = @min(self.data.writableLength(), remaining.len);
             if (bytes_to_write == 0) {
                 return error.WouldBlock;
             }
 
             self.data.writeAssumeCapacity(data_to_write[0..bytes_to_write]);
-            return bytes_to_write;
+            return data_to_write.len - remaining.len + bytes_to_write;
         }
 
         pub fn isInterruptEnabled(_: Self) bool {
@@ -969,21 +979,17 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             defer cs.leave();
 
             periph.interrupt_mask.modify(.{
-                .rx = enabled,
-                .rx_timeout = enabled,
+                .tx = enabled,
             });
         }
 
         pub fn handleInterrupt(self: *Self, status: reg_types.uart.InterruptBitmap) void {
             if (status.tx) {
-                if (self.tryProcessInterruptData()) {
-                    periph.interrupt_clear.write(.{ .tx = true });
-                    _ = self.tryProcessInterruptData();
-                }
+                self.tryProcessInterruptData();
             }
         }
 
-        pub fn tryProcessInterruptData(self: *Self) bool {
+        pub fn tryProcessInterruptData(self: *Self) void {
             const readable = self.data.readableSlice(0);
             var bytes_written: usize = 0;
             for (readable) |b| {
@@ -995,10 +1001,7 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
             if (self.data.readableLength() == 0) {
                 self.setInterruptEnabled(false);
-                return false;
             }
-
-            return true;
         }
 
     };
