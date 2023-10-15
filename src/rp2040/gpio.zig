@@ -96,7 +96,7 @@ fn configureInternal(comptime pad: anytype, new_config: Config) void {
 }
 
 pub fn ensureInit(comptime pads: []const PadID) void {
-    var which: chip.reg_types.sys.ResetBitmap = .{};
+    comptime var which: chip.reg_types.sys.ResetBitmap = .{};
     inline for (comptime getPorts(pads)) |port| {
         switch (port) {
             .gpio => {

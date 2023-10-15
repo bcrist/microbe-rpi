@@ -1,8 +1,7 @@
 const std = @import("std");
 const chip = @import("chip");
-const microbe = @import("microbe");
 const root = @import("root");
-const util = @import("chip_util");
+const util = @import("microbe").util;
 const timing = @import("timing.zig");
 const resets = @import("resets.zig");
 

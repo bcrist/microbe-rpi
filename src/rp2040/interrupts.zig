@@ -1,6 +1,6 @@
 const std = @import("std");
 const chip = @import("chip");
-const util = @import("chip_util");
+const util = @import("microbe").util;
 
 pub const Exception = chip.reg_types.Exception;
 pub const Interrupt = chip.reg_types.Interrupt;

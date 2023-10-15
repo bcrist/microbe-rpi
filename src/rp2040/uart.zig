@@ -1,7 +1,7 @@
 const std = @import("std");
-const microbe = @import("microbe");
 const chip = @import("chip");
-const util = @import("chip_util");
+const microbe = @import("microbe");
+const util = microbe.util;
 const dma = @import("dma.zig");
 const clocks = @import("clocks.zig");
 const resets = @import("resets.zig");
@@ -221,7 +221,7 @@ pub fn Uart(comptime config: Config) type {
 
             pub fn init() Self {
                 { // ensure nothing we need is still in reset:
-                    var ensure: reg_types.sys.ResetBitmap = .{};
+                    comptime var ensure: reg_types.sys.ResetBitmap = .{};
                     ensure.pads_bank0 = true;
                     ensure.io_bank0 = true;
                     if (want_dma) ensure.dma = true;

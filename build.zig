@@ -220,7 +220,6 @@ pub fn build(b: *std.Build) void {
 
     const microbe_dep = b.dependency("microbe", .{});
     const microbe_module = microbe_dep.module("microbe");
-    const chip_util_module = microbe_dep.module("chip_util");
 
     for (chips) |name| {
         const module = b.addModule(name, .{
@@ -229,7 +228,6 @@ pub fn build(b: *std.Build) void {
             },
             .dependencies = &.{
                 .{ .name = "microbe", .module = microbe_module },
-                .{ .name = "chip_util", .module = chip_util_module },
             },
         });
         module.dependencies.put("chip", module) catch @panic("OOM");
