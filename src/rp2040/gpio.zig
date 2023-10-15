@@ -1,16 +1,18 @@
-const std = @import("std");
-const chip = @import("chip");
-const io = chip.reg_types.io;
-const resets = @import("resets.zig");
-
-const PadID = chip.PadID;
-
 pub const PortID = enum {
     gpio,
     qspi,
 };
 
 pub const PortDataType = u32;
+
+pub const Config = struct {
+    speed: ?io.SlewRate = null,
+    hysteresis: ?bool = null,
+    maintenance: ?io.PinMaintenance = null,
+    strength: ?io.DriveStrength = null,
+    input_enabled: ?bool = null,
+    output_disabled: ?bool = null,
+};
 
 pub fn getPort(comptime pad: PadID) PortID {
     return if (@intFromEnum(pad) < 32) .gpio else .qspi;
@@ -55,15 +57,6 @@ pub fn getPadsInPort(
         return pads_in_port;
     }
 }
-
-pub const Config = struct {
-    speed: ?io.SlewRate = null,
-    hysteresis: ?bool = null,
-    maintenance: ?io.PinMaintenance = null,
-    strength: ?io.DriveStrength = null,
-    input_enabled: ?bool = null,
-    output_disabled: ?bool = null,
-};
 
 pub fn configure(comptime pads: []const PadID, config: Config) void {
     inline for (pads) |pad| {
@@ -364,3 +357,9 @@ pub inline fn toggleOutputEnables(comptime pads: []const PadID) void {
         toggleOutputPortEnableBits(port, mask);
     }
 }
+
+const std = @import("std");
+const chip = @import("chip");
+const io = chip.reg_types.io;
+const resets = @import("resets.zig");
+const PadID = chip.PadID;
