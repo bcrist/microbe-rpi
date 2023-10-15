@@ -130,10 +130,10 @@ pub fn setFunctionAll(comptime pads: []const PadID, comptime function: anytype) 
 pub fn setFunction(comptime pad: PadID, comptime function: anytype) void {
     const n = @intFromEnum(pad);
     if (n < 30) {
-        const func = std.enums.nameCast(io.IoFunction, function);
+        const func = comptime std.enums.nameCast(io.IoFunction, function);
         chip.IO[n].control.modify(.{ .func = func });
     } else {
-        const func = std.enums.nameCast(io.QspiFunction, function);
+        const func = comptime std.enums.nameCast(io.QspiFunction, function);
         switch (pad) {
             .SCLK => chip.IO_QSPI.sclk.control.modify(.{ .func = func }),
             .SS  => chip.IO_QSPI.ss.control.modify(.{ .func = func }),
@@ -181,15 +181,28 @@ pub fn setOutputPortBits(comptime port: PortID, bits_to_set: PortDataType) void 
     }
 }
 
+pub fn toggleOutputPortBits(comptime port: PortID, bits_to_toggle: PortDataType) void {
+    switch (port) {
+        .gpio => chip.SIO.io.out.toggle.write(bits_to_toggle),
+        .qspi => chip.SIO.io.out_qspi.toggle.write(bits_to_toggle),
+    }
+}
+
 pub fn modifyOutputPort(comptime port: PortID, bits_to_clear: PortDataType, bits_to_set: PortDataType) void {
     switch (port) {
         .gpio => {
-            chip.SIO.io.out.clear.write(bits_to_clear);
-            chip.SIO.io.out.set.write(bits_to_set);
+            const old = chip.SIO.io.out.value.read();
+            var val = old;
+            val |= bits_to_set;
+            val &= ~bits_to_clear;
+            chip.SIO.io.out.toggle.write(val ^ old);
         },
         .qspi => {
-            chip.SIO.io.out_qspi.clear.write(bits_to_clear);
-            chip.SIO.io.out_qspi.set.write(bits_to_set);
+            const old = chip.SIO.io.out_qspi.value.read();
+            var val = old;
+            val |= bits_to_set;
+            val &= ~bits_to_clear;
+            chip.SIO.io.out_qspi.toggle.write(val ^ old);
         },
     }
 }
@@ -222,15 +235,28 @@ pub fn setOutputPortEnableBits(comptime port: PortID, bits_to_set: PortDataType)
     }
 }
 
+pub fn toggleOutputPortEnableBits(comptime port: PortID, bits_to_toggle: PortDataType) void {
+    switch (port) {
+        .gpio => chip.SIO.io.oe.toggle.write(bits_to_toggle),
+        .qspi => chip.SIO.io.oe_qspi.toggle.write(bits_to_toggle),
+    }
+}
+
 pub fn modifyOutputPortEnables(comptime port: PortID, bits_to_clear: PortDataType, bits_to_set: PortDataType) void {
     switch (port) {
         .gpio => {
-            chip.SIO.io.oe.clear.write(bits_to_clear);
-            chip.SIO.io.oe.set.write(bits_to_set);
+            const old = chip.SIO.io.oe.value.read();
+            var val = old;
+            val |= bits_to_set;
+            val &= ~bits_to_clear;
+            chip.SIO.io.oe.toggle.write(val ^ old);
         },
         .qspi => {
-            chip.SIO.io.oe_qspi.clear.write(bits_to_clear);
-            chip.SIO.io.oe_qspi.set.write(bits_to_set);
+            const old = chip.SIO.io.oe_qspi.value.read();
+            var val = old;
+            val |= bits_to_set;
+            val &= ~bits_to_clear;
+            chip.SIO.io.oe_qspi.toggle.write(val ^ old);
         },
     }
 }
@@ -252,6 +278,40 @@ pub inline fn writeOutput(comptime pad: PadID, state: u1) void {
         clearOutputPortBits(port, mask);
     } else {
         setOutputPortBits(port, mask);
+    }
+}
+
+pub inline fn setOutputs(comptime pads: []const PadID) void {
+    inline for (comptime getPorts(pads)) |port| {
+        var mask: PortDataType = 0;
+        inline for (pads) |pad| {
+            if (comptime getPort(pad) == port) {
+                mask |= @as(PortDataType, 1) << comptime chip.gpio.getOffset(pad);
+            }
+        }
+        setOutputPortBits(port, mask);
+    }
+}
+pub inline fn clearOutputs(comptime pads: []const PadID) void {
+    inline for (comptime getPorts(pads)) |port| {
+        var mask: PortDataType = 0;
+        inline for (pads) |pad| {
+            if (comptime getPort(pad) == port) {
+                mask |= @as(PortDataType, 1) << comptime chip.gpio.getOffset(pad);
+            }
+        }
+        clearOutputPortBits(port, mask);
+    }
+}
+pub inline fn toggleOutputs(comptime pads: []const PadID) void {
+    inline for (comptime getPorts(pads)) |port| {
+        var mask: PortDataType = 0;
+        inline for (pads) |pad| {
+            if (comptime getPort(pad) == port) {
+                mask |= @as(PortDataType, 1) << comptime chip.gpio.getOffset(pad);
+            }
+        }
+        toggleOutputPortBits(port, mask);
     }
 }
 
@@ -290,5 +350,16 @@ pub inline fn clearOutputEnables(comptime pads: []const PadID) void {
             }
         }
         clearOutputPortEnableBits(port, mask);
+    }
+}
+pub inline fn toggleOutputEnables(comptime pads: []const PadID) void {
+    inline for (comptime getPorts(pads)) |port| {
+        var mask: PortDataType = 0;
+        inline for (pads) |pad| {
+            if (comptime getPort(pad) == port) {
+                mask |= @as(PortDataType, 1) << comptime chip.gpio.getOffset(pad);
+            }
+        }
+        toggleOutputPortEnableBits(port, mask);
     }
 }

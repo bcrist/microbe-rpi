@@ -70,12 +70,77 @@ pub const PadID = enum (u8) {
     SD3 = 37,
 };
 
-pub fn flushInstructionCache() void {
+pub inline fn flushInstructionCache() void {
     asm volatile ("isb");
 }
-pub fn instructionFence() void {
+pub inline fn instructionFence() void {
     asm volatile ("dsb");
 }
-pub fn memoryFence() void {
+pub inline fn memoryFence() void {
     asm volatile ("dmb");
+}
+
+pub inline fn registerHasAtomicAliases(comptime reg: *volatile u32) bool {
+    const addr = @intFromPtr(reg);
+    if ((addr & 0xFFFFF000) == 0x50100000) return false; // USB DPRAM
+    if ((addr & 0xE0000000) == 0x40000000) return true; // APB & AHB peripherals
+    if ((addr & 0xFF000000) == 0x18000000) return true; // SSI peripheral
+    if ((addr & 0xFF000000) == 0x14000000) return true; // XIP control regs
+    return false;
+}
+
+pub inline fn modifyRegister(comptime reg: *volatile u32, comptime bits_to_set: u32, comptime bits_to_clear: u32) void {
+    if (comptime registerHasAtomicAliases(reg)) {
+        if (bits_to_set == 0) {
+            if (bits_to_clear != 0) {
+                clearRegisterBits(reg, bits_to_set);
+            }
+        } else if (bits_to_clear == 0) {
+            setRegisterBits(reg, bits_to_set);
+        } else {
+            const old = reg.*;
+            var val = old;
+            val |= bits_to_set;
+            val &= ~bits_to_clear;
+            toggleRegisterBits(reg, val ^ old);
+        }
+    } else {
+        var val = reg.*;
+        val |= bits_to_set;
+        val &= ~bits_to_clear;
+        reg.* = val;
+    }
+}
+
+pub inline fn toggleRegisterBits(comptime reg: *volatile u32, bits_to_toggle: u32) void {
+    if (comptime registerHasAtomicAliases(reg)) {
+        const ptr: *volatile u32 = @ptrFromInt(@intFromPtr(reg) | 0x1000);
+        ptr.* = bits_to_toggle;
+    } else {
+        var val = reg.*;
+        val ^= bits_to_toggle;
+        reg.* = val;
+    }
+}
+
+pub inline fn setRegisterBits(comptime reg: *volatile u32, bits_to_set: u32) void {
+    if (comptime registerHasAtomicAliases(reg)) {
+        const ptr: *volatile u32 = @ptrFromInt(@intFromPtr(reg) | 0x2000);
+        ptr.* = bits_to_set;
+    } else {
+        var val = reg.*;
+        val |= bits_to_set;
+        reg.* = val;
+    }
+}
+
+pub inline fn clearRegisterBits(comptime reg: *volatile u32, bits_to_clear: u32) void {
+    if (comptime registerHasAtomicAliases(reg)) {
+        const ptr: *volatile u32 = @ptrFromInt(@intFromPtr(reg) | 0x3000);
+        ptr.* = bits_to_clear;
+    } else {
+        var val = reg.*;
+        val &= ~bits_to_clear;
+        reg.* = val;
+    }
 }

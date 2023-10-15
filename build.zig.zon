@@ -3,8 +3,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .microbe = .{
-            .url = "https://github.com/bcrist/microbe/archive/9b6d0754f7d6dec10f945f8ff158d07864e66318.tar.gz",
-            .hash = "1220dbaf07582c544a3e47177b35cd753ab7760c29aa85e00277ed2b2f0a32c53362",
+            .url = "https://github.com/bcrist/microbe/archive/f83a22b0040e13e12c1b7d880ebf0d41863fbb4a.tar.gz",
+            .hash = "12205da66517908cd4ba7f9258b1629c48dba3bd06294caca8cb51c21a80ab1a1977",
         },
     },
 }
