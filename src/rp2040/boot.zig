@@ -4,6 +4,7 @@ const chip = @import("chip");
 const config = @import("config");
 const microbe = @import("microbe");
 const clocks = @import("clocks.zig");
+const resets = @import("resets.zig");
 const reg_types = chip.reg_types;
 const VectorTable = reg_types.VectorTable;
 const Exception = chip.interrupts.Exception;
@@ -40,9 +41,9 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
         root.earlyInit();
     }
 
-    chip.RESETS.force.modify(.{
-        .pads_bank0 = false,
-        .io_bank0 = false,
+    resets.reset(.{
+        .pads_bank0 = true,
+        .io_bank0 = true,
     });
 
     chip.WATCHDOG.control.modify(.{

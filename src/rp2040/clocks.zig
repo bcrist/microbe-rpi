@@ -4,6 +4,7 @@ const microbe = @import("microbe");
 const root = @import("root");
 const util = @import("chip_util");
 const timing = @import("timing.zig");
+const resets = @import("resets.zig");
 
 pub const RoscParams = struct {
     range: union(enum) {
@@ -1036,10 +1037,7 @@ const ConfigChange = struct {
 
     pub inline fn run(comptime self: ConfigChange) void {
         if (self.resets_to_clear) |resets_to_clear| {
-            var resets: u32 = @bitCast(chip.RESETS.force.read());
-            const clear_mask: u32 = @bitCast(resets_to_clear);
-            resets &= ~clear_mask;
-            chip.RESETS.force.write(@bitCast(resets));
+            resets.ensureNotInReset(resets_to_clear);
         }
 
         if (self.change_xosc_startup_delay_div256) |delay| {

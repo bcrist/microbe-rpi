@@ -1,6 +1,7 @@
 const std = @import("std");
 const chip = @import("chip");
 const io = chip.reg_types.io;
+const resets = @import("resets.zig");
 
 const PadID = chip.PadID;
 
@@ -95,20 +96,20 @@ fn configureInternal(comptime pad: anytype, new_config: Config) void {
 }
 
 pub fn ensureInit(comptime pads: []const PadID) void {
-    var resets = chip.RESETS.force.read();
+    var which: chip.reg_types.sys.ResetBitmap = .{};
     inline for (comptime getPorts(pads)) |port| {
         switch (port) {
             .gpio => {
-                resets.pads_bank0 = false;
-                resets.io_bank0 = false;
+                which.pads_bank0 = true;
+                which.io_bank0 = true;
             },
             .qspi => {
-                resets.pads_qspi = false;
-                resets.io_qspi = false;
+                which.pads_qspi = true;
+                which.io_qspi = true;
             },
         }
     }
-    chip.RESETS.force.write(resets);
+    resets.ensureNotInReset(which);
 
     inline for (pads) |pad| {
         setFunction(pad, .sio);

@@ -19,8 +19,10 @@ pub const gpio = @import("rp2040/gpio.zig");
 pub const dma = @import("rp2040/dma.zig");
 pub const clocks = @import("rp2040/clocks.zig");
 pub const timing = @import("rp2040/timing.zig");
+pub const resets = @import("rp2040/resets.zig");
 pub const uart = @import("rp2040/uart.zig");
 pub const Uart = uart.Uart;
+pub const usb = @import("rp2040/usb.zig");
 
 pub const base_name = "RP2040";
 pub const core_name = "ARM Cortex-M0+";

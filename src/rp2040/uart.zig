@@ -4,6 +4,7 @@ const chip = @import("chip");
 const util = @import("chip_util");
 const dma = @import("dma.zig");
 const clocks = @import("clocks.zig");
+const resets = @import("resets.zig");
 const validation = @import("validation.zig");
 const reg_types = @import("reg_types.zig");
 const peripherals = @import("peripherals.zig");
@@ -220,13 +221,15 @@ pub fn Uart(comptime config: Config) type {
 
             pub fn init() Self {
                 { // ensure nothing we need is still in reset:
-                    var resets = chip.RESETS.force.read();
-                    resets.pads_bank0 = false;
-                    resets.io_bank0 = false;
-                    if (want_dma) resets.dma = false;
-                    if (want_uart0) resets.uart0 = false;
-                    if (want_uart1) resets.uart1 = false;
-                    chip.RESETS.force.write(resets);
+                    var ensure: reg_types.sys.ResetBitmap = .{};
+                    ensure.pads_bank0 = true;
+                    ensure.io_bank0 = true;
+                    if (want_dma) ensure.dma = true;
+                    resets.ensureNotInReset(ensure);
+                }
+                {
+                    if (want_uart0) resets.reset(.uart0);
+                    if (want_uart1) resets.reset(.uart1);
                 }
 
                 periph.control.modify(.{ .enabled = false });
@@ -305,11 +308,8 @@ pub fn Uart(comptime config: Config) type {
 
                 gpio.setFunctionAll(pads, .disable);
 
-                if (want_uart0) {
-                    chip.RESETS.force.modify(.{ .uart0 = true });
-                } else {
-                    chip.RESETS.force.modify(.{ .uart1 = true });
-                }
+                if (want_uart0) resets.holdInReset(.uart0);
+                if (want_uart1) resets.holdInReset(.uart1);
             }
 
             pub fn getRxAvailableCount(self: *Self) usize {
