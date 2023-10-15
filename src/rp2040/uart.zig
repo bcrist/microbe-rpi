@@ -854,7 +854,7 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             }
         }
 
-        fn recordPackDataBytes(self: *Self, count: usize) void {
+        fn recordPackDataBytes(self: *Self, count: u12) void {
             if (self.packs.readableLength() > 0) {
                 var last_index = self.packs.head + self.packs.count - 1;
                 last_index &= self.packs.buf.len - 1;
