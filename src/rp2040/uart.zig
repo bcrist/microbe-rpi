@@ -667,7 +667,7 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
                 var num_data_byte = pack.data_bytes;
                 while (num_data_byte > 0) {
-                    const bytes = self.data.readableSlice(dest_offset);
+                    var bytes = self.data.readableSlice(dest_offset);
                     if (bytes.len > num_data_byte) {
                         bytes = bytes[0..num_data_byte];
                     }

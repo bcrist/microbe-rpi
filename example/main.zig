@@ -78,11 +78,13 @@ var usb: microbe.usb.Usb(struct {
             .self_powered = false,
             .remote_wakeup = false,
             .max_current_ma_div2 = 40,
+            .name = .default_configuration_name,
         },
         interface: descriptor.Interface = .{
             .number = 0,
             .endpoint_count = 1,
             .class = microbe.usb.hid.class.default,
+            .name = .default_interface_name,
         },
         endpoint: descriptor.Endpoint = .{
             .address = .{ .ep = 1, .dir = .in },
@@ -120,10 +122,10 @@ var usb: microbe.usb.Usb(struct {
         _ = data;
         _ = ep;
     }
-    pub fn fillInBuffer(ep: endpoint.Index, max_packet_size: usize) []const u8 {
-        _ = max_packet_size;
+    pub fn fillInBuffer(ep: endpoint.Index, data: []const u8) u16 {
         _ = ep;
-        return &.{};
+        _ = data;
+        return 0;
     }
 
 }) = .{};

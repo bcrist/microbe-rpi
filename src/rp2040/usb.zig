@@ -171,14 +171,13 @@ pub fn fillBufferIn(ep: endpoint.Index, offset: isize, data: []const u8) void {
     @memcpy(getBufferData(ep_address)[offset_usize..].ptr, adjusted_data);
 }
 
-pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID, final_transfer: bool) void {
+pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID) void {
     const ep_address = .{ .ep = ep, .dir = .in };
 
     const bc = getBufferControl0(ep_address);
     var bc_value: @TypeOf(bc.*).Type = .{
         .len = @intCast(len),
         .pid = pid,
-        .final_transfer = final_transfer,
         .full = true,
     };
     bc.write(bc_value);
@@ -196,7 +195,7 @@ pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID, final_transfer:
     stalled_or_waiting &= ~endpointAddressMask(ep_address);
 }
 
-pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID, final_transfer: bool) void {
+pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID) void {
     var ep_address: endpoint.Address = .{ .ep = ep, .dir = .out };
     if (ep == 0) ep_address.dir = .in;
 
@@ -204,7 +203,6 @@ pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID, final_transfer
     var bc_value: @TypeOf(bc.*).Type = .{
         .len = @intCast(len),
         .pid = pid,
-        .final_transfer = final_transfer,
         .full = false,
     };
     bc.write(bc_value);
