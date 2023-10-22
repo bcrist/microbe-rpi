@@ -122,7 +122,7 @@ var usb: microbe.usb.Usb(struct {
         _ = data;
         _ = ep;
     }
-    pub fn fillInBuffer(ep: endpoint.Index, data: []const u8) u16 {
+    pub fn fillInBuffer(ep: endpoint.Index, data: []u8) u16 {
         _ = ep;
         _ = data;
         return 0;

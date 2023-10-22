@@ -12,15 +12,21 @@ const descriptor = microbe.usb.descriptor;
 const endpoint = microbe.usb.endpoint;
 const Mmio = microbe.Mmio;
 
+const log = std.log.scoped(.usb);
+
+comptime {
+    // The clock config parser will check to make sure the frequency is close enough to 48MHz,
+    // we just want to verify that it's enabled at all:
+    if (clocks.getConfig().usb.frequency_hz == 0) {
+        @compileError("USB frequency should be set to 48 MHz");
+    }
+}
+
 pub const max_packet_size_bytes = 64;
 
 var stalled_or_waiting: u32 = 0;
 
 pub fn init() void {
-    // The clock config parser will check to make sure the frequency is close enough to 48MHz,
-    // we just want to verify that it's enabled at all:
-    std.debug.assert(clocks.getConfig().usb.frequency_hz != 0);
-
     resets.reset(.usbctrl);
 
     handleBusReset();
@@ -39,11 +45,15 @@ pub fn init() void {
         .bus_reset = true,
         .setup_request = true,
         .buffer_transfer_complete = true,
+        .connection_state = true,
+        .suspend_state = true,
     });
 
     peripherals.USB_DEV.sie_control.write(.{
         .enable_pullups = true,
         .ep0_enable_buffer_interrupt = true,
+        // .ep0_enable_interrupt_on_stall = true,
+        // .ep0_enable_interrupt_on_nak = true,
     });
 }
 
@@ -52,19 +62,64 @@ pub fn deinit() void {
 }
 
 pub fn handleBusReset() void {
-    const begin: *volatile u32 = @ptrCast(&peripherals.USB_BUF.ep_control);
-    var range: []volatile u32 = undefined;
-    range.ptr = @ptrCast(begin);
-    range.len = @sizeOf(reg_types.usb.USB_BUF) - 8 - @sizeOf(@TypeOf(peripherals.USB_BUF.buffer));
-    @memset(range, 0);
     stalled_or_waiting = 0;
+    for (0..16) |ep| {
+        getBufferControl0(.{ .ep = @intCast(ep), .dir = .in }).write(.{});
+    }
     peripherals.USB_DEV.buffer_transfer_complete.raw = ~@as(u32, 0);
-    peripherals.USB_DEV.address.write(0);
     peripherals.USB_DEV.sie_status.clearBits(.bus_reset_detected);
+    peripherals.USB_DEV.address.write(0);
 }
 
 pub fn pollEvents() Events {
     const s: reg_types.usb.DeviceInterruptBitmap = peripherals.USB_DEV.interrupts.status.read();
+    const sie_status = peripherals.USB_DEV.sie_status.read();
+    peripherals.USB_DEV.sie_status.write(.{
+        .data_sequence_error_detected = true,
+        .ack_received = true,
+        .rx_overflow_error_detected = true,
+        .bit_stuffing_error_detected = true,
+        .crc_mismatch_detected = true,
+        .connected = true,
+        .suspended = true,
+    });
+
+    if (s.connection_state) {
+        if (sie_status.connected) {
+            log.info("connected", .{});
+        } else {
+            log.info("disconnected", .{});
+        }
+    }
+
+    if (s.suspend_state) {
+        if (sie_status.suspended) {
+            log.info("suspended", .{});
+        } else {
+            log.info("resumed", .{});
+        }
+    }
+
+    // n.b. false positives can happen on EP0 due to the way setup packets work
+    if (sie_status.data_sequence_error_detected) log.debug("data sequence error", .{});
+
+    if (sie_status.ack_received) log.debug("ack received", .{});
+    if (sie_status.ack_timeout_detected) log.warn("ack timeout", .{});
+    if (sie_status.rx_overflow_error_detected) log.warn("rx overflow", .{});
+    if (sie_status.bit_stuffing_error_detected) log.warn("bit suffing error", .{});
+    if (sie_status.crc_mismatch_detected) log.warn("CRC mismatch", .{});
+
+    const stall_nak = peripherals.USB_DEV.stall_nak_interrupt_status.read();
+    if (stall_nak.ep0.in) {
+        log.debug("ep0 in stall/nak", .{});
+        peripherals.USB_DEV.stall_nak_interrupt_status.write(.{ .ep0 = .{ .in = true }});
+    }
+
+    if (stall_nak.ep0.out) {
+        log.debug("ep0 out stall/nak", .{});
+        peripherals.USB_DEV.stall_nak_interrupt_status.write(.{ .ep0 = .{ .out = true }});
+    }
+
     return .{
         .buffer_ready = s.buffer_transfer_complete or stalled_or_waiting != 0,
         .bus_reset = s.bus_reset,
@@ -142,7 +197,7 @@ const BufferIterator = struct {
         clearBufferTransferCompleteFlag(ep_address);
 
         const buf: reg_types.usb.DeviceBufferControl0 = getBufferControl0(ep_address).read();
-        std.debug.assert(!buf.transfer_pending);
+        //std.debug.assert(!buf.transfer_pending);
 
         return .{
             .address = ep_address,
@@ -167,8 +222,11 @@ pub fn fillBufferIn(ep: endpoint.Index, offset: isize, data: []const u8) void {
 
     const ep_address: endpoint.Address = .{ .ep = ep, .dir = .in };
 
-    std.debug.assert(getBufferControl0(ep_address).read().transfer_pending == false);
-    @memcpy(getBufferData(ep_address)[offset_usize..].ptr, adjusted_data);
+    //std.debug.assert(getBufferControl0(ep_address).read().transfer_pending == false);
+    const buffer = getBufferData(ep_address);
+    @memcpy(buffer[offset_usize..].ptr, adjusted_data);
+
+    log.debug("{X:0>8}: {}", .{ @intFromPtr(buffer), std.fmt.fmtSliceHexLower(@volatileCast(buffer)) });
 }
 
 pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID) void {
@@ -197,7 +255,6 @@ pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID) void {
 
 pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID) void {
     var ep_address: endpoint.Address = .{ .ep = ep, .dir = .out };
-    if (ep == 0) ep_address.dir = .in;
 
     const bc = getBufferControl0(ep_address);
     var bc_value: @TypeOf(bc.*).Type = .{
@@ -221,11 +278,13 @@ pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID) void {
 }
 
 pub fn startStall(address: endpoint.Address) void {
+    log.debug("ep{} {s} stalling", .{ address.ep, @tagName(address.dir) });
     getBufferControl0(address).write(.{ .send_stall = true });
     stalled_or_waiting |= endpointAddressMask(address);
 }
 
 pub fn startNak(address: endpoint.Address) void {
+    log.debug("ep{} {s} nakking", .{ address.ep, @tagName(address.dir) });
     getBufferControl0(address).write(.{});
     stalled_or_waiting |= endpointAddressMask(address);
 }
@@ -269,7 +328,7 @@ fn getEndpointControl(ep_address: endpoint.Address) *volatile Mmio(reg_types.usb
 
 fn getBufferControl0(ep_address: endpoint.Address) *volatile Mmio(reg_types.usb.DeviceBufferControl0, .rw) {
     const io = switch (ep_address.ep) {
-        0 => return &peripherals.USB_BUF.buffer_control.ep0.device.in0,
+        0 => &peripherals.USB_BUF.buffer_control.ep0.device,
         1 => &peripherals.USB_BUF.buffer_control.ep1.device,
         2 => &peripherals.USB_BUF.buffer_control.ep2.device,
         3 => &peripherals.USB_BUF.buffer_control.ep3.device,
