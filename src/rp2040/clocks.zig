@@ -913,6 +913,103 @@ fn invalidFrequency(comptime name: []const u8, comptime actual: comptime_int, co
     }
 }
 
+pub fn printConfig(comptime config: ParsedConfig, writer: anytype) !void {
+    try writer.writeAll("\nXOSC\n");
+    try writer.writeAll(std.fmt.comptimePrint("   Startup:    {} cycles\n", .{ config.xosc.startup_delay_cycles }));
+    try writer.writeAll(std.fmt.comptimePrint("   Frequency: {}\n", .{ comptime util.fmtFrequency(config.xosc.frequency_hz) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Period:    {} ns\n", .{ config.xosc.period_ns }));
+
+    try writer.writeAll("\nROSC\n");
+    switch (config.rosc.params.range) {
+        .low => |str| inline for (0.., str) |i, s| {
+            try writer.writeAll(std.fmt.comptimePrint("   Drive {}:  {s}\n", .{ i, @tagName(s) }));
+        },
+        .medium => |str| inline for (0.., str) |i, s| {
+            try writer.writeAll(std.fmt.comptimePrint("   Drive {}:  {s}\n", .{ i, @tagName(s) }));
+        },
+        .high => |str| inline for (0.., str) |i, s| {
+            try writer.writeAll(std.fmt.comptimePrint("   Drive {}:  {s}\n", .{ i, @tagName(s) }));
+        },
+    }
+    try writer.writeAll(std.fmt.comptimePrint("   Divisor:   {}\n", .{ config.rosc.params.divisor }));
+    try writer.writeAll(std.fmt.comptimePrint("   Frequency: {}\n", .{ comptime util.fmtFrequency(config.rosc.frequency_hz) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Period:    {} ns\n", .{ config.rosc.period_ns }));
+
+    try writer.writeAll("\nSys PLL\n");
+    try printPllConfig(config.sys_pll, writer);
+
+    try writer.writeAll("\nUSB PLL\n");
+    try printPllConfig(config.usb_pll, writer);
+
+    inline for (0.., config.gpin) |i, gpin| {
+        try writer.writeAll(std.fmt.comptimePrint("\nGPIN{}\n", .{ i }));
+        try writer.writeAll(std.fmt.comptimePrint("   Pad:       {s}\n", .{ @tagName(gpin.pad) }));
+        try writer.writeAll(std.fmt.comptimePrint("   Invert:    {}\n", .{ gpin.invert }));
+        try writer.writeAll(std.fmt.comptimePrint("   Hyst:      {}\n", .{ gpin.hysteresis }));
+        try writer.writeAll(std.fmt.comptimePrint("   Term:      {s}\n", .{ @tagName(gpin.maintenance) }));
+        try writer.writeAll(std.fmt.comptimePrint("   Frequency: {}\n", .{ comptime util.fmtFrequency(gpin.frequency_hz) }));
+        try writer.writeAll(std.fmt.comptimePrint("   Period:    {} ns\n", .{ gpin.period_ns }));
+    }
+
+    try writer.writeAll("\nRef\n");
+    try printGenericClockGeneratorConfig(config.ref, writer);
+
+    try writer.writeAll("\nSys\n");
+    try printGenericClockGeneratorConfig(config.sys, writer);
+
+    try writer.writeAll("\nMicrotick\n");
+    try writer.writeAll(std.fmt.comptimePrint("   Source:    {s}\n", .{ @tagName(config.microtick.source) }));
+    try writer.writeAll(std.fmt.comptimePrint("   WD Cycles: {}\n", .{ config.microtick.watchdog_cycles }));
+    try writer.writeAll(std.fmt.comptimePrint("   Frequency: {}\n", .{ comptime util.fmtFrequency(config.microtick.frequency_hz) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Period:    {} ns\n", .{ config.microtick.period_ns }));
+
+    try writer.writeAll("\nTick\n");
+    try writer.writeAll(std.fmt.comptimePrint("   Source:    {s}\n", .{ @tagName(config.tick.source) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Reload:    {}\n", .{ config.tick.reload_value }));
+    try writer.writeAll(std.fmt.comptimePrint("   Frequency: {}\n", .{ comptime util.fmtFrequency(config.tick.frequency_hz) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Period:    {} ns\n", .{ config.tick.period_ns }));
+
+    try writer.writeAll("\nUART/SPI\n");
+    try printGenericClockGeneratorConfig(config.uart_spi, writer);
+
+    try writer.writeAll("\nUSB\n");
+    try printGenericClockGeneratorConfig(config.usb, writer);
+
+    try writer.writeAll("\nADC\n");
+    try printGenericClockGeneratorConfig(config.adc, writer);
+
+    try writer.writeAll("\nRTC\n");
+    try printGenericClockGeneratorConfig(config.rtc, writer);
+
+    inline for (0.., config.gpout) |i, gpout| {
+        try writer.writeAll(std.fmt.comptimePrint("\nGPOUT{}\n", .{ i }));
+        try writer.writeAll(std.fmt.comptimePrint("   Pad:       {s}\n", .{ @tagName(gpout.pad) }));
+        try writer.writeAll(std.fmt.comptimePrint("   Invert:    {}\n", .{ gpout.invert }));
+        try writer.writeAll(std.fmt.comptimePrint("   Slew:      {s}\n", .{ @tagName(gpout.slew) }));
+        try writer.writeAll(std.fmt.comptimePrint("   Strength:  {s}\n", .{ @tagName(gpout.strength) }));
+        try printGenericClockGeneratorConfig(gpout.generator, writer);
+    }
+}
+
+fn printGenericClockGeneratorConfig(comptime config: GenericClockGeneratorConfig, writer: anytype) !void {
+    try writer.writeAll(std.fmt.comptimePrint("   Source:    {s}\n", .{ @tagName(config.source) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Divisor:   {} + {}/256\n", .{ config.divisor_256ths >> 8, config.divisor_256ths & 0xFF }));
+    try writer.writeAll(std.fmt.comptimePrint("   Frequency: {}\n", .{ comptime util.fmtFrequency(config.frequency_hz) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Period:    {} ns\n", .{ config.period_ns }));
+}
+
+fn printPllConfig(comptime config: ParsedPllConfig, writer: anytype) !void {
+    try writer.writeAll(std.fmt.comptimePrint("   Input Divisor:    {}\n", .{ config.vco.divisor }));
+    try writer.writeAll(std.fmt.comptimePrint("   VCO Multiplier:   {}\n", .{ config.vco.multiplier }));
+    try writer.writeAll(std.fmt.comptimePrint("   VCO Frequency:    {}\n", .{ comptime util.fmtFrequency(config.vco.frequency_hz) }));
+    try writer.writeAll(std.fmt.comptimePrint("   VCO Period:       {} ns\n", .{ config.vco.period_ns }));
+    try writer.writeAll(std.fmt.comptimePrint("   Output Divisor 1: {}\n", .{ config.output_divisor0 }));
+    try writer.writeAll(std.fmt.comptimePrint("   Output Divisor 2: {}\n", .{ config.output_divisor1 }));
+    try writer.writeAll(std.fmt.comptimePrint("   Output Frequency: {}\n", .{ comptime util.fmtFrequency(config.frequency_hz) }));
+    try writer.writeAll(std.fmt.comptimePrint("   Output Period:    {} ns\n", .{ config.period_ns }));
+}
+
+
 
 const PllConfigChange = struct {
     pll: *volatile chip.reg_types.clk.PLL,
@@ -1539,8 +1636,8 @@ pub fn init() void {
         } else {
             cc.change_usb_divisor = config.usb.integerDivisor();
             cc.enable_usb = switch (config.usb.source) {
-                .sys_pll => .pll_usb,
-                .usb_pll => .pll_sys,
+                .sys_pll => .pll_sys,
+                .usb_pll => .pll_usb,
                 .rosc => .rosc,
                 .xosc => .xosc,
                 .gpin0 => .gpin0,
@@ -1554,8 +1651,8 @@ pub fn init() void {
         } else {
             cc.change_adc_divisor = config.adc.integerDivisor();
             cc.enable_adc = switch (config.adc.source) {
-                .sys_pll => .pll_usb,
-                .usb_pll => .pll_sys,
+                .sys_pll => .pll_sys,
+                .usb_pll => .pll_usb,
                 .rosc => .rosc,
                 .xosc => .xosc,
                 .gpin0 => .gpin0,
@@ -1569,8 +1666,8 @@ pub fn init() void {
         } else {
             cc.change_rtc_divisor = config.rtc.divisor_256ths;
             cc.enable_rtc = switch (config.rtc.source) {
-                .sys_pll => .pll_usb,
-                .usb_pll => .pll_sys,
+                .sys_pll => .pll_sys,
+                .usb_pll => .pll_usb,
                 .rosc => .rosc,
                 .xosc => .xosc,
                 .gpin0 => .gpin0,
