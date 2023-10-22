@@ -84,7 +84,6 @@ pub inline fn memoryFence() void {
 
 pub inline fn registerHasAtomicAliases(comptime reg: *volatile u32) bool {
     const addr = @intFromPtr(reg);
-    if ((addr & 0xFFFFF000) == 0x40008000) return false; // CLOCKS
     if ((addr & 0xFFFFF000) == 0x50100000) return false; // USB DPRAM
     if ((addr & 0xE0000000) == 0x40000000) return true; // APB & AHB peripherals
     if ((addr & 0xFF000000) == 0x18000000) return true; // SSI peripheral
@@ -96,7 +95,7 @@ pub inline fn modifyRegister(comptime reg: *volatile u32, comptime bits_to_set: 
     if (comptime registerHasAtomicAliases(reg)) {
         if (bits_to_set == 0) {
             if (bits_to_clear != 0) {
-                clearRegisterBits(reg, bits_to_set);
+                clearRegisterBits(reg, bits_to_clear);
             }
         } else if (bits_to_clear == 0) {
             setRegisterBits(reg, bits_to_set);
