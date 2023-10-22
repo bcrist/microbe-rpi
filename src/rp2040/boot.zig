@@ -62,8 +62,8 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
     //     // TODO start core1
     // }
 
-    const main_fn = if (@hasDecl(root, "core0_main")) @field(root, "core0_main")
-        else if (@hasDecl(root, "main")) @field(root, "main")
+    const main_fn = if (@hasDecl(root, "core0_main")) root.core0_main
+        else if (@hasDecl(root, "main")) root.main
         else @compileError("The root source file must provide a public function main!");
 
     const info: std.builtin.Type = @typeInfo(@TypeOf(main_fn));
