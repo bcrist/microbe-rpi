@@ -14,6 +14,8 @@ pub const std_options = struct {
 pub const clocks: chip.clocks.Config = .{
     .xosc = .{},
     .sys_pll = .{ .frequency_hz = 100_000_000 },
+    .usb_pll = .{ .frequency_hz = 48_000_000 },
+    .usb = .{ .frequency_hz = 48_000_000 },
     .uart_spi = .{},
 };
 
@@ -52,9 +54,9 @@ var usb: microbe.usb.Usb(struct {
     }
 
     const strings = struct {
+        const languages: descriptor.SupportedLanguages(&.{ .english_us }) = .{};
         const mfr_name: descriptor.String("Macrofluff") = .{};
         const product_name: descriptor.String("Wonderstuff") = .{};
-        const language: descriptor.String("English") = .{};
         const serial_number: descriptor.String("12345") = .{};
         const empty: descriptor.String("") = .{};
     };
@@ -62,7 +64,7 @@ var usb: microbe.usb.Usb(struct {
     pub fn getStringDescriptor(id: descriptor.StringID, language: u16) []const u8 {
         _ = language;
         return switch (id) {
-            .language => std.mem.asBytes(&strings.language),
+            .languages => std.mem.asBytes(&strings.languages),
             .manufacturer_name => std.mem.asBytes(&strings.mfr_name),
             .product_name => std.mem.asBytes(&strings.product_name),
             .serial_number => std.mem.asBytes(&strings.serial_number),

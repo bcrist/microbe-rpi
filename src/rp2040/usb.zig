@@ -82,6 +82,7 @@ pub fn pollEvents() Events {
         .crc_mismatch_detected = true,
         .connected = true,
         .suspended = true,
+        .setup_packet_received = true,
     });
 
     if (s.connection_state) {
@@ -120,6 +121,22 @@ pub fn pollEvents() Events {
         peripherals.USB_DEV.stall_nak_interrupt_status.write(.{ .ep0 = .{ .out = true }});
     }
 
+    if (s.setup_request) {
+        peripherals.USB_DEV.ep_abort.setBits(.{ .ep0 = .{ .in = true, .out = true }});
+        if (peripherals.USB_BUF.buffer_control.ep0.device.in0.read().transfer_pending) {
+            while (!peripherals.USB_DEV.ep_abort_complete.read().ep0.in) {}
+            peripherals.USB_BUF.buffer_control.ep0.device.in0.write(.{});
+            log.debug("ep0 in aborted", .{});
+        }
+
+        if (peripherals.USB_BUF.buffer_control.ep0.device.out0.read().transfer_pending) {
+            while (!peripherals.USB_DEV.ep_abort_complete.read().ep0.out) {}
+            peripherals.USB_BUF.buffer_control.ep0.device.out0.write(.{});
+            log.debug("ep0 out aborted", .{});
+        }
+        peripherals.USB_DEV.ep_abort.clearBits(.{ .ep0 = .{ .in = true, .out = true }});
+    }
+
     return .{
         .buffer_ready = s.buffer_transfer_complete or stalled_or_waiting != 0,
         .bus_reset = s.bus_reset,
@@ -135,8 +152,6 @@ pub fn getSetupPacket() SetupPacket {
         .low = peripherals.USB_BUF.setup_packet_low.read(),
         .high = peripherals.USB_BUF.setup_packet_high.read(),
     };
-
-    peripherals.USB_DEV.sie_status.clearBits(.setup_packet_received);
 
     return @bitCast(raw);
 }
@@ -197,11 +212,11 @@ const BufferIterator = struct {
         clearBufferTransferCompleteFlag(ep_address);
 
         const buf: reg_types.usb.DeviceBufferControl0 = getBufferControl0(ep_address).read();
-        //std.debug.assert(!buf.transfer_pending);
 
         return .{
             .address = ep_address,
             .buffer = getBufferData(ep_address)[0..buf.len],
+            .final_buffer = buf.final_transfer,
         };
     }
 };
@@ -229,7 +244,7 @@ pub fn fillBufferIn(ep: endpoint.Index, offset: isize, data: []const u8) void {
     log.debug("{X:0>8}: {}", .{ @intFromPtr(buffer), std.fmt.fmtSliceHexLower(@volatileCast(buffer)) });
 }
 
-pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID) void {
+pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID, last_buffer: bool) void {
     const ep_address = .{ .ep = ep, .dir = .in };
 
     const bc = getBufferControl0(ep_address);
@@ -238,6 +253,7 @@ pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID) void {
         .pid = pid,
         .full = true,
     };
+    if (last_buffer) bc_value.final_transfer = true;
     bc.write(bc_value);
 
     // At max clk_sys, 3 cycles is sufficient to ensure our config was written correctly,
@@ -253,7 +269,7 @@ pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID) void {
     stalled_or_waiting &= ~endpointAddressMask(ep_address);
 }
 
-pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID) void {
+pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID, last_buffer: bool) void {
     var ep_address: endpoint.Address = .{ .ep = ep, .dir = .out };
 
     const bc = getBufferControl0(ep_address);
@@ -262,6 +278,7 @@ pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID) void {
         .pid = pid,
         .full = false,
     };
+    if (last_buffer) bc_value.final_transfer = true;
     bc.write(bc_value);
 
     // At max clk_sys, 3 cycles is sufficient to ensure our config was written correctly,
