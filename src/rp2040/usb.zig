@@ -101,10 +101,8 @@ pub fn pollEvents() Events {
         }
     }
 
-    // n.b. false positives can happen on EP0 due to the way setup packets work
-    if (sie_status.data_sequence_error_detected) log.debug("data sequence error", .{});
-
     if (sie_status.ack_received) log.debug("ack received", .{});
+    if (sie_status.data_sequence_error_detected) log.warn("data sequence error", .{});
     if (sie_status.ack_timeout_detected) log.warn("ack timeout", .{});
     if (sie_status.rx_overflow_error_detected) log.warn("rx overflow", .{});
     if (sie_status.bit_stuffing_error_detected) log.warn("bit suffing error", .{});
