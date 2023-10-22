@@ -1308,7 +1308,7 @@
                 (rename ep_abort_complete)
             )
             (field EP_STATUS_STALL_NAK
-                (set-type EndpointBitmap)
+                (set-type (reg EndpointBitmap))
                 (set-desc "Write true to clear")
                 (rename stall_nak_interrupt_status)
             )

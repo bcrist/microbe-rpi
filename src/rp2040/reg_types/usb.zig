@@ -351,7 +351,7 @@ pub const USB_DEV = extern struct {
     _reserved_6c: [4]u8 = undefined,
 
     /// Write true to clear
-    stall_nak_interrupt_status: EndpointBitmap = @bitCast(@as(u32, 0)),
+    stall_nak_interrupt_status: Mmio(EndpointBitmap, .rw),
 
     muxing: Mmio(Muxing, .rw),
     power: Mmio(Power, .rw),
@@ -492,7 +492,7 @@ pub const USB_HOST = extern struct {
     }, .rw),
 
     /// Write true to clear
-    stall_nak_interrupt_status: EndpointBitmap = @bitCast(@as(u32, 0)),
+    stall_nak_interrupt_status: Mmio(EndpointBitmap, .rw),
 
     muxing: Mmio(Muxing, .rw),
     power: Mmio(Power, .rw),
