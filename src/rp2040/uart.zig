@@ -627,11 +627,11 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         }
         pub fn start(self: *Self) void {
             self.stopped = false;
-            self.setInterruptEnabled(true);
+            self.enableInterrupt();
         }
         pub fn stop(self: *Self) void {
             self.stopped = true;
-            self.setInterruptEnabled(false);
+            self.disableInterrupt();
         }
 
         pub fn getAvailableCount(self: *Self) usize {
@@ -645,7 +645,7 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         pub fn peek(self: *Self, out: []DataType) ![]const DataType {
             if (out.len == 0) return out[0..0];
 
-            // Note since we never modify the FIFOs here, we don't need to disable the interrupt handler.
+            // Note since we never modify the FIFOs here, we don't need to disable interrupts.
             // If it interrupts us and adds more data it's not a problem.
 
             var dest_offset: usize = 0;
@@ -715,47 +715,24 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         }
 
         pub fn readBlocking(self: *Self, out: []DataType) !usize {
-            self.setInterruptEnabled(false);
-            defer self.setInterruptEnabled(true);
-
             var remaining = out;
             while (remaining.len > 0) {
-                while (self.packs.readableLength() == 0) {
-                    self.setInterruptEnabled(true);
-                    interrupts.waitForInterrupt();
-                }
-                self.setInterruptEnabled(false);
-
-                const pack: ReadErrorPack = self.packs.peekItem(0);
-
-                if (pack.hasError()) {
-                    if (remaining.ptr != out.ptr) break;
-                    try self.checkReadError(pack.errors);
-                    unreachable;
-                }
-
-                const bytes_to_read = @min(remaining.len, pack.data_bytes);
-                if (bytes_to_read > 0) {
-                    const bytes_read = self.data.read(remaining[0..bytes_to_read]);
-                    std.debug.assert(bytes_read == bytes_to_read);
-                    remaining = remaining[bytes_read..];
-
-                    if (bytes_to_read < pack.data_bytes) {
-                        self.packs.buf[self.packs.head].data_bytes -= bytes_to_read;
-                        continue;
-                    }
-                }
-
-                self.packs.discard(1);
+                const bytes_read = self.readNonBlocking(out) catch |err| switch (err) {
+                    error.WouldBlock => {
+                        while (self.packs.readableLength() == 0) {
+                            self.enableInterrupt();
+                            interrupts.waitForInterrupt();
+                        }
+                    },
+                    else => return err,
+                };
+                remaining = remaining[bytes_read..];
             }
 
-            return out.len - remaining.len;
+            return out.len;
         }
 
         pub fn readNonBlocking(self: *Self, out: []DataType) !usize {
-            self.setInterruptEnabled(false);
-            defer self.setInterruptEnabled(true);
-
             var remaining = out;
             while (remaining.len > 0) {
                 if (self.packs.readableLength() == 0) {
@@ -764,7 +741,7 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
                     return error.WouldBlock;
                 }
 
-                const pack: ReadErrorPack = self.packs.peekItem(0);
+                var pack: ReadErrorPack = self.packs.peekItem(0);
 
                 if (pack.hasError()) {
                     if (remaining.ptr != out.ptr) break;
@@ -774,35 +751,43 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
                 const bytes_to_read = @min(remaining.len, pack.data_bytes);
                 if (bytes_to_read > 0) {
+                    var cs = microbe.CriticalSection.enter();
                     const bytes_read = self.data.read(remaining[0..bytes_to_read]);
+                    cs.leave();
                     std.debug.assert(bytes_read == bytes_to_read);
                     remaining = remaining[bytes_read..];
-
-                    if (bytes_to_read < pack.data_bytes) {
-                        self.packs.buf[self.packs.head].data_bytes -= bytes_to_read;
-                        continue;
-                    }
                 }
 
-                self.packs.discard(1);
+                var cs = microbe.CriticalSection.enter();
+                pack = self.packs.peekItem(0);
+                if (bytes_to_read < pack.data_bytes) {
+                    self.packs.buf[self.packs.head].data_bytes = pack.data_bytes - bytes_to_read;
+                } else {
+                    self.packs.discard(1);
+                }
+                cs.leave();
+                self.enableInterrupt();
             }
 
             return out.len - remaining.len;
         }
 
-        pub fn isInterruptEnabled(_: Self) bool {
-            return periph.interrupt_mask.read().rx;
+        pub fn enableInterrupt(self: *Self) void {
+            if (periph.interrupt_mask.read().rx) return;
+            if (self.stopped) return;
+            if (self.packs.writableLength() < 2) return;
+            if (self.data.writableLength() == 0) return;
+
+            periph.interrupt_mask.setBits(.{
+                .rx = true,
+                .rx_timeout = true,
+            });
         }
 
-        pub fn setInterruptEnabled(self: *Self, comptime enabled: bool) void {
-            if (enabled and (self.stopped or self.packs.writableLength() == 0 or self.data.writableLength() == 0)) return;
-
-            var cs = microbe.CriticalSection.enter();
-            defer cs.leave();
-
-            periph.interrupt_mask.modify(.{
-                .rx = enabled,
-                .rx_timeout = enabled,
+        pub fn disableInterrupt(_: *Self) void {
+            periph.interrupt_mask.clearBits(.{
+                .rx = false,
+                .rx_timeout = false,
             });
         }
 
@@ -815,7 +800,7 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         fn tryProcessInterruptData(self: *Self) void {
             const writable_len = self.data.writableLength();
             if (writable_len == 0 or self.packs.writableLength() < 2) {
-                self.setInterruptEnabled(false);
+                self.disableInterrupt();
                 return;
             }
 
@@ -898,11 +883,11 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         }
         pub fn start(self: *Self) void {
             self.stopped = false;
-            self.setInterruptEnabled(true);
+            self.enableInterrupt();
         }
         pub fn stop(self: *Self) void {
             self.stopped = true;
-            self.setInterruptEnabled(false);
+            self.disableInterrupt();
         }
 
         pub fn getAvailableCount(self: *Self) usize {
@@ -912,32 +897,25 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         pub fn writeBlocking(self: *Self, data_to_write: []const DataType) !usize {
             if (data_to_write.len == 0) return 0;
 
-            self.setInterruptEnabled(false);
-            defer self.setInterruptEnabled(true);
-
-            var remaining = data_to_write;
-            if (self.data.readableLength() == 0) {
-                while (remaining.len > 0 and !periph.flags.read().tx_fifo_full) {
-                    periph.data.write(.{ .data = remaining[0] });
-                    remaining = remaining[1..];
-                }
-            }
-
+            var remaining = self.writeDirect(data_to_write);
             while (remaining.len > 0) {
                 var bytes_to_write = self.data.writableLength();
                 while (bytes_to_write == 0) {
-                    self.setInterruptEnabled(true);
+                    self.enableInterrupt();
                     interrupts.waitForInterrupt();
                     bytes_to_write = self.data.writableLength();
                 }
-                self.setInterruptEnabled(false);
 
                 if (bytes_to_write > remaining.len) {
                     bytes_to_write = remaining.len;
                 }
 
+                var cs = microbe.CriticalSection.enter();
                 self.data.writeAssumeCapacity(remaining[0..bytes_to_write]);
+                cs.leave();
                 remaining = remaining[bytes_to_write..];
+
+                self.enableInterrupt();
             }
 
             return data_to_write.len;
@@ -946,17 +924,7 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
         pub fn writeNonBlocking(self: *Self, data_to_write: []const DataType) !usize {
             if (data_to_write.len == 0) return 0;
 
-            self.setInterruptEnabled(false);
-            defer self.setInterruptEnabled(true);
-
-            var remaining = data_to_write;
-            if (self.data.readableLength() == 0) {
-                while (remaining.len > 0 and !periph.flags.read().tx_fifo_full) {
-                    periph.data.write(.{ .data = remaining[0] });
-                    remaining = remaining[1..];
-                }
-            }
-
+            const remaining = self.writeDirect(data_to_write);
             if (remaining.len == 0) return data_to_write.len;
 
             const bytes_to_write = @min(self.data.writableLength(), remaining.len);
@@ -964,23 +932,34 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
                 return error.WouldBlock;
             }
 
+            var cs = microbe.CriticalSection.enter();
             self.data.writeAssumeCapacity(data_to_write[0..bytes_to_write]);
+            cs.leave();
+            self.enableInterrupt();
             return data_to_write.len - remaining.len + bytes_to_write;
         }
 
-        pub fn isInterruptEnabled(_: Self) bool {
-            return periph.interrupt_mask.read().tx;
+        fn writeDirect(self: *Self, data_to_write: []const DataType) []const DataType {
+            var remaining = data_to_write;
+            if (self.data.readableLength() == 0) {
+                while (remaining.len > 0 and !periph.flags.read().tx_fifo_full) {
+                    periph.data.write(.{ .data = remaining[0] });
+                    remaining = remaining[1..];
+                }
+            }
+            return remaining;
         }
 
-        pub fn setInterruptEnabled(self: *Self, comptime enabled: bool) void {
-            if (enabled and (self.stopped or self.data.readableLength() == 0)) return;
+        pub fn enableInterrupt(self: *Self) void {
+            if (periph.interrupt_mask.read().tx) return;
+            if (self.stopped) return;
+            if (self.data.readableLength() == 0) return;
 
-            var cs = microbe.CriticalSection.enter();
-            defer cs.leave();
+            periph.interrupt_mask.setBits(.tx);
+        }
 
-            periph.interrupt_mask.modify(.{
-                .tx = enabled,
-            });
+        pub fn disableInterrupt(_: *Self) void {
+            periph.interrupt_mask.clearBits(.tx);
         }
 
         pub fn handleInterrupt(self: *Self, status: reg_types.uart.InterruptBitmap) void {
@@ -1000,7 +979,7 @@ fn InterruptTx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             self.data.discard(bytes_written);
 
             if (self.data.readableLength() == 0) {
-                self.setInterruptEnabled(false);
+                self.disableInterrupt();
             }
         }
 
