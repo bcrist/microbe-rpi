@@ -714,17 +714,18 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             } else std.debug.assert(!errors.parity_error);
         }
 
-        pub fn readBlocking(self: *Self, out: []DataType) !usize {
+        pub fn readBlocking(self: *Self, out: []DataType) ReadError!usize {
             var remaining = out;
             while (remaining.len > 0) {
-                const bytes_read = self.readNonBlocking(out) catch |err| switch (err) {
-                    error.WouldBlock => {
+                const bytes_read: usize = self.readNonBlocking(out) catch |err| switch (err) {
+                    error.WouldBlock => blk: {
                         while (self.packs.readableLength() == 0) {
                             self.enableInterrupt();
                             interrupts.waitForInterrupt();
                         }
+                        break :blk 0;
                     },
-                    else => return err,
+                    else => |e| return e,
                 };
                 remaining = remaining[bytes_read..];
             }
@@ -732,7 +733,7 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
             return out.len;
         }
 
-        pub fn readNonBlocking(self: *Self, out: []DataType) !usize {
+        pub fn readNonBlocking(self: *Self, out: []DataType) (ReadError||error{WouldBlock})!usize {
             var remaining = out;
             while (remaining.len > 0) {
                 if (self.packs.readableLength() == 0) {
