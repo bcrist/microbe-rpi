@@ -294,6 +294,12 @@ pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID, last_buffer: b
 
 pub fn startStall(address: endpoint.Address) void {
     log.debug("ep{} {s} stalling", .{ address.ep, @tagName(address.dir) });
+    if (address.ep == 0) {
+        switch (address.dir) {
+            .in => peripherals.USB_DEV.ep0_stall_arm.setBits(.in),
+            .out => peripherals.USB_DEV.ep0_stall_arm.setBits(.out),
+        }
+    }
     getBufferControl0(address).write(.{ .send_stall = true });
     stalled_or_waiting |= endpointAddressMask(address);
 }
