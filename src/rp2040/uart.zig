@@ -787,8 +787,8 @@ fn InterruptRx(comptime DataType: type, comptime periph: *volatile reg_types.uar
 
         pub fn disableInterrupt(_: *Self) void {
             periph.interrupt_mask.clearBits(.{
-                .rx = false,
-                .rx_timeout = false,
+                .rx = true,
+                .rx_timeout = true,
             });
         }
 
