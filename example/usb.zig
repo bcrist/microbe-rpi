@@ -29,12 +29,12 @@ const strings = struct {
 };
 
 pub fn getStringDescriptor(id: descriptor.StringID, language: descriptor.Language) ?[]const u8 {
-    if (id == .languages) return std.mem.asBytes(&languages);
+    if (id == .languages) return languages.asBytes();
     return switch (language) {
         .english_us => switch (id) {
-            .manufacturer_name => std.mem.asBytes(&strings.mfr_name),
-            .product_name => std.mem.asBytes(&strings.product_name),
-            .serial_number => std.mem.asBytes(&strings.serial_number),
+            .manufacturer_name => strings.mfr_name.asBytes(),
+            .product_name => strings.product_name.asBytes(),
+            .serial_number => strings.serial_number.asBytes(),
             else => null,
         },
         else => null,
@@ -54,6 +54,7 @@ const default_configuration = struct {
 
         pub const endpoints = .{ in_endpoint };
 
+        pub const hid_descriptor: usb.hid.Descriptor(.us, .{ report_descriptor }) = .{};
         pub const report_descriptor: usb.hid.boot_keyboard.ReportDescriptor = .{};
 
         pub const Report = usb.hid.boot_keyboard.InputReport;
@@ -74,7 +75,7 @@ const default_configuration = struct {
             .interface_count = @intCast(interfaces.len),
         },
         interface: descriptor.Interface = descriptor.Interface.parse(hid_interface),
-        hid: usb.hid.Descriptor(.us, .{ hid_interface.report_descriptor }) = .{},
+        hid: usb.hid.Descriptor(.us, .{ hid_interface.report_descriptor }) = hid_interface.hid_descriptor,
         in_ep: descriptor.Endpoint = descriptor.Endpoint.parse(hid_interface.in_endpoint),
     };
 };
@@ -84,8 +85,7 @@ const configurations = .{ default_configuration };
 pub fn getConfigurationDescriptorSet(configuration_index: u8) ?[]const u8 {
     inline for (0.., configurations) |i, configuration| {
         if (i == configuration_index) {
-            const bytes = @bitSizeOf(@TypeOf(configuration.descriptors)) / 8;
-            return std.mem.asBytes(&configuration.descriptors)[0..bytes];
+            return descriptor.asBytes(&configuration.descriptors);
         }
     }
     return null;
@@ -146,10 +146,10 @@ pub fn getInterfaceSpecificDescriptor(interface: u8, kind: descriptor.Kind, desc
     if (interface == hi.index) {
         switch (kind) {
             usb.hid.hid_descriptor => {
-                return std.mem.asBytes(&default_configuration.descriptors.hid);
+                return hi.hid_descriptor.asBytes();
             },
             usb.hid.report_descriptor => {
-                return std.mem.asBytes(&hi.report_descriptor);
+                return hi.report_descriptor.asBytes();
             },
             else => {},
         }
