@@ -1,8 +1,3 @@
-const std = @import("std");
-const chip = @import("chip");
-const microbe = @import("microbe");
-const clocks = @import("clocks.zig");
-
 pub inline fn blockAtLeastCycles(min_cycles: u32) void {
     asm volatile (
         \\1: subs %[reg], #3
@@ -11,32 +6,32 @@ pub inline fn blockAtLeastCycles(min_cycles: u32) void {
     );
 }
 
-var current_tick: u32 = 0;
-pub fn currentTick() microbe.Tick {
-    return @enumFromInt(current_tick);
+var current_tick_raw: u32 = 0;
+pub fn current_tick() microbe.Tick {
+    return @enumFromInt(current_tick_raw);
 }
 
-pub fn blockUntilTick(tick: microbe.Tick) void {
-    while (currentTick().isBefore(tick)) {
+pub fn block_until_tick(tick: microbe.Tick) void {
+    while (current_tick().is_before(tick)) {
         asm volatile ("" ::: "memory");
     }
 }
 
-pub fn getTickFrequencyHz() comptime_int {
-    return clocks.getConfig().tick.frequency_hz;
+pub fn get_tick_frequency_hz() comptime_int {
+    return clocks.get_config().tick.frequency_hz;
 }
 
 pub fn handleTickInterrupt() callconv(.C) void {
     if (chip.SYSTICK.control_status.read().overflow_flag) {
-        current_tick +%= 1;
+        current_tick_raw +%= 1;
     }
 }
 
-pub fn currentMicrotick() microbe.Microtick {
+pub fn current_microtick() microbe.Microtick {
     var h = chip.TIMER.read_tick_unlatched.high.read();
     while (true) {
-        var l = chip.TIMER.read_tick_unlatched.low.read();
-        var h2 = chip.TIMER.read_tick_unlatched.high.read();
+        const l = chip.TIMER.read_tick_unlatched.low.read();
+        const h2 = chip.TIMER.read_tick_unlatched.high.read();
         if (h == h2) {
             const combined = (@as(u64, h) << 32) | l; 
             return @enumFromInt(combined);
@@ -45,12 +40,17 @@ pub fn currentMicrotick() microbe.Microtick {
     }
 }
 
-pub fn blockUntilMicrotick(tick: microbe.Microtick) void {
-    while (currentMicrotick().isBefore(tick)) {
+pub fn block_until_microtick(tick: microbe.Microtick) void {
+    while (current_microtick().is_before(tick)) {
         asm volatile ("" ::: "memory");
     }
 }
 
-pub fn getMicrotickFrequencyHz() comptime_int {
-    return clocks.getConfig().microtick.frequency_hz;
+pub fn get_microtick_frequency_hz() comptime_int {
+    return clocks.get_config().microtick.frequency_hz;
 }
+
+const clocks = @import("clocks.zig");
+const chip = @import("chip");
+const microbe = @import("microbe");
+const std = @import("std");

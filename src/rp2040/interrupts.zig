@@ -1,7 +1,3 @@
-const std = @import("std");
-const chip = @import("chip");
-const util = @import("microbe").util;
-
 pub const Exception = chip.reg_types.Exception;
 pub const Interrupt = chip.reg_types.Interrupt;
 
@@ -42,28 +38,28 @@ pub fn unhandled(comptime e: Exception) Handler {
     return .{ .C = H.unhandled };
 }
 
-pub fn isEnabled(comptime irq: Interrupt) bool {
+pub fn is_enabled(comptime irq: Interrupt) bool {
     return @field(chip.NVIC.interrupt_set_enable.read(), @tagName(irq));
 }
 
-pub fn setEnabled(comptime irq: Interrupt, comptime enabled: bool) void {
+pub fn set_enabled(comptime irq: Interrupt, comptime enabled: bool) void {
     if (enabled) {
-        const T = chip.NVIC.interrupt_set_enable.RawType;
+        const T = chip.NVIC.interrupt_set_enable.Raw_Type;
         const val = T{};
         @field(val, @tagName(irq)) = true;
         chip.NVIC.interrupt_set_enable.write(val);
     } else {
-        const T = chip.NVIC.interrupt_clear_enable.RawType;
+        const T = chip.NVIC.interrupt_clear_enable.Raw_Type;
         const val = T{};
         @field(val, @tagName(irq)) = true;
         chip.NVIC.interrupt_clear_enable.write(val);
     }
 }
 
-pub const configureEnables = util.configureInterruptEnables;
+pub const configure_enables = util.configure_interrupt_enables;
 
-pub fn getPriority(comptime e: Exception) u8 {
-    if (e.toInterrupt()) |irq| {
+pub fn get_priority(comptime e: Exception) u8 {
+    if (e.to_interrupt()) |irq| {
         const reg_name = std.fmt.comptimePrint("interrupt_priority_{}", .{ @intFromEnum(irq) / 4 });
         const val = @field(chip.NVIC, reg_name).read();
         return @field(val, @tagName(irq));
@@ -75,8 +71,8 @@ pub fn getPriority(comptime e: Exception) u8 {
     };
 }
 
-pub fn setPriority(comptime e: Exception, priority: u8) void {
-    if (e.toInterrupt()) |irq| {
+pub fn set_priority(comptime e: Exception, priority: u8) void {
+    if (e.to_interrupt()) |irq| {
         const reg_name = std.fmt.comptimePrint("interrupt_priority_{}", .{ @intFromEnum(irq) / 4 });
         const val = @field(chip.NVIC, reg_name).read();
         @field(val, @tagName(irq)) = priority;
@@ -89,10 +85,10 @@ pub fn setPriority(comptime e: Exception, priority: u8) void {
     }
 }
 
-pub const configurePriorities = util.configureInterruptPriorities;
+pub const configure_priorities = util.configure_interrupt_priorities;
 
-pub fn isPending(comptime e: Exception) bool {
-    if (e.toInterrupt()) |irq| {
+pub fn is_pending(comptime e: Exception) bool {
+    if (e.to_interrupt()) |irq| {
         return @field(chip.NVIC.interrupt_set_pending.read(), @tagName(irq));
     } else return switch (e) {
         .NMI => chip.SCB.interrupt_control_state.read().set_pending_NMI,
@@ -102,15 +98,15 @@ pub fn isPending(comptime e: Exception) bool {
     };
 }
 
-pub fn setPending(comptime e: Exception, comptime pending: bool) void {
-    if (e.toInterrupt()) |irq| {
+pub fn set_pending(comptime e: Exception, comptime pending: bool) void {
+    if (e.to_interrupt()) |irq| {
         if (pending) {
-            const T = chip.NVIC.interrupt_set_pending.RawType;
+            const T = chip.NVIC.interrupt_set_pending.Raw_Type;
             const val = T{};
             @field(val, @tagName(irq)) = 1;
             chip.NVIC.interrupt_set_pending.write(val);
         } else {
-            const T = chip.NVIC.interrupt_clear_pending.RawType;
+            const T = chip.NVIC.interrupt_clear_pending.Raw_Type;
             const val = T{};
             @field(val, @tagName(irq)) = 1;
             chip.NVIC.interrupt_clear_pending.write(val);
@@ -140,7 +136,7 @@ pub fn setPending(comptime e: Exception, comptime pending: bool) void {
     }
 }
 
-pub inline fn areGloballyEnabled() bool {
+pub inline fn are_globally_enabled() bool {
     return !asm volatile ("mrs r0, primask"
         : [ret] "={r0}" (-> bool),
         :
@@ -148,7 +144,7 @@ pub inline fn areGloballyEnabled() bool {
     );
 }
 
-pub inline fn setGloballyEnabled(comptime enabled: bool) void {
+pub inline fn set_globally_enabled(comptime enabled: bool) void {
     if (enabled) {
         asm volatile ("cpsie i");
     } else {
@@ -156,7 +152,7 @@ pub inline fn setGloballyEnabled(comptime enabled: bool) void {
     }
 }
 
-pub inline fn currentException() Exception {
+pub inline fn current_exception() Exception {
     // Another way to implement this would be:
     // chip.SCB.interrupt_control_state.read().active_exception_number
     // but this is faster:
@@ -167,18 +163,22 @@ pub inline fn currentException() Exception {
     );
 }
 
-pub inline fn isInHandler() bool {
-    return currentException() != .none;
+pub inline fn is_in_handler() bool {
+    return current_exception() != .none;
 }
 
-pub inline fn waitForInterrupt() void {
+pub inline fn wait_for_interrupt() void {
     asm volatile ("wfi" ::: "memory");
 }
 
-pub inline fn waitForEvent() void {
+pub inline fn wait_for_event() void {
     asm volatile ("wfe" ::: "memory");
 }
 
-pub inline fn sendEvent() void {
+pub inline fn send_event() void {
     asm volatile ("sev");
 }
+
+const chip = @import("chip");
+const util = @import("microbe").util;
+const std = @import("std");

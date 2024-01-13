@@ -30,7 +30,7 @@
     (peripheral TBMAN (delete))
 )
 (group io
-    (create-type DriveStrength
+    (create-type Drive_Strength
         (bits 2)
         (enum
             (0 2mA)
@@ -39,14 +39,14 @@
             (3 12mA)
         )
     )
-    (create-type SlewRate
+    (create-type Slew_Rate
         (bits 1)
         (enum
             (0 slow)
             (1 fast)
         )
     )
-    (create-type PinMaintenance
+    (create-type Pin_Maintenance
         (bits 2)
         (enum
             (0 float)
@@ -54,7 +54,7 @@
             (2 pull_up)
         )
     )
-    (create-type ModeOverride
+    (create-type Mode_Override
         (bits 2)
         (enum
             (0 normal)
@@ -67,22 +67,22 @@
         (type
             (field VOLTAGE_SELECT (rename voltage))
         )
-        (reg voltage (rename VoltageSelect) (field VOLTAGE_SELECT (rename voltage)))
+        (reg voltage (rename Voltage_Select) (field VOLTAGE_SELECT (rename voltage)))
         (reg * 
-            (field DRIVE (rename strength) (set-type DriveStrength))
-            (field SLEWFAST (rename speed) (set-type SlewRate))
+            (field DRIVE (rename strength) (set-type Drive_Strength))
+            (field SLEWFAST (rename speed) (set-type Slew_Rate))
             (field SCHMITT (rename hysteresis) (set-type bool))
-            (merge-field PDE maintenance PinMaintenance)
+            (merge-field PDE maintenance Pin_Maintenance)
             (field IE (rename input_enabled) (set-type bool))
             (field OD (rename output_disabled) (set-type bool))
         )
     )
     (peripheral PADS_BANK0
         (type
-            (field GPIO0 (type (inner (rename PadConfig))))
+            (field GPIO0 (type (inner (rename Pad_Config))))
             (delete-field GPIO*)
             (create-field gpio (offset 4)
-                (type (array 30 (reg PadConfig)))
+                (type (array 30 (reg Pad_Config)))
             )
             (field SWCLK (rename swclk))
             (field SWD (rename swdio))
@@ -101,17 +101,17 @@
             )
             (field GPIO_QSPI_SD0
                 (rename sd)
-                (type (inner (set-name QspiPadConfigFloat)))
-                (set-type (array 4 (reg QspiPadConfigFloat)))
+                (type (inner (set-name QSPI_Pad_Config_Float)))
+                (set-type (array 4 (reg QSPI_Pad_Config_Float)))
             )
             (delete-field GPIO_QSPI_SD*)
             (field GPIO_QSPI_SS
                 (rename ss)
-                (type (inner (set-name QspiPadConfigPullUp)))
+                (type (inner (set-name QSPI_Pad_Config_Pull_Up)))
             )
         )
     )
-    (create-type IoStatus
+    (create-type IO_Status
         (bits 32)
         (packed
             (output_internal "Before override/inversion" (type u1) (offset 8))
@@ -124,7 +124,7 @@
             (irq_internal "After override/inversion" (type u1) (offset 26))
         )
     )
-    (create-type IoFunction
+    (create-type IO_Function
         (bits 5)
         (inline never)
         (enum
@@ -141,7 +141,7 @@
             (0x1f disable)
         )
     )
-    (create-type QspiFunction
+    (create-type QSPI_Function
         (bits 5)
         (inline never)
         (enum
@@ -150,53 +150,53 @@
             (0x1f disable)
         )
     )
-    (create-type IoControl
+    (create-type IO_Control
         (bits 32)
         (packed 
-            (func (type IoFunction) (default 0x1F))
-            (output_override (type ModeOverride) (offset 8))
-            (oe_override (type ModeOverride) (offset 12))
-            (input_override (type ModeOverride) (offset 16))
-            (irq_override (type ModeOverride) (offset 28))
+            (func (type IO_Function) (default 0x1F))
+            (output_override (type Mode_Override) (offset 8))
+            (oe_override (type Mode_Override) (offset 12))
+            (input_override (type Mode_Override) (offset 16))
+            (irq_override (type Mode_Override) (offset 28))
         )
     )
-    (create-type QspiControl
+    (create-type QSPI_Control
         (bits 32)
         (packed 
-            (func (type QspiFunction) (default 0x1F))
-            (output_override (type ModeOverride) (offset 8))
-            (oe_override (type ModeOverride) (offset 12))
-            (input_override (type ModeOverride) (offset 16))
-            (irq_override (type ModeOverride) (offset 28))
+            (func (type QSPI_Function) (default 0x1F))
+            (output_override (type Mode_Override) (offset 8))
+            (oe_override (type Mode_Override) (offset 12))
+            (input_override (type Mode_Override) (offset 16))
+            (irq_override (type Mode_Override) (offset 28))
         )
     )
-    (create-type IoStatusControl
+    (create-type IO_Status_Control
         (struct
-            (status (type (reg IoStatus)))
-            (control (type (reg IoControl)))
+            (status (type (reg IO_Status)))
+            (control (type (reg IO_Control)))
         )
     )
-    (create-type QspiStatusControl
+    (create-type QSPI_Status_Control
         (struct
-            (status (type (reg IoStatus)))
-            (control (type (reg QspiControl)))
+            (status (type (reg IO_Status)))
+            (control (type (reg QSPI_Control)))
         )
     )
     (create-peripheral IO
         (base 0x40014000)
-        (type (array 30 IoStatusControl) (inline never))
+        (type (array 30 IO_Status_Control) (inline never))
     )
     (create-peripheral IO_QSPI
         (base 0x40018000)
         (type (struct
-            (sclk (type QspiStatusControl))
-            (ss (type QspiStatusControl))
-            (sd (type [4]QspiStatusControl))
+            (sclk (type QSPI_Status_Control))
+            (ss (type QSPI_Status_Control))
+            (sd (type [4]QSPI_Status_Control))
         ))
     )
-    (create-type InterruptBitmap
+    (create-type Interrupt_Bitmap
         (struct
-            (gpio_0_to_7 (type (reg (name InterruptBitmap0) (bits 32) (packed
+            (gpio_0_to_7 (type (reg (name Interrupt_Bitmap_0) (bits 32) (packed
                 (gpio0_low)
                 (gpio0_high)
                 (gpio0_falling)
@@ -237,7 +237,7 @@
                 (gpio7_falling)
                 (gpio7_rising)
             ))))
-            (gpio_8_to_15 (type (reg (name InterruptBitmap1) (bits 32) (packed
+            (gpio_8_to_15 (type (reg (name Interrupt_Bitmap_1) (bits 32) (packed
                 (gpio8_low)
                 (gpio8_high)
                 (gpio8_falling)
@@ -278,7 +278,7 @@
                 (gpio15_falling)
                 (gpio15_rising)
             ))))
-            (gpio_16_to_23 (type (reg (name InterruptBitmap2) (bits 32) (packed
+            (gpio_16_to_23 (type (reg (name Interrupt_Bitmap_2) (bits 32) (packed
                 (gpio16_low)
                 (gpio16_high)
                 (gpio16_falling)
@@ -319,7 +319,7 @@
                 (gpio23_falling)
                 (gpio23_rising)
             ))))
-            (gpio_24_to_29 (type (reg (name InterruptBitmap3) (bits 32) (packed
+            (gpio_24_to_29 (type (reg (name Interrupt_Bitmap_3) (bits 32) (packed
                 (gpio24_low)
                 (gpio24_high)
                 (gpio24_falling)
@@ -352,26 +352,26 @@
             ))))
         )
     )
-    (copy-type InterruptBitmap InterruptBitmapReadOnly
+    (copy-type Interrupt_Bitmap Interrupt_Bitmap_Read_Only
         (field * (type (set-access r)))
     )
-    (create-type InterruptEnableForceStatus
+    (create-type Interrupt_Enable_Force_Status
         (struct
-            (enable (type InterruptBitmap))
-            (force (type InterruptBitmap))
-            (status (type InterruptBitmapReadOnly))
+            (enable (type Interrupt_Bitmap))
+            (force (type Interrupt_Bitmap))
+            (status (type Interrupt_Bitmap_Read_Only))
         )
     )
     (create-peripheral IO_INT
         (base 0x400140F0)
         (type (struct
-            (interrupt_status "Write 1 to clear edge interrupt flags" (type InterruptBitmap))
-            (core0 (type InterruptEnableForceStatus))
-            (core1 (type InterruptEnableForceStatus))
-            (dormant_wake (type InterruptEnableForceStatus))
+            (interrupt_status "Write 1 to clear edge interrupt flags" (type Interrupt_Bitmap))
+            (core0 (type Interrupt_Enable_Force_Status))
+            (core1 (type Interrupt_Enable_Force_Status))
+            (dormant_wake (type Interrupt_Enable_Force_Status))
         ))
     )
-    (create-type QspiInterruptBitmap
+    (create-type QSPI_Interrupt_Bitmap
         (bits 32)
         (packed
             (sclk_low)
@@ -405,20 +405,20 @@
             (sd3_rising)
         )
     )
-    (create-type QspiInterruptEnableForceStatus
+    (create-type QSPI_Interrupt_Enable_Force_Status
         (struct
-            (enable (type (reg QspiInterruptBitmap)))
-            (force (type (reg QspiInterruptBitmap)))
-            (status (type (reg r QspiInterruptBitmap)))
+            (enable (type (reg QSPI_Interrupt_Bitmap)))
+            (force (type (reg QSPI_Interrupt_Bitmap)))
+            (status (type (reg r QSPI_Interrupt_Bitmap)))
         )
     )
     (create-peripheral IO_QSPI_INT
         (base 0x40018030)
         (type (struct
-            (interrupt_status "Write 1 to clear edge interrupt flags" (type (reg QspiInterruptBitmap)))
-            (core0 (type QspiInterruptEnableForceStatus))
-            (core1 (type QspiInterruptEnableForceStatus))
-            (dormant_wake (type QspiInterruptEnableForceStatus))
+            (interrupt_status "Write 1 to clear edge interrupt flags" (type (reg QSPI_Interrupt_Bitmap)))
+            (core0 (type QSPI_Interrupt_Enable_Force_Status))
+            (core1 (type QSPI_Interrupt_Enable_Force_Status))
+            (dormant_wake (type QSPI_Interrupt_Enable_Force_Status))
         ))
     )
 )
@@ -439,14 +439,14 @@
             (3 even)
         )
     )
-    (create-type StopBits
+    (create-type Stop_Bits
         (inline never)
         (enum
             (0 one)
             (1 two)
         )
     )
-    (create-type DataBits
+    (create-type Data_Bits
         (inline never)
         (enum
             (0 five)
@@ -455,7 +455,7 @@
             (3 eight)
         )
     )
-    (create-type ReadErrorBitmap (bits 4)
+    (create-type Read_Error_Bitmap (bits 4)
         (packed
             (framing_error (type bool))
             (parity_error (type bool))
@@ -463,7 +463,7 @@
             (overrun (type bool))
         )
     )
-    (create-type InterruptBitmap (bits 32)
+    (create-type Interrupt_Bitmap (bits 32)
         (packed
             (cts_change (type bool) (offset 1))
             (rx (type bool) (offset 4))
@@ -481,13 +481,13 @@
                 (rename data)
                 (type (inner
                     (field DATA (rename data))
-                    (merge-field FE errors ReadErrorBitmap)
+                    (merge-field FE errors Read_Error_Bitmap)
                 ))
             )
             (field UARTRSR
                 (rename rx_status)
                 (type (inner
-                    (merge-field FE errors ReadErrorBitmap)
+                    (merge-field FE errors Read_Error_Bitmap)
                 ))
             )
             (field UARTFR
@@ -525,9 +525,9 @@
                 (type (inner
                     (field BRK (set-type bool) (rename request_send_break))
                     (merge-field PEN parity Parity)
-                    (field STP2 (rename stop_bits) (set-type StopBits))
+                    (field STP2 (rename stop_bits) (set-type Stop_Bits))
                     (field FEN (rename fifos_enabled) (set-type bool))
-                    (field WLEN (rename data_bits) (set-type DataBits))
+                    (field WLEN (rename data_bits) (set-type Data_Bits))
                     (field SPS (rename sticky_parity_enabled) (set-type bool))
                 ))
             )
@@ -569,19 +569,19 @@
             )
             (field UARTIMSC
                 (rename interrupt_mask)
-                (set-type (reg rw InterruptBitmap))
+                (set-type (reg rw Interrupt_Bitmap))
             )
             (field UARTRIS
                 (rename interrupt_status)
-                (set-type (reg r InterruptBitmap))
+                (set-type (reg r Interrupt_Bitmap))
             )
             (field UARTMIS
                 (rename interrupt_status_masked)
-                (set-type (reg r InterruptBitmap))
+                (set-type (reg r Interrupt_Bitmap))
             )
             (field UARTICR
                 (rename interrupt_clear)
-                (set-type (reg w InterruptBitmap))
+                (set-type (reg w Interrupt_Bitmap))
             )
             (field UARTDMACR
                 (rename dma_control)
@@ -599,7 +599,7 @@
 (group adc
 )
 (group dma
-    (create-type ChannelBitmap
+    (create-type Channel_Bitmap
         (bits 32)
         (packed
             (channel_0 (type bool))
@@ -616,11 +616,11 @@
             (channel_11 (type bool))
         )
     )
-    (create-type InterruptEnableForceStatus
+    (create-type Interrupt_Enable_Force_Status
         (struct
-            (enable (type (reg ChannelBitmap)))
-            (force (type (reg ChannelBitmap)))
-            (status (type (reg ChannelBitmap)))
+            (enable (type (reg Channel_Bitmap)))
+            (force (type (reg Channel_Bitmap)))
+            (status (type (reg Channel_Bitmap)))
         )
     )
     (create-type Checksum
@@ -647,7 +647,7 @@
     )
     (peripheral DMA
         (reg CH0_CTRL_TRIG
-            (rename ChannelControl)
+            (rename Channel_Control)
             (field EN (rename enabled))
             (field HIGH_PRIORITY
                 (rename priority)
@@ -789,17 +789,17 @@
             (delete-field N_CHANNELS)
             (field INTR
                 (rename interrupt_status)
-                (set-type (reg ChannelBitmap))
+                (set-type (reg Channel_Bitmap))
             )
-            (merge-field INTE0 irq0 InterruptEnableForceStatus)
-            (merge-field INTE1 irq1 InterruptEnableForceStatus)
+            (merge-field INTE0 irq0 Interrupt_Enable_Force_Status)
+            (merge-field INTE1 irq1 Interrupt_Enable_Force_Status)
             (merge-field TIMER0 pacer (array 4 (reg (packed
                 (divisor (type u16))
                 (multiplier (type u16))
             ))))
             (field MULTI_CHAN_TRIGGER
                 (rename multi_trigger)
-                (set-type (reg w ChannelBitmap))
+                (set-type (reg w Channel_Bitmap))
             )
             (merge-field SNIFF_CTRL checksum Checksum)
             (field FIFO_LEVELS
@@ -813,7 +813,7 @@
             (field CHAN_ABORT
                 (rename abort)
                 (set-desc "N.B. erratum RP2040-E13")
-                (set-type (reg w ChannelBitmap))
+                (set-type (reg w Channel_Bitmap))
             )
         )
     )
@@ -823,10 +823,10 @@
                 (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
                 (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
                 (count "Writes will not take effect until the next time the channel is triggered" (type (reg u32)))
-                (control (type (reg ChannelControl)) (offset 0x10))
+                (control (type (reg Channel_Control)) (offset 0x10))
             )))
             (trigger (type (struct
-                (control (type (reg ChannelControl)) (offset 0xC))
+                (control (type (reg Channel_Control)) (offset 0xC))
                 (count (type (reg u32)) (offset 0x1C))
                 (write_ptr (type (reg (pointer allowzero anyopaque))) (offset 0x2C))
                 (read_ptr (type (reg (pointer allowzero const anyopaque))) (offset 0x3C))
@@ -836,22 +836,22 @@
                     (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
                     (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
                     (count "Writes will not take effect until the next time the channel is triggered" (type (reg u32)))
-                    (control (type (reg ChannelControl)))
+                    (control (type (reg Channel_Control)))
                 )))
                 (count_triggered (type (struct
-                    (control (type (reg ChannelControl)))
+                    (control (type (reg Channel_Control)))
                     (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
                     (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
                     (count (type (reg u32)))
                 )))
                 (write_ptr_triggered (type (struct
-                    (control (type (reg ChannelControl)))
+                    (control (type (reg Channel_Control)))
                     (count (type (reg u32)))
                     (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
                     (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
                 )))
                 (read_ptr_triggered (type (struct
-                    (control (type (reg ChannelControl)))
+                    (control (type (reg Channel_Control)))
                     (write_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero anyopaque))))
                     (count (type (reg u32)))
                     (read_ptr "N.B. erratum RP2040-E12" (type (reg (pointer allowzero const anyopaque))))
@@ -881,9 +881,9 @@
     )
 )
 (group usb
-    (create-type TransferKind (bits 2) (ext microbe.usb.endpoint))
+    (create-type Transfer_Kind (bits 2) (ext microbe.usb.endpoint))
     (create-type PID (bits 1) (ext microbe.usb))
-    (create-type DoubleBufferOffset
+    (create-type Double_Buffer_Offset
         (bits 2)
         (enum
             (0 128)
@@ -893,62 +893,62 @@
         )
     )
     (peripheral USBCTRL_DPRAM
-        (reg EP1_IN_CONTROL (rename EndpointControl))
-        (reg EP1_IN_BUFFER_CONTROL (rename BufferControl))
+        (reg EP1_IN_CONTROL (rename Endpoint_Control))
+        (reg EP1_IN_BUFFER_CONTROL (rename Buffer_Control))
     )
-    (copy-type EndpointControl HostEndpointControl
+    (copy-type Endpoint_Control Host_Endpoint_Control
         (delete-field BUFFER_ADDRESS)
         (create-field buffer_base (type u10) (offset 6))
         (delete-field INTERRUPT_ON_*)
         (create-field poll_interval_ms_minus_one (type u10) (offset 16))
-        (field ENDPOINT_TYPE (rename transfer_kind) (set-type TransferKind))
+        (field ENDPOINT_TYPE (rename transfer_kind) (set-type Transfer_Kind))
         (field INTERRUPT_PER_DOUBLE_BUFF (rename enable_double_buffer_interrupt) (set-type bool))
         (field INTERRUPT_PER_BUFF (rename enable_buffer_interrupt) (set-type bool))
         (field DOUBLE_BUFFERED (rename double_buffered) (set-type bool))
         (field ENABLE (rename enabled) (set-type bool))
     )
-    (copy-type EndpointControl DeviceEndpointControl
+    (copy-type Endpoint_Control Device_Endpoint_Control
         (delete-field BUFFER_ADDRESS)
         (create-field buffer_base (type u10) (offset 6))
         (field INTERRUPT_ON_NAK (rename enable_interrupt_on_nak) (set-type bool))
         (field INTERRUPT_ON_STALL (rename enable_interrupt_on_stall) (set-type bool))
-        (field ENDPOINT_TYPE (rename transfer_kind) (set-type TransferKind))
+        (field ENDPOINT_TYPE (rename transfer_kind) (set-type Transfer_Kind))
         (field INTERRUPT_PER_DOUBLE_BUFF (rename enable_double_buffer_interrupt) (set-type bool))
         (field INTERRUPT_PER_BUFF (rename enable_buffer_interrupt) (set-type bool))
         (field DOUBLE_BUFFERED (rename double_buffered) (set-type bool))
         (field ENABLE (rename enabled) (set-type bool))
     )
-    (create-type EndpointControlIO
+    (create-type Endpoint_Control_IO
         (union
             (host (type (bits 64) (struct
-                (in (type (reg HostEndpointControl)))
+                (in (type (reg Host_Endpoint_Control)))
             )))
             (device (type (struct
-                (in (type (reg DeviceEndpointControl)))
-                (out (type (reg DeviceEndpointControl)))
+                (in (type (reg Device_Endpoint_Control)))
+                (out (type (reg Device_Endpoint_Control)))
             )))
         )
     )
-    (create-type EndpointControlRegisters
+    (create-type Endpoint_Control_Registers
         (struct
-            (ep1 (type EndpointControlIO))
-            (ep2 (type EndpointControlIO))
-            (ep3 (type EndpointControlIO))
-            (ep4 (type EndpointControlIO))
-            (ep5 (type EndpointControlIO))
-            (ep6 (type EndpointControlIO))
-            (ep7 (type EndpointControlIO))
-            (ep8 (type EndpointControlIO))
-            (ep9 (type EndpointControlIO))
-            (ep10 (type EndpointControlIO))
-            (ep11 (type EndpointControlIO))
-            (ep12 (type EndpointControlIO))
-            (ep13 (type EndpointControlIO))
-            (ep14 (type EndpointControlIO))
-            (ep15 (type EndpointControlIO))
+            (ep1 (type Endpoint_Control_IO))
+            (ep2 (type Endpoint_Control_IO))
+            (ep3 (type Endpoint_Control_IO))
+            (ep4 (type Endpoint_Control_IO))
+            (ep5 (type Endpoint_Control_IO))
+            (ep6 (type Endpoint_Control_IO))
+            (ep7 (type Endpoint_Control_IO))
+            (ep8 (type Endpoint_Control_IO))
+            (ep9 (type Endpoint_Control_IO))
+            (ep10 (type Endpoint_Control_IO))
+            (ep11 (type Endpoint_Control_IO))
+            (ep12 (type Endpoint_Control_IO))
+            (ep13 (type Endpoint_Control_IO))
+            (ep14 (type Endpoint_Control_IO))
+            (ep15 (type Endpoint_Control_IO))
         )
     )
-    (create-type HostBufferControl0
+    (create-type Host_Buffer_Control_0
         (bits 16)
         (packed
             (len (type u10))
@@ -959,18 +959,18 @@
             (full (type bool))
         )
     )
-    (create-type HostBufferControl1
+    (create-type Host_Buffer_Control_1
         (bits 16)
         (packed
             (len (type u10))
             (transfer_pending (type bool))
-            (offset (type DoubleBufferOffset))
+            (offset (type Double_Buffer_Offset))
             (pid (type PID) (offset 13))
             (final_transfer (type bool))
             (full (type bool))
         )
     )
-    (create-type DeviceBufferControl0
+    (create-type Device_Buffer_Control_0
         (bits 16)
         (packed
             (len (type u10))
@@ -982,57 +982,57 @@
             (full (type bool))
         )
     )
-    (create-type DeviceBufferControl1
+    (create-type Device_Buffer_Control_1
         (bits 16)
         (packed
             (len (type u10))
             (transfer_pending (type bool))
-            (offset (type DoubleBufferOffset))
+            (offset (type Double_Buffer_Offset))
             (pid (type PID) (offset 13))
             (final_transfer (type bool))
             (full (type bool))
         )
     )
-    (create-type BufferControlIO
+    (create-type Buffer_Control_IO
         (union
             (host (type (bits 64) (struct
-                (in0 (type (reg HostBufferControl0)))
-                (in1 (type (reg HostBufferControl1)))
+                (in0 (type (reg Host_Buffer_Control_0)))
+                (in1 (type (reg Host_Buffer_Control_1)))
             )))
             (device (type (struct
-                (in0 (type (reg DeviceBufferControl0)))
-                (in1 (type (reg DeviceBufferControl1)))
-                (out0 (type (reg DeviceBufferControl0)))
-                (out1 (type (reg DeviceBufferControl1)))
+                (in0 (type (reg Device_Buffer_Control_0)))
+                (in1 (type (reg Device_Buffer_Control_1)))
+                (out0 (type (reg Device_Buffer_Control_0)))
+                (out1 (type (reg Device_Buffer_Control_1)))
             )))
         )
     )
-    (create-type BufferControlRegisters
+    (create-type Buffer_Control_Registers
         (struct
-            (ep0 (type BufferControlIO))
-            (ep1 (type BufferControlIO))
-            (ep2 (type BufferControlIO))
-            (ep3 (type BufferControlIO))
-            (ep4 (type BufferControlIO))
-            (ep5 (type BufferControlIO))
-            (ep6 (type BufferControlIO))
-            (ep7 (type BufferControlIO))
-            (ep8 (type BufferControlIO))
-            (ep9 (type BufferControlIO))
-            (ep10 (type BufferControlIO))
-            (ep11 (type BufferControlIO))
-            (ep12 (type BufferControlIO))
-            (ep13 (type BufferControlIO))
-            (ep14 (type BufferControlIO))
-            (ep15 (type BufferControlIO))
+            (ep0 (type Buffer_Control_IO))
+            (ep1 (type Buffer_Control_IO))
+            (ep2 (type Buffer_Control_IO))
+            (ep3 (type Buffer_Control_IO))
+            (ep4 (type Buffer_Control_IO))
+            (ep5 (type Buffer_Control_IO))
+            (ep6 (type Buffer_Control_IO))
+            (ep7 (type Buffer_Control_IO))
+            (ep8 (type Buffer_Control_IO))
+            (ep9 (type Buffer_Control_IO))
+            (ep10 (type Buffer_Control_IO))
+            (ep11 (type Buffer_Control_IO))
+            (ep12 (type Buffer_Control_IO))
+            (ep13 (type Buffer_Control_IO))
+            (ep14 (type Buffer_Control_IO))
+            (ep15 (type Buffer_Control_IO))
         )
     )
     (peripheral USBCTRL_DPRAM
         (type
             (field SETUP_PACKET_LOW (set-type (reg r u32)) (rename setup_packet_low))
             (field SETUP_PACKET_HIGH (set-type (reg r u32)) (rename setup_packet_high))
-            (merge-field EP1_IN_CONTROL ep_control EndpointControlRegisters)
-            (merge-field EP0_IN_BUFFER_CONTROL buffer_control BufferControlRegisters)
+            (merge-field EP1_IN_CONTROL ep_control Endpoint_Control_Registers)
+            (merge-field EP0_IN_BUFFER_CONTROL buffer_control Buffer_Control_Registers)
             (create-field buffer "note buffer 0 is always used for EP0 setup transfers"
                 (offset 0x100)
                 (type (array 60 (array 64 u8)))
@@ -1041,14 +1041,14 @@
         )
         (rename USB_BUF)
     )
-    (create-type EndpointIoBitmap
+    (create-type Endpoint_IO_Bitmap
         (bits 2)
         (packed
             (in (type bool))
             (out (type bool))
         )
     )
-    (create-type EndpointBitmapWithout0
+    (create-type Endpoint_Bitmap_Without_0
         (packed
             (ep1 (type bool))
             (ep2 (type bool))
@@ -1067,60 +1067,60 @@
             (ep15 (type bool))
         )
     )
-    (create-type EndpointBitmap
+    (create-type Endpoint_Bitmap
         (packed
-            (ep0 (type EndpointIoBitmap))
-            (ep1 (type EndpointIoBitmap))
-            (ep2 (type EndpointIoBitmap))
-            (ep3 (type EndpointIoBitmap))
-            (ep4 (type EndpointIoBitmap))
-            (ep5 (type EndpointIoBitmap))
-            (ep6 (type EndpointIoBitmap))
-            (ep7 (type EndpointIoBitmap))
-            (ep8 (type EndpointIoBitmap))
-            (ep9 (type EndpointIoBitmap))
-            (ep10 (type EndpointIoBitmap))
-            (ep11 (type EndpointIoBitmap))
-            (ep12 (type EndpointIoBitmap))
-            (ep13 (type EndpointIoBitmap))
-            (ep14 (type EndpointIoBitmap))
-            (ep15 (type EndpointIoBitmap))
+            (ep0 (type Endpoint_IO_Bitmap))
+            (ep1 (type Endpoint_IO_Bitmap))
+            (ep2 (type Endpoint_IO_Bitmap))
+            (ep3 (type Endpoint_IO_Bitmap))
+            (ep4 (type Endpoint_IO_Bitmap))
+            (ep5 (type Endpoint_IO_Bitmap))
+            (ep6 (type Endpoint_IO_Bitmap))
+            (ep7 (type Endpoint_IO_Bitmap))
+            (ep8 (type Endpoint_IO_Bitmap))
+            (ep9 (type Endpoint_IO_Bitmap))
+            (ep10 (type Endpoint_IO_Bitmap))
+            (ep11 (type Endpoint_IO_Bitmap))
+            (ep12 (type Endpoint_IO_Bitmap))
+            (ep13 (type Endpoint_IO_Bitmap))
+            (ep14 (type Endpoint_IO_Bitmap))
+            (ep15 (type Endpoint_IO_Bitmap))
         )
     )
-    (create-type EndpointIoBufferSelect
+    (create-type Endpoint_IO_Buffer_Select
         (bits 2)
         (packed
             (in (type u1))
             (out (type u1))
         )
     )
-    (create-type EndpointBufferSelect
+    (create-type Endpoint_Buffer_Select
         (packed
-            (ep0 (type EndpointIoBufferSelect))
-            (ep1 (type EndpointIoBufferSelect))
-            (ep2 (type EndpointIoBufferSelect))
-            (ep3 (type EndpointIoBufferSelect))
-            (ep4 (type EndpointIoBufferSelect))
-            (ep5 (type EndpointIoBufferSelect))
-            (ep6 (type EndpointIoBufferSelect))
-            (ep7 (type EndpointIoBufferSelect))
-            (ep8 (type EndpointIoBufferSelect))
-            (ep9 (type EndpointIoBufferSelect))
-            (ep10 (type EndpointIoBufferSelect))
-            (ep11 (type EndpointIoBufferSelect))
-            (ep12 (type EndpointIoBufferSelect))
-            (ep13 (type EndpointIoBufferSelect))
-            (ep14 (type EndpointIoBufferSelect))
-            (ep15 (type EndpointIoBufferSelect))
+            (ep0 (type Endpoint_IO_Buffer_Select))
+            (ep1 (type Endpoint_IO_Buffer_Select))
+            (ep2 (type Endpoint_IO_Buffer_Select))
+            (ep3 (type Endpoint_IO_Buffer_Select))
+            (ep4 (type Endpoint_IO_Buffer_Select))
+            (ep5 (type Endpoint_IO_Buffer_Select))
+            (ep6 (type Endpoint_IO_Buffer_Select))
+            (ep7 (type Endpoint_IO_Buffer_Select))
+            (ep8 (type Endpoint_IO_Buffer_Select))
+            (ep9 (type Endpoint_IO_Buffer_Select))
+            (ep10 (type Endpoint_IO_Buffer_Select))
+            (ep11 (type Endpoint_IO_Buffer_Select))
+            (ep12 (type Endpoint_IO_Buffer_Select))
+            (ep13 (type Endpoint_IO_Buffer_Select))
+            (ep14 (type Endpoint_IO_Buffer_Select))
+            (ep15 (type Endpoint_IO_Buffer_Select))
         )
     )
-    (create-type SignalOverride
+    (create-type Signal_Override
         (packed
             (override_value (type bool))
             (override_enabled (type bool))
         )
     )
-    (create-type DeviceInterruptBitmap
+    (create-type Device_Interrupt_Bitmap
         (bits 32)
         (packed
             (transaction_complete (type bool) (offset 3))
@@ -1142,15 +1142,15 @@
             (stall_nak (type bool))
         )
     )
-    (create-type DeviceInterrupts
+    (create-type Device_Interrupts
         (struct
-            (raw (type (reg r DeviceInterruptBitmap)))
-            (enable (type (reg DeviceInterruptBitmap)))
-            (force (type (reg DeviceInterruptBitmap)))
-            (status (type (reg r DeviceInterruptBitmap)))
+            (raw (type (reg r Device_Interrupt_Bitmap)))
+            (enable (type (reg Device_Interrupt_Bitmap)))
+            (force (type (reg Device_Interrupt_Bitmap)))
+            (status (type (reg r Device_Interrupt_Bitmap)))
         )
     )
-    (create-type HostInterruptBitmap
+    (create-type Host_Interrupt_Bitmap
         (bits 32)
         (packed
             (connection_state (type bool))
@@ -1169,12 +1169,12 @@
             (stall_nak (type bool) (offset 19))
         )
     )
-    (create-type HostInterrupts
+    (create-type Host_Interrupts
         (struct
-            (raw (type (reg r HostInterruptBitmap)))
-            (enable (type (reg HostInterruptBitmap)))
-            (force (type (reg HostInterruptBitmap)))
-            (status (type (reg r HostInterruptBitmap)))
+            (raw (type (reg r Host_Interrupt_Bitmap)))
+            (enable (type (reg Host_Interrupt_Bitmap)))
+            (force (type (reg Host_Interrupt_Bitmap)))
+            (status (type (reg r Host_Interrupt_Bitmap)))
         )
     )
     (peripheral USBCTRL_REGS
@@ -1217,12 +1217,12 @@
             (field SOF_WR
                 (type (set-access w) (inner
                     (field COUNT (rename frame_number))
-                    (rename FrameNumber)
+                    (rename Frame_Number)
                 ))
                 (rename set_frame_number)
             )
             (field SOF_RD
-                (set-type (reg r FrameNumber))
+                (set-type (reg r Frame_Number))
                 (rename last_sent_frame_number)
             )
 
@@ -1285,30 +1285,30 @@
             )
             (field INT_EP_CTRL
                 (type (inner
-                    (field INT_EP_ACTIVE (rename enable_interrupt_transfers) (set-type EndpointBitmapWithout0))
+                    (field INT_EP_ACTIVE (rename enable_interrupt_transfers) (set-type Endpoint_Bitmap_Without_0))
                 ))
                 (rename endpoint_interrupt_control)
             )
             (field BUFF_STATUS
-                (set-type (reg EndpointBitmap))
+                (set-type (reg Endpoint_Bitmap))
                 (set-desc "Write true to clear")
                 (rename buffer_transfer_complete)
             )
             (field BUFF_CPU_SHOULD_HANDLE
-                (set-type (reg r EndpointBufferSelect))
+                (set-type (reg r Endpoint_Buffer_Select))
                 (rename cpu_buffer_select)
             )
             (field EP_ABORT
-                (set-type (reg EndpointBitmap))
+                (set-type (reg Endpoint_Bitmap))
                 (rename ep_abort)
             )
             (field EP_ABORT_DONE
-                (set-type (reg EndpointBitmap))
+                (set-type (reg Endpoint_Bitmap))
                 (set-desc "Write true to clear")
                 (rename ep_abort_complete)
             )
             (field EP_STATUS_STALL_NAK
-                (set-type (reg EndpointBitmap))
+                (set-type (reg Endpoint_Bitmap))
                 (set-desc "Write true to clear")
                 (rename stall_nak_interrupt_status)
             )
@@ -1338,9 +1338,9 @@
             )
             (field USB_PWR
                 (type (inner
-                    (merge-field VBUS_EN vbus_enable SignalOverride)
-                    (merge-field VBUS_DETECT vbus_detect SignalOverride)
-                    (merge-field OVERCURR_DETECT overcurrent_detect SignalOverride)
+                    (merge-field VBUS_EN vbus_enable Signal_Override)
+                    (merge-field VBUS_DETECT vbus_detect Signal_Override)
+                    (merge-field OVERCURR_DETECT overcurrent_detect Signal_Override)
                     (rename Power)
                 ))
                 (rename power)
@@ -1395,7 +1395,7 @@
         (delete-field endpoint_interrupt_control)
         (delete-field nak_poll)
         (delete-field pulldown_trim)
-        (merge-field INTR interrupts DeviceInterrupts)
+        (merge-field INTR interrupts Device_Interrupts)
     )
     (create-peripheral USB_DEV
         (base 0x50110000)
@@ -1423,7 +1423,7 @@
         (delete-field ep_abort)
         (delete-field ep_abort_complete)
         (delete-field ep0_stall_arm)
-        (merge-field INTR interrupts HostInterrupts)
+        (merge-field INTR interrupts Host_Interrupts)
     )
     (peripheral USB_HOST (set-type USB_HOST))
 )
@@ -1465,7 +1465,7 @@
             (delete-field COUNT)
         )
     )
-    (create-type RoscStageDriveStrength
+    (create-type ROSC_Stage_Drive_Strength
         (enum
             (0 1x)
             (1 2x)
@@ -1498,20 +1498,20 @@
             (field FREQA
                 (rename drive0)
                 (set-type (reg (bits 32) (packed
-                    (stage0 (type RoscStageDriveStrength))
-                    (stage1 (type RoscStageDriveStrength) (offset 4))
-                    (stage2 (type RoscStageDriveStrength) (offset 8))
-                    (stage3 (type RoscStageDriveStrength) (offset 12))
+                    (stage0 (type ROSC_Stage_Drive_Strength))
+                    (stage1 (type ROSC_Stage_Drive_Strength) (offset 4))
+                    (stage2 (type ROSC_Stage_Drive_Strength) (offset 8))
+                    (stage3 (type ROSC_Stage_Drive_Strength) (offset 12))
                     (write_enable_key (type u16) (default 0x9696) (offset 16))
                 )))
             )
             (field FREQB
                 (rename drive1)
                 (set-type (reg (bits 32) (packed
-                    (stage4 (type RoscStageDriveStrength))
-                    (stage5 (type RoscStageDriveStrength) (offset 4))
-                    (stage6 (type RoscStageDriveStrength) (offset 8))
-                    (stage7 (type RoscStageDriveStrength) (offset 12))
+                    (stage4 (type ROSC_Stage_Drive_Strength))
+                    (stage5 (type ROSC_Stage_Drive_Strength) (offset 4))
+                    (stage6 (type ROSC_Stage_Drive_Strength) (offset 8))
+                    (stage7 (type ROSC_Stage_Drive_Strength) (offset 12))
                     (write_enable_key (type u16) (default 0x9696) (offset 16))
                 )))
             )
@@ -1637,7 +1637,7 @@
             (3 div3)
         )
     )
-    (create-type GpoutClockGenerator
+    (create-type GPOUT_Clock_Generator
         (inline never)
         (bits 96)
         (struct
@@ -1671,8 +1671,8 @@
         )
     )
     (peripheral CLOCKS (type
-        (merge-field CLK_GPOUT0_CTRL gpout [4]GpoutClockGenerator)
-        (merge-field CLK_REF_CTRL ref (fallback-name RefClockGenerator)
+        (merge-field CLK_GPOUT0_CTRL gpout [4]GPOUT_Clock_Generator)
+        (merge-field CLK_REF_CTRL ref (fallback-name Ref_Clock_Generator)
             (bits 96)
             (inline never)
             (struct
@@ -1712,7 +1712,7 @@
                 ))))
             )
         )
-        (merge-field CLK_SYS_CTRL sys (fallback-name SysClockGenerator)
+        (merge-field CLK_SYS_CTRL sys (fallback-name Sys_Clock_Generator)
             (bits 96)
             (inline never)
             (struct
@@ -1747,7 +1747,7 @@
                 ))))
             )
         )
-        (merge-field CLK_PERI_CTRL peri (fallback-name PeriClockGenerator)
+        (merge-field CLK_PERI_CTRL peri (fallback-name Peri_Clock_Generator)
             (bits 96)
             (inline never)
             (struct
@@ -1772,7 +1772,7 @@
                 )))
             )
         )
-        (merge-field CLK_USB_CTRL usb (fallback-name UsbAdcClockGenerator)
+        (merge-field CLK_USB_CTRL usb (fallback-name USB_ADC_Clock_Generator)
             (bits 96)
             (inline never)
             (struct
@@ -1805,7 +1805,7 @@
                 ))))
             )
         )
-        (merge-field CLK_ADC_CTRL adc (fallback-name UsbAdcClockGenerator)
+        (merge-field CLK_ADC_CTRL adc (fallback-name USB_ADC_Clock_Generator)
             (bits 96)
             (inline never)
             (struct
@@ -1838,7 +1838,7 @@
                 ))))
             )
         )
-        (merge-field CLK_RTC_CTRL rtc (fallback-name RtcClockGenerator)
+        (merge-field CLK_RTC_CTRL rtc (fallback-name RTC_Clock_Generator)
             (bits 96)
             (inline never)
             (struct
@@ -1865,7 +1865,7 @@
                 (divisor "8 fractional bits" (type (reg u32)))
             )
         )
-        (merge-field CLK_SYS_RESUS_CTRL resus (name SysResus)
+        (merge-field CLK_SYS_RESUS_CTRL resus (name Sys_Resus)
             (bits 64)
             (struct
                 (control (type (reg
@@ -1886,24 +1886,24 @@
         (field WAKE_EN0
             (type (inner
                 (field * (set-type bool))
-                (rename EnableBitmap0)
+                (rename Enable_Bitmap_0)
             ))
         )
         (field WAKE_EN1
             (type (inner
                 (field * (set-type bool))
-                (rename EnableBitmap1)
+                (rename Enable_Bitmap_1)
             ))
         )
-        (merge-field WAKE_EN0 wake_enable (name EnableBitmap)
+        (merge-field WAKE_EN0 wake_enable (name Enable_Bitmap)
             (inline always)
             (struct
-                (_0 (type (reg EnableBitmap0)) (default 0xFFFFFFFF))
-                (_1 (type (reg EnableBitmap1)) (default 0x7FFF))
+                (_0 (type (reg Enable_Bitmap_0)) (default 0xFFFFFFFF))
+                (_1 (type (reg Enable_Bitmap_1)) (default 0x7FFF))
             )
         )
-        (merge-field SLEEP_EN0 sleep_enable EnableBitmap)
-        (merge-field ENABLED0 enabled_status EnableBitmap)
+        (merge-field SLEEP_EN0 sleep_enable Enable_Bitmap)
+        (merge-field ENABLED0 enabled_status Enable_Bitmap)
         (field enabled_status (type
             (rename "")
             (field * (type (set-access r)))
@@ -1912,14 +1912,14 @@
             (rename interrupt_status)
             (type (set-access r) (inner
                 (field * (set-type bool))
-                (rename InterruptBitmap)
+                (rename Interrupt_Bitmap)
                 (field CLK_SYS_RESUS (rename resus))
             ))
         )
         (merge-field INTE irq (struct
-            (enable (type (reg InterruptBitmap)))
-            (force (type (reg InterruptBitmap)))
-            (status (type (reg r InterruptBitmap)))
+            (enable (type (reg Interrupt_Bitmap)))
+            (force (type (reg Interrupt_Bitmap)))
+            (status (type (reg r Interrupt_Bitmap)))
         ))
         (set-name _CLOCKS)
     ))
@@ -1953,7 +1953,7 @@
     ))
 )
 (group timer
-    (create-type AlarmBitmap
+    (create-type Alarm_Bitmap
         (bits 32)
         (packed
             (alarm0 (type bool))
@@ -1976,8 +1976,8 @@
             (field ARMED
                 (rename alarm)
                 (set-type (union
-                    (pending (type (reg r AlarmBitmap)))
-                    (cancel (type (reg w AlarmBitmap)))
+                    (pending (type (reg r Alarm_Bitmap)))
+                    (cancel (type (reg w Alarm_Bitmap)))
                 ))
             )
             (merge-field TIMERAWH read_tick_unlatched (struct
@@ -1997,11 +1997,11 @@
                     (field PAUSE (rename pause) (set-type bool))
                 ))
             )
-            (field INTR (rename interrupt_status) (set-type (reg AlarmBitmap)))
+            (field INTR (rename interrupt_status) (set-type (reg Alarm_Bitmap)))
             (merge-field INTE irq (struct
-                (enable (type (reg AlarmBitmap)))
-                (force (type (reg AlarmBitmap)))
-                (status (type (reg r AlarmBitmap)))
+                (enable (type (reg Alarm_Bitmap)))
+                (force (type (reg Alarm_Bitmap)))
+                (status (type (reg r Alarm_Bitmap)))
             ))
         )
     )
@@ -2011,23 +2011,23 @@
         (field RESET_DONE
             (rename done)
             (type (inner
-                (set-name ResetBitmap)
+                (set-name Reset_Bitmap)
                 (field * (set-type bool))
             ))
         )
         (field WDSEL
             (rename watchdog)
             (type (inner
-                (set-name ResetBitmap)
+                (set-name Reset_Bitmap)
                 (field * (set-type bool))
             ))
         )
         (field RESET
             (rename force)
-            (set-type (reg ResetBitmap))
+            (set-type (reg Reset_Bitmap))
         )
     ))
-    (create-type ValueSetClearToggle
+    (create-type Value_Set_Clear_Toggle
         (struct
             (value (type (reg u32)))
             (set (type (reg w u32)))
@@ -2035,7 +2035,7 @@
             (toggle (type (reg w u32)))
         )
     )
-    (create-type InterpolatorControlLane0
+    (create-type Interpolator_Control_Lane_0
         (bits 32)
         (packed
             (shift (type u5))
@@ -2052,7 +2052,7 @@
             (overflow (type bool))
         )
     )
-    (create-type InterpolatorControlLane1
+    (create-type Interpolator_Control_Lane_1
         (bits 32)
         (packed
             (shift (type u5))
@@ -2071,10 +2071,10 @@
             (merge-field GPIO_IN io (struct
                 (in (type (reg r u32)))
                 (in_qspi (type (reg r u32)))
-                (out (type ValueSetClearToggle) (offset 0xC))
-                (oe (type ValueSetClearToggle))
-                (out_qspi (type ValueSetClearToggle))
-                (oe_qspi (type ValueSetClearToggle))
+                (out (type Value_Set_Clear_Toggle) (offset 0xC))
+                (oe (type Value_Set_Clear_Toggle))
+                (out_qspi (type Value_Set_Clear_Toggle))
+                (oe_qspi (type Value_Set_Clear_Toggle))
             ))
             (merge-field FIFO_ST fifo (struct
                 (status (type (reg (bits 32) (packed
@@ -2108,8 +2108,8 @@
                 (peek_lane0 (type (reg r u32)))
                 (peek_lane1 (type (reg r u32)))
                 (peek_full (type (reg r u32)))
-                (control_lane0 (type (reg InterpolatorControlLane0)))
-                (control_lane1 (type (reg InterpolatorControlLane1)))
+                (control_lane0 (type (reg Interpolator_Control_Lane_0)))
+                (control_lane1 (type (reg Interpolator_Control_Lane_1)))
                 (accumulator_add (type (array 2 (reg (bits 32) (packed
                     (value (type u24))
                 )))))
@@ -2448,7 +2448,7 @@
                 (set_pending_NMI "reads true if NMI is pending" (type bool) (offset 31))
             ))))
             (vector_table "N.B. The vector table must be align(256)!\\na.k.a. VTOR"
-                (type (reg (pointer allowzero const (name VectorTable) (ext chip.reg_types))))
+                (type (reg (pointer allowzero const (name Vector_Table) (ext chip.reg_types))))
             )
             (reset_control "a.k.a. AIRCR" (type (reg (bits 32) (packed
                 (request_clear_active_exception "Only available when core is halted" (type bool) (offset 1))

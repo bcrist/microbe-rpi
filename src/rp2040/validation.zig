@@ -1,5 +1,5 @@
-const microbe = @import("microbe");
-const chip = @import("chip");
+pub const pads = microbe.Comptime_Resource_Validator(chip.Pad_ID, "pad");
+pub const dma = microbe.Comptime_Resource_Validator(chip.dma.Channel, "DMA channel");
 
-pub const pads = microbe.ComptimeResourceValidator(chip.PadID, "pad");
-pub const dma = microbe.ComptimeResourceValidator(chip.dma.Channel, "DMA channel");
+const chip = @import("chip");
+const microbe = @import("microbe");

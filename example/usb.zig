@@ -3,9 +3,9 @@ const usb = @import("microbe").usb;
 const descriptor = usb.descriptor;
 const endpoint = usb.endpoint;
 const classes = usb.classes;
-const SetupPacket = usb.SetupPacket;
+const Setup_Packet = usb.Setup_Packet;
 
-pub fn getDeviceDescriptor() descriptor.Device {
+pub fn get_device_descriptor() descriptor.Device {
     return .{
         .usb_version = .usb_2_0,
         .class = usb.hid.class.default,
@@ -19,7 +19,7 @@ pub fn getDeviceDescriptor() descriptor.Device {
     };
 }
 
-const languages: descriptor.SupportedLanguages(&.{
+const languages: descriptor.Supported_Languages(&.{
     .english_us,
 }) = .{};
 const strings = struct {
@@ -28,13 +28,13 @@ const strings = struct {
     const serial_number: descriptor.String("12345") = .{};
 };
 
-pub fn getStringDescriptor(id: descriptor.StringID, language: descriptor.Language) ?[]const u8 {
-    if (id == .languages) return languages.asBytes();
+pub fn get_string_descriptor(id: descriptor.String_ID, language: descriptor.Language) ?[]const u8 {
+    if (id == .languages) return languages.as_bytes();
     return switch (language) {
         .english_us => switch (id) {
-            .manufacturer_name => strings.mfr_name.asBytes(),
-            .product_name => strings.product_name.asBytes(),
-            .serial_number => strings.serial_number.asBytes(),
+            .manufacturer_name => strings.mfr_name.as_bytes(),
+            .product_name => strings.product_name.as_bytes(),
+            .serial_number => strings.serial_number.as_bytes(),
             else => null,
         },
         else => null,
@@ -48,7 +48,7 @@ const default_configuration = struct {
 
         pub const in_endpoint = struct {
             pub const address: endpoint.Address = .{ .ep = 1, .dir = .in };
-            pub const kind: endpoint.TransferKind = .interrupt;
+            pub const kind: endpoint.Transfer_Kind = .interrupt;
             pub const poll_interval_ms: u8 = 16;
         };
 
@@ -82,16 +82,16 @@ const default_configuration = struct {
 
 const configurations = .{ default_configuration };
 
-pub fn getConfigurationDescriptorSet(configuration_index: u8) ?[]const u8 {
+pub fn get_configuration_descriptor_set(configuration_index: u8) ?[]const u8 {
     inline for (0.., configurations) |i, configuration| {
         if (i == configuration_index) {
-            return descriptor.asBytes(&configuration.descriptors);
+            return descriptor.as_bytes(&configuration.descriptors);
         }
     }
     return null;
 }
 
-pub fn getInterfaceCount(configuration: u8) u8 {
+pub fn get_interface_count(configuration: u8) u8 {
     inline for (configurations) |cfg| {
         if (cfg.descriptors.config.number == configuration) {
             return @intCast(cfg.interfaces.len);
@@ -100,7 +100,7 @@ pub fn getInterfaceCount(configuration: u8) u8 {
     return 0;
 }
 
-pub fn getEndpointCount(configuration: u8, interface_index: u8) u8 {
+pub fn get_endpoint_count(configuration: u8, interface_index: u8) u8 {
     inline for (configurations) |cfg| {
         if (cfg.descriptors.config.number == configuration) {
             inline for (0.., cfg.interfaces) |j, interface| {
@@ -115,7 +115,7 @@ pub fn getEndpointCount(configuration: u8, interface_index: u8) u8 {
 
 // Endpoint descriptors are not queried directly by hosts, but these are used to set up
 // the hardware configuration for each endpoint.
-pub fn getEndpointDescriptor(configuration: u8, interface_index: u8, endpoint_index: u8) descriptor.Endpoint {
+pub fn get_endpoint_descriptor(configuration: u8, interface_index: u8, endpoint_index: u8) descriptor.Endpoint {
     inline for (configurations) |cfg| {
         if (cfg.descriptors.config.number == configuration) {
             inline for (0.., cfg.interfaces) |j, iface| {
@@ -133,23 +133,23 @@ pub fn getEndpointDescriptor(configuration: u8, interface_index: u8, endpoint_in
 }
 
 /// This function can be used to provide class-specific descriptors associated with the device
-pub fn getDescriptor(kind: descriptor.Kind, descriptor_index: u8) ?[]const u8 {
+pub fn get_descriptor(kind: descriptor.Kind, descriptor_index: u8) ?[]const u8 {
     _ = descriptor_index;
     _ = kind;
     return null;
 }
 
 /// This function can be used to provide class-specific descriptors associated with a particular interface, e.g. HID report descriptors
-pub fn getInterfaceSpecificDescriptor(interface: u8, kind: descriptor.Kind, descriptor_index: u8) ?[]const u8 {
+pub fn get_interface_specific_descriptor(interface: u8, kind: descriptor.Kind, descriptor_index: u8) ?[]const u8 {
     _ = descriptor_index;
     const hi = default_configuration.hid_interface;
     if (interface == hi.index) {
         switch (kind) {
             usb.hid.hid_descriptor => {
-                return hi.hid_descriptor.asBytes();
+                return hi.hid_descriptor.as_bytes();
             },
             usb.hid.report_descriptor => {
-                return hi.report_descriptor.asBytes();
+                return hi.report_descriptor.as_bytes();
             },
             else => {},
         }
@@ -158,7 +158,7 @@ pub fn getInterfaceSpecificDescriptor(interface: u8, kind: descriptor.Kind, desc
 }
 
 /// This function can be used to provide class-specific descriptors associated with a particular endpoint
-pub fn getEndpointSpecificDescriptor(ep: endpoint.Index, kind: descriptor.Kind, descriptor_index: u8) ?[]const u8 {
+pub fn get_endpoint_specific_descriptor(ep: endpoint.Index, kind: descriptor.Kind, descriptor_index: u8) ?[]const u8 {
     _ = descriptor_index;
     _ = kind;
     _ = ep;
@@ -168,11 +168,11 @@ pub fn getEndpointSpecificDescriptor(ep: endpoint.Index, kind: descriptor.Kind, 
 /// This function determines whether the USB engine should reply to non-control transactions with ACK or NAK
 /// For .in endpoints, this should return true when we have some data to send.
 /// For .out endpoints, this should return true when we can handle at least the max packet size of data for this endpoint.
-pub fn isEndpointReady(address: endpoint.Address) bool {
+pub fn is_endpoint_ready(address: endpoint.Address) bool {
     switch (address.dir) {
         .in => switch (address.ep) {
             default_configuration.hid_interface.in_endpoint.address.ep => {
-                return report.isEndpointReady();
+                return report.is_endpoint_ready();
             },
             else => {},
         },
@@ -183,7 +183,7 @@ pub fn isEndpointReady(address: endpoint.Address) bool {
 
 /// The buffer returned from this function only needs to remain valid briefly; it will be copied to an internal buffer.
 /// If you don't have a buffer available, you can instead define:
-pub fn fillInBuffer(ep: endpoint.Index, data: []u8) u16 {
+pub fn fill_in_buffer(ep: endpoint.Index, data: []u8) u16 {
     switch (ep) {
         default_configuration.hid_interface.in_endpoint.address.ep => {
             const b = report.getInBuffer();
@@ -195,56 +195,56 @@ pub fn fillInBuffer(ep: endpoint.Index, data: []u8) u16 {
     return 0;
 }
 
-pub fn handleOutBuffer(ep: endpoint.Index, data: []volatile const u8) void {
+pub fn handle_out_buffer(ep: endpoint.Index, data: []volatile const u8) void {
     _ = data;
     _ = ep;
 }
 
 /// Called when a SOF packet is received
-pub fn handleStartOfFrame() void {
-    report.handleStartOfFrame();
+pub fn handle_start_of_frame() void {
+    report.handle_start_of_frame();
 }
 
 /// Called when the host resets the bus
-pub fn handleBusReset() void {
+pub fn handle_bus_reset() void {
     report.reset();
 }
 
 /// Called when a set_configuration setup request is processed
-pub fn handleConfigurationChanged(configuration: u8) void {
+pub fn handle_configuration_changed(configuration: u8) void {
     _ = configuration;
 }
 
 /// Used to respond to the get_status setup request
-pub fn isDeviceSelfPowered() bool {
+pub fn is_device_self_powered() bool {
     return false;
 }
 
 /// Handle any class/device-specific setup requests here.
 /// Return true if the setup request is recognized and handled.
 ///
-/// Requests where setup.data_len == 0 should call `device.setupStatusIn()`.
+/// Requests where setup.data_len == 0 should call `device.setup_status_in()`.
 /// Note this is regardless of whether setup.direction is .in or .out.
 ///
-/// .in requests with a non-zero length should make one or more calls to `device.fillSetupIn(offset, data)`,
-/// followed by a call to `device.setupTransferIn(total_length)`, or just a single
-/// call to `device.setupTransferInData(data)`.  The data may be larger than the maximum EP0 transfer size.
-/// In that case the data will need to be provided again using the `fillSetupIn` function below.
+/// .in requests with a non-zero length should make one or more calls to `device.fill_setup_in(offset, data)`,
+/// followed by a call to `device.setup_transfer_in(total_length)`, or just a single
+/// call to `device.setup_transfer_in_data(data)`.  The data may be larger than the maximum EP0 transfer size.
+/// In that case the data will need to be provided again using the `fill_setup_in` function below.
 ///
-/// .out requests with a non-zero length should call `device.setupTransferOut(setup.data_len)`.
-/// The data will then be provided later via `handleSetupOutBuffer`
+/// .out requests with a non-zero length should call `device.setup_transfer_out(setup.data_len)`.
+/// The data will then be provided later via `handle_setup_out_buffer`
 ///
 /// Note that this gets called even for standard requests that are normally handled internally.
 /// You _must_ check that the packet matches what you're looking for specifically.
-pub fn handleSetup(setup: SetupPacket) bool {
-    if (report.handleSetup(setup)) return true;
-    if (status.handleSetup(setup)) return true;
+pub fn handle_setup(setup: Setup_Packet) bool {
+    if (report.handle_setup(setup)) return true;
+    if (status.handle_setup(setup)) return true;
     if (setup.kind == .class and setup.target == .interface) switch (setup.request) {
         usb.hid.requests.set_protocol => if (setup.direction == .out) {
             const payload: usb.hid.requests.ProtocolPayload = @bitCast(setup.payload);
             if (payload.interface == default_configuration.hid_interface.index) {
                 std.log.scoped(.usb).info("set protocol: {}", .{ payload.protocol });
-                device.setupStatusIn();
+                device.setup_status_in();
                 return true;
             }
         },
@@ -253,7 +253,7 @@ pub fn handleSetup(setup: SetupPacket) bool {
             if (payload.interface == default_configuration.hid_interface.index) {
                 std.log.scoped(.usb).info("get protocol", .{});
                 const protocol: u8 = 0;
-                device.setupTransferInData(std.mem.asBytes(&protocol));
+                device.setup_transfer_in_data(std.mem.asBytes(&protocol));
                 return true;
             }
         },
@@ -268,18 +268,18 @@ pub fn handleSetup(setup: SetupPacket) bool {
 /// Otherwise, it is assumed that the entire remaining data, or the entire buffer (whichever is smaller)
 /// will be filled with data to send.
 /// 
-/// Normally this function should make one or more calls to `device.fillSetupIn(offset, data)`,
+/// Normally this function should make one or more calls to `device.fill_setup_in(offset, data)`,
 /// corresponding to the entire data payload, including parts that have already been sent.  The
 /// parts outside the current buffer will automatically be ignored.
-pub fn fillSetupIn(setup: SetupPacket) bool {
+pub fn fill_setup_in(setup: Setup_Packet) bool {
     _ = setup;
     return false;
 }
 
 /// Return true if the setup request is recognized and the data buffer was processed.
-pub fn handleSetupOutBuffer(setup: SetupPacket, offset: u16, data: []volatile const u8, last_buffer: bool) bool {
+pub fn handle_setup_out_buffer(setup: Setup_Packet, offset: u16, data: []volatile const u8, last_buffer: bool) bool {
     _ = last_buffer;
-    return status.handleSetupOutBuffer(setup, offset, data);
+    return status.handle_setup_out_buffer(setup, offset, data);
 }
 
 pub fn init() void {
@@ -292,14 +292,14 @@ pub fn update() void {
     device.update();
 }
 
-var device: usb.Usb(@This()) = .{};
-var report: usb.hid.InputReporter(@This(), default_configuration.hid_interface.Report, .{
+var device: usb.USB(@This()) = .{};
+var report: usb.hid.Input_Reporter(@This(), default_configuration.hid_interface.Report, .{
     .max_buffer_size = 16,
     .interface_index = 0,
     .report_id = 0,
     .default_idle_interval = .@"500ms",
 }) = undefined;
-var status: usb.hid.OutputReporter(@This(), default_configuration.hid_interface.Status, .{
+var status: usb.hid.Output_Reporter(@This(), default_configuration.hid_interface.Status, .{
     .interface_index = 0,
     .report_id = 0,
 }) = undefined;

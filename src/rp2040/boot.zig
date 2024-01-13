@@ -1,15 +1,3 @@
-const std = @import("std");
-const root = @import("root");
-const chip = @import("chip");
-const config = @import("config");
-const microbe = @import("microbe");
-const clocks = @import("clocks.zig");
-const resets = @import("resets.zig");
-const reg_types = chip.reg_types;
-const VectorTable = reg_types.VectorTable;
-const Exception = chip.interrupts.Exception;
-const ExceptionHandler = chip.interrupts.Handler;
-
 // These come from the linker and indicates where the stack segments end, which
 // is where the initial stack pointer should be.  It's not a function, but by
 // pretending that it is, zig realizes that its address is constant, which doesn't
@@ -26,7 +14,7 @@ pub fn boot3() callconv(.Naked) noreturn {
         \\ mov sp, %[stack]
         \\ bx %[start]
         :
-        : [start] "r" (&start),
+        : [start] "r" (&_start),
           [stack] "r" (&_core0_stack_end)
         : "memory"
     );
@@ -34,7 +22,7 @@ pub fn boot3() callconv(.Naked) noreturn {
 
 /// This is the logical entry point for microbe.
 /// It will invoke the main function from the root source file and provide error return handling
-fn start() linksection(".boot3") callconv(.C) noreturn {
+export fn _start() linksection(".boot3") callconv(.C) noreturn {
     chip.SCB.vector_table.write(&core0_vt);
 
     if (@hasDecl(root, "earlyInit")) {
@@ -52,7 +40,7 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
 
     clocks.init();
 
-    config.initRam();
+    config.init_ram();
 
     if (@hasDecl(root, "init")) {
         root.init();
@@ -85,13 +73,13 @@ fn start() linksection(".boot3") callconv(.C) noreturn {
     @panic("main() returned!");
 }
 
-pub const core0_vt: VectorTable align(0x100) linksection(".core0_vt") = initVectorTable("core0");
-pub const core1_vt: VectorTable align(0x100) linksection(".core1_vt") = initVectorTable("core1");
+pub const core0_vt: Vector_Table align(0x100) linksection(".core0_vt") = init_vector_table("core0");
+pub const core1_vt: Vector_Table align(0x100) linksection(".core1_vt") = init_vector_table("core1");
 
-fn initVectorTable(comptime core_id: []const u8) VectorTable {
-    var vt: VectorTable = .{
+fn init_vector_table(comptime core_id: []const u8) Vector_Table {
+    var vt: Vector_Table = .{
         .initial_stack_pointer = &@field(@This(), "_" ++ core_id ++ "_stack_end"),
-        .Reset = ExceptionHandler.wrap(microbe.hang),
+        .Reset = Exception_Handler.wrap(microbe.hang),
     };
     if (@hasDecl(root, "handlers")) {
         if (@typeInfo(root.handlers) != .Struct) {
@@ -105,14 +93,14 @@ fn initVectorTable(comptime core_id: []const u8) VectorTable {
                     inline for (struct_info.decls) |core_decl| {
                         const core_field = @field(field, core_decl.name);
                         if (@hasField(Exception, core_decl.name)) {
-                            @field(vt, core_decl.name) = ExceptionHandler.wrap(core_field);
+                            @field(vt, core_decl.name) = Exception_Handler.wrap(core_field);
                         } else {
                             @compileError(core_decl.name ++ " is not a valid exception handler name!");
                         }
                     }
                 },
                 .Fn => if (@hasField(Exception, decl.name)) {
-                    @field(vt, decl.name) = ExceptionHandler.wrap(field);
+                    @field(vt, decl.name) = Exception_Handler.wrap(field);
                 } else {
                     @compileError(decl.name ++ " is not a valid exception handler name!");
                 },
@@ -123,12 +111,12 @@ fn initVectorTable(comptime core_id: []const u8) VectorTable {
     return vt;
 }
 
-pub fn resetCurrentCore() noreturn {
+pub fn reset_current_core() noreturn {
     chip.SCB.reset_control.write(.{ .request_core_reset = true });
     unreachable;
 }
 
-pub const ResetSource = enum {
+pub const Reset_Source = enum {
     unknown,
     watchdog_forced,
     watchdog_timeout,
@@ -136,8 +124,8 @@ pub const ResetSource = enum {
     external_run_pin,
     debug_port,
 };
-/// Note this doesn't track individual core resets (i.e. resetCurrentCore())
-pub fn getLastResetSource() ResetSource {
+/// Note this doesn't track individual core resets (i.e. reset_current_core())
+pub fn get_last_reset_source() Reset_Source {
     switch (chip.WATCHDOG.last_reset_reason.read().reason) {
         .watchdog_timeout => return .watchdog_timeout,
         .watchdog_forced => return .watchdog_forced,
@@ -150,10 +138,22 @@ pub fn getLastResetSource() ResetSource {
     return .unknown;
 }
 
-pub const CoreID = enum(u8) {
+pub const Core_ID = enum(u8) {
     core0 = 0,
     core1 = 1,
 };
-pub fn getCurrentCoreID() CoreID {
+pub fn get_current_core_id() Core_ID {
     return @enumFromInt(chip.SIO.core_id.read());
 }
+
+const clocks = @import("clocks.zig");
+const resets = @import("resets.zig");
+const reg_types = chip.reg_types;
+const Vector_Table = reg_types.Vector_Table;
+const Exception = chip.interrupts.Exception;
+const Exception_Handler = chip.interrupts.Handler;
+const chip = @import("chip");
+const config = @import("config");
+const microbe = @import("microbe");
+const root = @import("root");
+const std = @import("std");

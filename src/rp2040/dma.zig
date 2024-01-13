@@ -1,5 +1,3 @@
-const chip = @import("chip");
-
 pub const Channel = enum(u4) {
     channel0 = 0,
     channel1 = 1,
@@ -16,10 +14,10 @@ pub const Channel = enum(u4) {
 };
 
 
-pub fn abortChannel(comptime channel: Channel) void {
+pub fn abort_channel(comptime channel: Channel) void {
     const ch = @intFromEnum(channel);
     const mask = @as(u32, 1) << ch;
-    var bitmap: chip.reg_types.dma.ChannelBitmap = @bitCast(mask);
+    const bitmap: chip.reg_types.dma.Channel_Bitmap = @bitCast(mask);
 
     const irq0_enables: u32 = @bitCast(chip.DMA.irq0.enable.read());
     chip.DMA.irq0.enable.write(@bitCast(irq0_enables & ~mask));
@@ -33,3 +31,5 @@ pub fn abortChannel(comptime channel: Channel) void {
 
     chip.DMA.interrupt_status.write(bitmap);
 }
+
+const chip = @import("chip");

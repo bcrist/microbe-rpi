@@ -1,14 +1,9 @@
-const std = @import("std");
-const Build = std.Build;
-
-const Boot2ChecksumStep = @This();
-
 step: Build.Step,
 source: Build.LazyPath,
 output_file: Build.GeneratedFile,
 
-pub fn create(owner: *Build, bin_source: Build.LazyPath) *Boot2ChecksumStep {
-    var self = owner.allocator.create(Boot2ChecksumStep) catch @panic("OOM");
+pub fn create(owner: *Build, bin_source: Build.LazyPath) *Boot2_Checksum_Step {
+    var self = owner.allocator.create(Boot2_Checksum_Step) catch @panic("OOM");
     self.* = .{
         .step = Build.Step.init(.{
             .id = .custom,
@@ -25,10 +20,7 @@ pub fn create(owner: *Build, bin_source: Build.LazyPath) *Boot2ChecksumStep {
     return self;
 }
 
-/// deprecated: use getOutput
-pub const getOutputSource = getOutput;
-
-pub fn getOutput(self: *const Boot2ChecksumStep) Build.LazyPath {
+pub fn get_output(self: *const Boot2_Checksum_Step) Build.LazyPath {
     return .{ .generated = &self.output_file };
 }
 
@@ -36,7 +28,7 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     _ = progress;
 
     const b = step.owner;
-    const self = @fieldParentPtr(Boot2ChecksumStep, "step", step);
+    const self = @fieldParentPtr(Boot2_Checksum_Step, "step", step);
 
     var man = b.cache.obtain();
     defer man.deinit();
@@ -78,16 +70,16 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     }
 
     const raw_boot2 = raw[0..252];
-    var crc = std.hash.crc.Crc32Mpeg2.hash(raw_boot2);
+    const crc = std.hash.crc.Crc32Mpeg2.hash(raw_boot2);
     var crc_stream = std.io.fixedBufferStream(raw[252..256]);
 
-    const previous_crc = try crc_stream.reader().readIntLittle(u32);
+    const previous_crc = try crc_stream.reader().readInt(u32, .little);
     if (previous_crc != crc) {
         std.log.info("Replacing boot2 checksum: {X} -> {X}", .{ previous_crc, crc });
     }
 
     crc_stream.reset();
-    try crc_stream.writer().writeIntLittle(u32, crc);
+    try crc_stream.writer().writeInt(u32, crc, .little);
 
     b.build_root.handle.writeFile(full_dest_path, raw) catch |err| {
         return step.fail("unable to write '{s}': {s}", .{ full_dest_path, @errorName(err) });
@@ -96,3 +88,7 @@ fn make(step: *Build.Step, progress: *std.Progress.Node) !void {
     self.output_file.path = full_dest_path;
     try man.writeManifest();
 }
+
+const Boot2_Checksum_Step = @This();
+const Build = std.Build;
+const std = @import("std");

@@ -1,23 +1,7 @@
-const std = @import("std");
-const reg_types = @import("reg_types.zig");
-const peripherals = @import("peripherals.zig");
-const clocks = @import("clocks.zig");
-const resets = @import("resets.zig");
-const microbe = @import("microbe");
-const chip = @import("chip");
-const Events = microbe.usb.Events;
-const SetupPacket = microbe.usb.SetupPacket;
-const PID = microbe.usb.PID;
-const descriptor = microbe.usb.descriptor;
-const endpoint = microbe.usb.endpoint;
-const Mmio = microbe.Mmio;
-
-const log = std.log.scoped(.usb);
-
 comptime {
     // The clock config parser will check to make sure the frequency is close enough to 48MHz,
     // we just want to verify that it's enabled at all:
-    if (clocks.getConfig().usb.frequency_hz == 0) {
+    if (clocks.get_config().usb.frequency_hz == 0) {
         @compileError("USB frequency should be set to 48 MHz");
     }
 }
@@ -29,7 +13,7 @@ var stalled_or_waiting: u32 = 0;
 pub fn init() void {
     resets.reset(.usbctrl);
 
-    handleBusReset();
+    handle_bus_reset();
 
     peripherals.USB_DEV.muxing.write(.{
         .to_phy = true,
@@ -58,21 +42,21 @@ pub fn init() void {
 }
 
 pub fn deinit() void {
-    resets.holdInReset(.usbctrl);
+    resets.hold_in_reset(.usbctrl);
 }
 
-pub fn handleBusReset() void {
+pub fn handle_bus_reset() void {
     stalled_or_waiting = 0;
     for (0..16) |ep| {
-        getBufferControl0(.{ .ep = @intCast(ep), .dir = .in }).write(.{});
+        get_buffer_control_0(.{ .ep = @intCast(ep), .dir = .in }).write(.{});
     }
     peripherals.USB_DEV.buffer_transfer_complete.raw = ~@as(u32, 0);
-    peripherals.USB_DEV.sie_status.clearBits(.bus_reset_detected);
+    peripherals.USB_DEV.sie_status.clear_bits(.bus_reset_detected);
     peripherals.USB_DEV.address.write(0);
 }
 
-pub fn pollEvents() Events {
-    const s: reg_types.usb.DeviceInterruptBitmap = peripherals.USB_DEV.interrupts.status.read();
+pub fn poll_events() Events {
+    const s: reg_types.usb.Device_Interrupt_Bitmap = peripherals.USB_DEV.interrupts.status.read();
     const sie_status = peripherals.USB_DEV.sie_status.read();
     peripherals.USB_DEV.sie_status.write(.{
         .data_sequence_error_detected = true,
@@ -120,7 +104,7 @@ pub fn pollEvents() Events {
     }
 
     if (s.setup_request) {
-        peripherals.USB_DEV.ep_abort.setBits(.{ .ep0 = .{ .in = true, .out = true }});
+        peripherals.USB_DEV.ep_abort.set_bits(.{ .ep0 = .{ .in = true, .out = true }});
         if (peripherals.USB_BUF.buffer_control.ep0.device.in0.read().transfer_pending) {
             while (!peripherals.USB_DEV.ep_abort_complete.read().ep0.in) {}
             peripherals.USB_BUF.buffer_control.ep0.device.in0.write(.{});
@@ -132,7 +116,7 @@ pub fn pollEvents() Events {
             peripherals.USB_BUF.buffer_control.ep0.device.out0.write(.{});
             log.debug("ep0 out aborted", .{});
         }
-        peripherals.USB_DEV.ep_abort.clearBits(.{ .ep0 = .{ .in = true, .out = true }});
+        peripherals.USB_DEV.ep_abort.clear_bits(.{ .ep0 = .{ .in = true, .out = true }});
     }
 
     return .{
@@ -142,8 +126,8 @@ pub fn pollEvents() Events {
     };
 }
 
-pub fn getSetupPacket() SetupPacket {
-    var raw: packed struct (u64) {
+pub fn get_setup_packet() Setup_Packet {
+    const raw: packed struct (u64) {
         low: u32,
         high: u32,
     } = .{
@@ -154,17 +138,17 @@ pub fn getSetupPacket() SetupPacket {
     return @bitCast(raw);
 }
 
-pub fn setAddress(address: u7) void {
+pub fn set_address(address: u7) void {
     peripherals.USB_DEV.address.write(address);
 }
 
-pub fn configureEndpoint(ed: descriptor.Endpoint) void {
-    const buffer = endpointBufferIndex(ed.address);
-    var dpram_base = @intFromPtr(peripherals.USB_BUF);
-    var buffer_base = @intFromPtr(&peripherals.USB_BUF.buffer[buffer]);
-    var base_offset: u16 = @intCast(buffer_base - dpram_base);
+pub fn configure_endpoint(ed: descriptor.Endpoint) void {
+    const buffer = endpoint_buffer_index(ed.address);
+    const dpram_base = @intFromPtr(peripherals.USB_BUF);
+    const buffer_base = @intFromPtr(&peripherals.USB_BUF.buffer[buffer]);
+    const base_offset: u16 = @intCast(buffer_base - dpram_base);
 
-    getEndpointControl(ed.address).write(.{
+    get_endpoint_control(ed.address).write(.{
         .buffer_base = @intCast(@shrExact(base_offset, 6)),
         .transfer_kind = ed.transfer_kind,
         .enable_buffer_interrupt = true,
@@ -172,18 +156,18 @@ pub fn configureEndpoint(ed: descriptor.Endpoint) void {
     });
 }
 
-pub fn bufferIterator() BufferIterator {
+pub fn buffer_iterator() Buffer_Iterator {
     const raw = peripherals.USB_DEV.buffer_transfer_complete.raw | stalled_or_waiting;
     return .{
         .bitmap = raw,
         .next_index = if (raw == 0) 32 else @ctz(raw),
     };
 }
-const BufferIterator = struct {
+const Buffer_Iterator = struct {
     bitmap: u32,
     next_index: u6,
 
-    pub fn next(self: *BufferIterator) ?endpoint.BufferInfo {
+    pub fn next(self: *Buffer_Iterator) ?endpoint.Buffer_Info {
         const current = self.next_index;
         if (current >= 32) return null;
 
@@ -207,19 +191,19 @@ const BufferIterator = struct {
             },
         };
 
-        clearBufferTransferCompleteFlag(ep_address);
+        clear_buffer_transfer_complete_flag(ep_address);
 
-        const buf: reg_types.usb.DeviceBufferControl0 = getBufferControl0(ep_address).read();
+        const buf: reg_types.usb.Device_Buffer_Control_0 = get_buffer_control_0(ep_address).read();
 
         return .{
             .address = ep_address,
-            .buffer = getBufferData(ep_address)[0..buf.len],
+            .buffer = get_buffer_data(ep_address)[0..buf.len],
             .final_buffer = buf.final_transfer,
         };
     }
 };
 
-pub fn fillBufferIn(ep: endpoint.Index, offset: isize, data: []const u8) void {
+pub fn fill_buffer_in(ep: endpoint.Index, offset: isize, data: []const u8) void {
     var adjusted_data = data;
     const offset_usize: usize = if (offset < 0) s: {
         const start: usize = @intCast(-offset);
@@ -235,17 +219,17 @@ pub fn fillBufferIn(ep: endpoint.Index, offset: isize, data: []const u8) void {
 
     const ep_address: endpoint.Address = .{ .ep = ep, .dir = .in };
 
-    //std.debug.assert(getBufferControl0(ep_address).read().transfer_pending == false);
-    const buffer = getBufferData(ep_address);
+    //std.debug.assert(get_buffer_control_0(ep_address).read().transfer_pending == false);
+    const buffer = get_buffer_data(ep_address);
     @memcpy(buffer[offset_usize..].ptr, adjusted_data);
 
     log.debug("{X:0>8}: {}", .{ @intFromPtr(buffer), std.fmt.fmtSliceHexLower(@volatileCast(buffer)) });
 }
 
-pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID, last_buffer: bool) void {
+pub fn start_transfer_in(ep: endpoint.Index, len: usize, pid: PID, last_buffer: bool) void {
     const ep_address = .{ .ep = ep, .dir = .in };
 
-    const bc = getBufferControl0(ep_address);
+    const bc = get_buffer_control_0(ep_address);
     var bc_value: @TypeOf(bc.*).Type = .{
         .len = @intCast(len),
         .pid = pid,
@@ -264,13 +248,13 @@ pub fn startTransferIn(ep: endpoint.Index, len: usize, pid: PID, last_buffer: bo
     bc_value.transfer_pending = true;
     bc.write(bc_value);
 
-    stalled_or_waiting &= ~endpointAddressMask(ep_address);
+    stalled_or_waiting &= ~endpoint_address_mask(ep_address);
 }
 
-pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID, last_buffer: bool) void {
-    var ep_address: endpoint.Address = .{ .ep = ep, .dir = .out };
+pub fn start_transfer_out(ep: endpoint.Index, len: usize, pid: PID, last_buffer: bool) void {
+    const ep_address: endpoint.Address = .{ .ep = ep, .dir = .out };
 
-    const bc = getBufferControl0(ep_address);
+    const bc = get_buffer_control_0(ep_address);
     var bc_value: @TypeOf(bc.*).Type = .{
         .len = @intCast(len),
         .pid = pid,
@@ -289,39 +273,39 @@ pub fn startTransferOut(ep: endpoint.Index, len: usize, pid: PID, last_buffer: b
     bc_value.transfer_pending = true;
     bc.write(bc_value);
 
-    stalled_or_waiting &= ~endpointAddressMask(ep_address);
+    stalled_or_waiting &= ~endpoint_address_mask(ep_address);
 }
 
-pub fn startStall(address: endpoint.Address) void {
+pub fn start_stall(address: endpoint.Address) void {
     log.debug("ep{} {s} stalling", .{ address.ep, @tagName(address.dir) });
     if (address.ep == 0) {
         switch (address.dir) {
-            .in => peripherals.USB_DEV.ep0_stall_arm.setBits(.in),
-            .out => peripherals.USB_DEV.ep0_stall_arm.setBits(.out),
+            .in => peripherals.USB_DEV.ep0_stall_arm.set_bits(.in),
+            .out => peripherals.USB_DEV.ep0_stall_arm.set_bits(.out),
         }
     }
-    getBufferControl0(address).write(.{ .send_stall = true });
-    stalled_or_waiting |= endpointAddressMask(address);
+    get_buffer_control_0(address).write(.{ .send_stall = true });
+    stalled_or_waiting |= endpoint_address_mask(address);
 }
 
-pub fn startNak(address: endpoint.Address) void {
+pub fn start_nak(address: endpoint.Address) void {
     log.debug("ep{} {s} nakking", .{ address.ep, @tagName(address.dir) });
-    getBufferControl0(address).write(.{});
-    stalled_or_waiting |= endpointAddressMask(address);
+    get_buffer_control_0(address).write(.{});
+    stalled_or_waiting |= endpoint_address_mask(address);
 }
 
-fn getBufferData(ep_address: endpoint.Address) *volatile [64]u8 {
+fn get_buffer_data(ep_address: endpoint.Address) *volatile [64]u8 {
     if (ep_address.ep == 0) {
         return &peripherals.USB_BUF.buffer[0];
     } else {
-        const ec: reg_types.usb.DeviceEndpointControl = getEndpointControl(ep_address).read();
+        const ec: reg_types.usb.Device_Endpoint_Control = get_endpoint_control(ep_address).read();
         const buffer_index: usize = ec.buffer_base;
         const buffer_offset: usize = buffer_index * 64;
         return @ptrFromInt(@intFromPtr(peripherals.USB_BUF) + buffer_offset);
     }
 }
 
-fn getEndpointControl(ep_address: endpoint.Address) *volatile Mmio(reg_types.usb.DeviceEndpointControl, .rw) {
+fn get_endpoint_control(ep_address: endpoint.Address) *volatile MMIO(reg_types.usb.Device_Endpoint_Control, .rw) {
     const io = switch (ep_address.ep) {
         0 => unreachable,
         1 => &peripherals.USB_BUF.ep_control.ep1.device,
@@ -347,7 +331,7 @@ fn getEndpointControl(ep_address: endpoint.Address) *volatile Mmio(reg_types.usb
     };
 }
 
-fn getBufferControl0(ep_address: endpoint.Address) *volatile Mmio(reg_types.usb.DeviceBufferControl0, .rw) {
+fn get_buffer_control_0(ep_address: endpoint.Address) *volatile MMIO(reg_types.usb.Device_Buffer_Control_0, .rw) {
     const io = switch (ep_address.ep) {
         0 => &peripherals.USB_BUF.buffer_control.ep0.device,
         1 => &peripherals.USB_BUF.buffer_control.ep1.device,
@@ -373,18 +357,34 @@ fn getBufferControl0(ep_address: endpoint.Address) *volatile Mmio(reg_types.usb.
     };
 }
 
-fn endpointBufferIndex(ep_address: endpoint.Address) u5 {
+fn endpoint_buffer_index(ep_address: endpoint.Address) u5 {
     var index: u5 = ep_address.ep;
     index *= 2;
     if (ep_address.dir == .out) index += 1;
     return index;
 }
 
-fn endpointAddressMask(ep_address: endpoint.Address) u32 {
-    return @as(u32, 1) << endpointBufferIndex(ep_address);
+fn endpoint_address_mask(ep_address: endpoint.Address) u32 {
+    return @as(u32, 1) << endpoint_buffer_index(ep_address);
 }
 
-fn clearBufferTransferCompleteFlag(ep_address: endpoint.Address) void {
-    const mask = endpointAddressMask(ep_address);
-    chip.clearRegisterBits(&peripherals.USB_DEV.buffer_transfer_complete.raw, mask);
+fn clear_buffer_transfer_complete_flag(ep_address: endpoint.Address) void {
+    const mask = endpoint_address_mask(ep_address);
+    chip.clear_register_bits(&peripherals.USB_DEV.buffer_transfer_complete.raw, mask);
 }
+
+const log = std.log.scoped(.usb);
+
+const reg_types = @import("reg_types.zig");
+const peripherals = @import("peripherals.zig");
+const clocks = @import("clocks.zig");
+const resets = @import("resets.zig");
+const chip = @import("chip");
+const Events = microbe.usb.Events;
+const Setup_Packet = microbe.usb.Setup_Packet;
+const PID = microbe.usb.PID;
+const descriptor = microbe.usb.descriptor;
+const endpoint = microbe.usb.endpoint;
+const MMIO = microbe.MMIO;
+const microbe = @import("microbe");
+const std = @import("std");

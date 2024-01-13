@@ -29,7 +29,7 @@ const Command = enum(u8) {
     quad_read = 0xEB,
 };
 
-const StatusRegister0 = if (config.flash_quad_enable_bit < 8) packed struct (u8) {
+const Status_Register_0 = if (config.flash_quad_enable_bit < 8) packed struct (u8) {
     write_in_progress: bool,
     _unused0: std.meta.Int(.unsigned, config.flash_quad_enable_bit - 1),
     quad_enable: bool,
@@ -39,25 +39,25 @@ const StatusRegister0 = if (config.flash_quad_enable_bit < 8) packed struct (u8)
     _unused1: u7,
 };
 
-const StatusRegister1 = if (config.flash_quad_enable_bit < 8) u8 else packed struct (u8) {
+const Status_Register_1 = if (config.flash_quad_enable_bit < 8) u8 else packed struct (u8) {
     _unused0: std.meta.Int(.unsigned, config.flash_quad_enable_bit - 8),
     quad_enable: bool,
     _unused1: std.meta.Int(.unsigned, 15 - config.flash_quad_enable_bit),
 };
 
-const FullStatusRegister = packed struct (u16) {
-    sr0: StatusRegister0,
-    sr1: StatusRegister1,
+const Full_Status_Register = packed struct (u16) {
+    sr0: Status_Register_0,
+    sr1: Status_Register_1,
 };
 
 extern fn _boot3() callconv(.Naked) noreturn;
 export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
-    // TODO use bl instead of blx for the setupXip call?
-    asm volatile ("blx %[func]" :: [func] "r" (&setupXip) : "memory");
+    // TODO use bl instead of blx for the setup_xip call?
+    asm volatile ("blx %[func]" :: [func] "r" (&setup_xip) : "memory");
     asm volatile ("bx %[func]" :: [func] "r" (&_boot3));
 }
 
-fn setupXip() linksection(".boot2") callconv (.C) void {
+fn setup_xip() linksection(".boot2") callconv (.C) void {
     chip.PADS_QSPI.sclk.write(.{
         .speed = .fast,
         .strength = .@"8mA",
@@ -101,41 +101,41 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
     chip.SSI.enable.write(.{ .enable = true });
 
     if (comptime config.flash_quad_enable_bit < 8) {
-        var sr0 = doReadCommand(.read_status_reg_0, StatusRegister0);
+        var sr0 = do_read_command(.read_status_reg_0, Status_Register_0);
         if (!sr0.quad_enable) {
             sr0.quad_enable = true;
 
             if (comptime config.flash_has_volatile_status_reg) {
-                doWriteCommand(.write_enable_volatile_status_reg, void, {});
+                do_write_command(.write_enable_volatile_status_reg, void, {});
             } else {
-                doWriteCommand(.write_enable, void, {});
+                do_write_command(.write_enable, void, {});
             }
 
-            doWriteCommand(.write_status_reg, StatusRegister0, sr0);
+            do_write_command(.write_status_reg, Status_Register_0, sr0);
 
-            while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
+            while (do_read_command(.read_status_reg_0, Status_Register_0).write_in_progress) {}
         }
     } else {
-        var sr1 = doReadCommand(.read_status_reg_1, StatusRegister1);
+        var sr1 = do_read_command(.read_status_reg_1, Status_Register_1);
         if (!sr1.quad_enable) {
             sr1.quad_enable = true;
 
             if (comptime config.flash_has_volatile_status_reg) {
-                doWriteCommand(.write_enable_volatile_status_reg, void, {});
+                do_write_command(.write_enable_volatile_status_reg, void, {});
             } else {
-                doWriteCommand(.write_enable, void, {});
+                do_write_command(.write_enable, void, {});
             }
 
             if (comptime config.flash_has_write_status_reg_1) {
-                doWriteCommand(.write_status_reg_1, StatusRegister1, sr1);
+                do_write_command(.write_status_reg_1, Status_Register_1, sr1);
             } else {
-                doWriteCommand(.write_status_reg, FullStatusRegister, .{
-                    .sr0 = doReadCommand(.read_status_reg_0, StatusRegister0),
+                do_write_command(.write_status_reg, Full_Status_Register, .{
+                    .sr0 = do_read_command(.read_status_reg_0, Status_Register_0),
                     .sr1 = sr1,
                 });
             }
 
-            while (doReadCommand(.read_status_reg_0, StatusRegister0).write_in_progress) {}
+            while (do_read_command(.read_status_reg_0, Status_Register_0).write_in_progress) {}
         }
     }
 
@@ -164,7 +164,7 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
 
     chip.SSI.data[0].write(@intFromEnum(Command.quad_read));
     chip.SSI.data[0].write(config.xip_mode_bits); // upper 24 bits are address; we don't actually care what they are.
-    blockUntilTxComplete();
+    block_until_tx_complete();
 
     chip.SSI.enable.write(.{ .enable = false });
 
@@ -179,21 +179,21 @@ fn setupXip() linksection(".boot2") callconv (.C) void {
     chip.SSI.enable.write(.{ .enable = true });
 }
 
-fn blockUntilTxComplete() linksection(".boot2") void {
+fn block_until_tx_complete() linksection(".boot2") void {
     var status = chip.SSI.status.read();
     while (!status.tx_fifo_empty or status.busy) {
         status = chip.SSI.status.read();
     }
 }
 
-fn doWriteCommand(command: Command, comptime T: type, value: T) linksection(".boot2") void {
+fn do_write_command(command: Command, comptime T: type, value: T) linksection(".boot2") void {
     if (@sizeOf(T) == 0) {
         chip.SSI.data[0].write(@intFromEnum(command));
-        blockUntilTxComplete();
+        block_until_tx_complete();
         _ = chip.SSI.data[0].read();
     } else {
         const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
-        var raw: Raw = @bitCast(value);
+        const raw: Raw = @bitCast(value);
 
         chip.SSI.data[0].write(@intFromEnum(command));
         inline for (0..@sizeOf(T)) |byte_index| {
@@ -201,7 +201,7 @@ fn doWriteCommand(command: Command, comptime T: type, value: T) linksection(".bo
             chip.SSI.data[0].write(b);
         }
 
-        blockUntilTxComplete();
+        block_until_tx_complete();
 
         _ = chip.SSI.data[0].read();
         inline for (0..@sizeOf(T)) |_| {
@@ -210,7 +210,7 @@ fn doWriteCommand(command: Command, comptime T: type, value: T) linksection(".bo
     }
 }
 
-fn doReadCommand(command: Command, comptime T: type) linksection(".boot2") T {
+fn do_read_command(command: Command, comptime T: type) linksection(".boot2") T {
     const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
 
     chip.SSI.data[0].write(@intFromEnum(command));
@@ -218,7 +218,7 @@ fn doReadCommand(command: Command, comptime T: type) linksection(".boot2") T {
         chip.SSI.data[0].write(0);
     }
 
-    blockUntilTxComplete();
+    block_until_tx_complete();
 
     _ = chip.SSI.data[0].read();
     var raw: Raw = 0;

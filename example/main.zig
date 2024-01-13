@@ -4,12 +4,12 @@ const microbe = @import("microbe");
 const usb = @import("usb.zig");
 
 comptime {
-    chip.initExports();
+    chip.init_exports();
 }
 
-pub const panic = microbe.defaultPanic;
+pub const panic = microbe.default_panic;
 pub const std_options = struct {
-    pub const logFn = microbe.defaultLog;
+    pub const logFn = microbe.default_log;
 };
 
 pub const clocks: chip.clocks.Config = .{
@@ -28,7 +28,7 @@ pub const handlers = struct {
     }
 };
 
-pub var debug_uart: chip.Uart(.{
+pub var debug_uart: chip.UART(.{
     .baud_rate = 9600,
     .parity = .even,
     .tx = .GPIO0,
@@ -46,9 +46,9 @@ pub fn main() void {
     debug_uart.start();
 
     TestBus.init();
-    TestBus.modifyInline(7);
-    TestBus.modifyInline(17);
-    TestBus.modifyInline(7);
+    TestBus.modify_inline(7);
+    TestBus.modify_inline(17);
+    TestBus.modify_inline(7);
 
     usb.init();
 
@@ -62,7 +62,7 @@ pub fn main() void {
             writer.writeByte(':') catch unreachable;
 
             while (debug_uart.canRead()) {
-                var b = reader.readByte() catch |err| {
+                const b = reader.readByte() catch |err| {
                     const s = switch (err) {
                         error.Overrun => "!ORE!",
                         error.FramingError => "!FE!",

@@ -1,10 +1,12 @@
 .{
     .name = "microbe-example-rpi",
     .version = "0.0.0",
+    .minimum_zig_version = "0.12.0-dev.2063+804cee3b9",
+    .paths = .{""},
     .dependencies = .{
         .microbe = .{
-            .url = "https://github.com/bcrist/microbe/archive/0f47c8d52ce7fbd23198d1b5dd494f59e11093ee.tar.gz",
-            .hash = "122021246fa76cb3f43b744ffe47d9bcafbd6b2d4b4282a61c25a248efd8b1865738",
+            .url = "https://github.com/bcrist/microbe/archive/95ea072281addea73b2884820a6ce466442a920e.tar.gz",
+            .hash = "12203d7561539df68bf4bf7fe32302aa27b89892382c87cb2c9e8a3cdc65f0e218f4",
         },
         .@"microbe-rpi" = .{
             .path = "..",
