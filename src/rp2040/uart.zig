@@ -147,41 +147,41 @@ pub fn UART(comptime config: Config) type {
         };
 
         const Errors = struct {
-            const ReadBase = error {
+            const Read_Base = error {
                 Overrun,
-                BreakInterrupt,
-                FramingError,
+                Break_Interrupt,
+                Framing_Error,
             };
-            const ReadBaseNonBlocking = ReadBase || error{ Would_Block };
+            const Read_Base_Nonblocking = Read_Base || error{ Would_Block };
 
-            const Read            = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) ReadBase else (ReadBase || error {ParityError});
-            const ReadNonBlocking = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) ReadBaseNonBlocking else (ReadBaseNonBlocking || error.ParityError);
+            const Read             = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) Read_Base else (Read_Base || error {Parity_Error});
+            const Read_Nonblocking = if (config.rx == null) error { Unimplemented } else if (config.parity == .none) Read_Base_Nonblocking else (Read_Base_Nonblocking || error.Parity_Error);
 
-            const Write            = if (config.tx == null) error { Unimplemented } else error {};
-            const write_nonblocking = if (config.tx == null) error { Unimplemented } else error { Would_Block };
+            const Write             = if (config.tx == null) error { Unimplemented } else error {};
+            const Write_Nonblocking = if (config.tx == null) error { Unimplemented } else error { Would_Block };
         };
 
         const Rx = rx: {
             if (config.rx == null) {
-                break :rx NoRx(Data);
+                break :rx No_Rx(Data);
             } else if (config.rx_buffer_size == 0) {
-                break :rx UnbufferedRx(Data, periph, Errors.Read);
+                break :rx Unbuffered_Rx(Data, periph, Errors.Read);
             } else if (config.rx_dma_channel) |channel| {
-                break :rx DmaRx(Data, periph, config.rx_buffer_size, channel);
+                break :rx DMA_Rx(Data, periph, config.rx_buffer_size, channel);
             } else {
-                break :rx InterruptRx(Data, periph, config.rx_buffer_size, Errors.Read);
+                break :rx Interrupt_Rx(Data, periph, config.rx_buffer_size, Errors.Read);
             }
         };
 
         const Tx = tx: {
             if (config.tx == null) {
-                break :tx NoTx(Data);
+                break :tx No_Tx(Data);
             } else if (config.tx_buffer_size == 0) {
-                break :tx UnbufferedTx(Data, periph);
+                break :tx Unbuffered_Tx(Data, periph);
             } else if (config.tx_dma_channel) |channel| {
-                break :tx DmaTx(Data, periph, config.tx_buffer_size, channel);
+                break :tx DMA_Tx(Data, periph, config.tx_buffer_size, channel);
             } else {
-                break :tx InterruptTx(Data, periph, config.tx_buffer_size);
+                break :tx Interrupt_Tx(Data, periph, config.tx_buffer_size);
             }
         };
 
@@ -192,17 +192,17 @@ pub fn UART(comptime config: Config) type {
             const Self = @This();
             pub const Data_Type = Data;
 
-            pub const ReadError = Errors.Read;
-            pub const Reader = std.io.Reader(*Rx, ReadError, Rx.readBlocking);
+            pub const Read_Error = Errors.Read;
+            pub const Reader = std.io.Reader(*Rx, Read_Error, Rx.read_blocking);
 
-            pub const Read_Error_Nonblocking = Errors.ReadNonBlocking;
-            pub const ReaderNonBlocking = std.io.Reader(*Rx, Read_Error_Nonblocking, Rx.readNonBlocking);
+            pub const Read_Error_Nonblocking = Errors.Read_Nonblocking;
+            pub const Reader_Nonblocking = std.io.Reader(*Rx, Read_Error_Nonblocking, Rx.read_nonblocking);
 
-            pub const WriteError = Errors.Write;
-            pub const Writer = std.io.Writer(*Tx, WriteError, Tx.writeBlocking);
+            pub const Write_Error = Errors.Write;
+            pub const Writer = std.io.Writer(*Tx, Write_Error, Tx.write_blocking);
 
-            pub const Write_Error_Nonblocking = Errors.write_nonblocking;
-            pub const WriterNonBlocking = std.io.Writer(*Tx, Write_Error_Nonblocking, Tx.write_nonblocking);
+            pub const Write_Error_Nonblocking = Errors.Write_Nonblocking;
+            pub const Writer_Nonblocking = std.io.Writer(*Tx, Write_Error_Nonblocking, Tx.write_nonblocking);
 
             pub fn init() Self {
                 { // ensure nothing we need is still in reset:
@@ -281,7 +281,7 @@ pub fn UART(comptime config: Config) type {
             pub fn stop(self: *Self) void {
                 self.txi.stop();
                 self.rxi.stop();
-                while (!self.txi.isIdle()) {}
+                while (!self.txi.is_idle()) {}
                 periph.control.modify(.{ .enabled = false });
             }
 
@@ -297,61 +297,61 @@ pub fn UART(comptime config: Config) type {
                 if (want_uart1) resets.hold_in_reset(.uart1);
             }
 
-            pub fn getRxAvailableCount(self: *Self) usize {
-                return self.rxi.getAvailableCount();
+            pub fn get_rx_available_count(self: *Self) usize {
+                return self.rxi.get_available_count();
             }
 
-            pub fn canRead(self: *Self) bool {
-                return self.rxi.getAvailableCount() > 0;
+            pub fn can_read(self: *Self) bool {
+                return self.rxi.get_available_count() > 0;
             }
 
-            pub fn peek(self: *Self, buffer: []Data_Type) ReadError![]const Data_Type {
+            pub fn peek(self: *Self, buffer: []Data_Type) Read_Error![]const Data_Type {
                 return self.rxi.peek(buffer);
             }
 
-            pub fn peekOne(self: *Self) ReadError!?Data_Type {
-                return @call(.always_inline, self.rxi.peekByte, .{});
+            pub fn peek_one(self: *Self) Read_Error!?Data_Type {
+                return @call(.always_inline, self.rxi.peek_byte, .{});
             }
 
             pub fn reader(self: *Self) Reader {
                 return .{ .context = &self.rxi };
             }
 
-            pub fn readerNonBlocking(self: *Self) ReaderNonBlocking {
+            pub fn reader_nonblocking(self: *Self) Reader_Nonblocking {
                 return .{ .context = &self.rxi };
             }
 
-            pub fn isTxIdle(self: *Self) bool {
-                return self.txi.isIdle();
+            pub fn is_tx_idle(self: *Self) bool {
+                return self.txi.is_idle();
             }
 
-            pub fn getTxAvailableCount(self: *Self) usize {
-                return self.txi.getAvailableCount();
+            pub fn get_tx_available_count(self: *Self) usize {
+                return self.txi.get_available_count();
             }
 
-            pub fn canWrite(self: *Self) bool {
-                return self.txi.getAvailableCount() > 0;
+            pub fn can_write(self: *Self) bool {
+                return self.txi.get_available_count() > 0;
             }
 
             pub fn writer(self: *Self) Writer {
                 return .{ .context = &self.txi };
             }
 
-            pub fn writerNonBlocking(self: *Self) WriterNonBlocking {
+            pub fn writer_nonblocking(self: *Self) Writer_Nonblocking {
                 return .{ .context = &self.txi };
             }
 
-            pub fn handleInterrupt(self: *Self) void {
+            pub fn handle_interrupt(self: *Self) void {
                 const status = periph.interrupt_status_masked.read();
-                self.rxi.handleInterrupt(status);
-                self.txi.handleInterrupt(status);
+                self.rxi.handle_interrupt(status);
+                self.txi.handle_interrupt(status);
             }
 
         };
     };
 }
 
-fn NoRx(comptime Data_Type: type) type {
+fn No_Rx(comptime Data_Type: type) type {
     return struct {
         const Self = @This();
 
@@ -360,30 +360,30 @@ fn NoRx(comptime Data_Type: type) type {
         pub fn start(_: Self) void {}
         pub fn stop(_: Self) void {}
 
-        pub fn getAvailableCount(_: Self) usize {
+        pub fn get_available_count(_: Self) usize {
             return 0;
         }
 
         pub fn peek(_: Self, _: []Data_Type) ![]const Data_Type {
             return error.Unimplemented;
         }
-        pub fn peekByte(_: Self) !?Data_Type {
+        pub fn peek_byte(_: Self) !?Data_Type {
             return error.Unimplemented;
         }
 
-        pub fn readBlocking(_: *Self, _: []Data_Type) !usize {
+        pub fn read_blocking(_: *Self, _: []Data_Type) !usize {
             return error.Unimplemented;
         }
 
-        pub fn readNonBlocking(_: *Self, _: []Data_Type) !usize {
+        pub fn read_nonblocking(_: *Self, _: []Data_Type) !usize {
             return error.Unimplemented;
         }
 
-        pub fn handleInterrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
+        pub fn handle_interrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
     };
 }
 
-fn NoTx(comptime Data_Type: type) type {
+fn No_Tx(comptime Data_Type: type) type {
     return struct {
         const Self = @This();
 
@@ -392,11 +392,11 @@ fn NoTx(comptime Data_Type: type) type {
         pub fn start(_: Self) void {}
         pub fn stop(_: Self) void {}
 
-        pub fn getAvailableCount(_: Self) usize {
+        pub fn get_available_count(_: Self) usize {
             return 0;
         }
 
-        pub fn writeBlocking(_: *Self, _: []const Data_Type) !usize {
+        pub fn write_blocking(_: *Self, _: []const Data_Type) !usize {
             return error.Unimplemented;
         }
 
@@ -404,12 +404,12 @@ fn NoTx(comptime Data_Type: type) type {
             return error.Unimplemented;
         }
 
-        pub fn handleInterrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
+        pub fn handle_interrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
     };
 }
 
-fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime ReadError: type) type {
-    const check_parity = util.error_set_contains_any(ReadError, error {ParityError});
+fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime Read_Error: type) type {
+    const check_parity = util.error_set_contains_any(Read_Error, error {Parity_Error});
 
     return struct {
         peek_byte: ?Data_Type = null,
@@ -422,7 +422,7 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
         pub fn start(_: *const Self) void {}
         pub fn stop(_: *const Self) void {}
 
-        pub fn getAvailableCount(self: *const Self) usize {
+        pub fn get_available_count(self: *const Self) usize {
             if (self.peek_byte) |_| return 1;
             if (0 != @as(u4, @bitCast(self.pending_error))) return 1;
             if (!periph.flags.read().rx_fifo_empty) return 1;
@@ -432,7 +432,7 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
         pub fn peek(self: *Self, out: []u8) ![]const Data_Type {
             if (out.len == 0) return out[0..0];
 
-            if (try self.peekByte()) |b| {
+            if (try self.peek_byte()) |b| {
                 out[0] = b;
                 return out[0..1];
             } else {
@@ -440,12 +440,12 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
             }
         }
 
-        pub fn peekByte(self: *Self) !?Data_Type {
+        pub fn peek_byte(self: *Self) !?Data_Type {
             if (0 != @as(u4, @bitCast(self.pending_error))) {
                 if (self.pending_error.overrun) return error.Overrun;
-                if (self.pending_error.framing_error) return error.FramingError;
-                if (self.pending_error.break_error) return error.BreakInterrupt;
-                if (check_parity and self.pending_error.parity_error) return error.ParityError;
+                if (self.pending_error.framing_error) return error.Framing_Error;
+                if (self.pending_error.break_error) return error.Break_Interrupt;
+                if (check_parity and self.pending_error.parity_error) return error.Parity_Error;
             }
 
             if (self.peek_byte) |b| return b;
@@ -458,11 +458,11 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
                 self.peek_byte = @intCast(item.data);
                 return error.Overrun;
             } else if (item.errors.framing_error) {
-                return error.FramingError;
+                return error.Framing_Error;
             } else if (item.errors.break_error) {
-                return error.BreakInterrupt;
+                return error.Break_Interrupt;
             } else if (check_parity and item.errors.parity_error) {
-                return error.ParityError;
+                return error.Parity_Error;
             } else {
                 const data: Data_Type = @intCast(item.data);
                 self.peek_byte = data;
@@ -470,9 +470,9 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
             }
         }
 
-        pub fn readBlocking(self: *Self, buffer: []Data_Type) !usize {
+        pub fn read_blocking(self: *Self, buffer: []Data_Type) !usize {
             for (0.., buffer) |i, *out| {
-                const result = self.peekByte() catch |err| {
+                const result = self.peek_byte() catch |err| {
                     if (i > 0) return i;
 
                     if (err == error.Overrun) {
@@ -488,7 +488,7 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
                 } else {
                     while (periph.flags.read().rx_fifo_empty) {}
 
-                    out.* = (self.peekByte() catch |err| {
+                    out.* = (self.peek_byte() catch |err| {
                         if (i > 0) return i;
 
                         if (err == error.Overrun) {
@@ -506,9 +506,9 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
             return buffer.len;
         }
 
-        pub fn readNonBlocking(self: *Self, buffer: []Data_Type) !usize {
+        pub fn read_nonblocking(self: *Self, buffer: []Data_Type) !usize {
             for (0.., buffer) |i, *out| {
-                const result = self.peekByte() catch |err| {
+                const result = self.peek_byte() catch |err| {
                     if (i > 0) return i;
 
                     if (err == error.Overrun) {
@@ -532,11 +532,11 @@ fn UnbufferedRx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
             return buffer.len;
         }
 
-        pub fn handleInterrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
+        pub fn handle_interrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
     };
 }
 
-fn UnbufferedTx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART) type {
+fn Unbuffered_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART) type {
     return struct {
         const Self = @This();
 
@@ -545,15 +545,15 @@ fn UnbufferedTx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
         pub fn start(_: Self) void {}
         pub fn stop(_: Self) void {}
 
-        pub fn isIdle(_: Self) bool {
+        pub fn is_idle(_: Self) bool {
             return !periph.flags.read().tx_in_progress;
         }
 
-        pub fn getAvailableCount(_: Self) usize {
+        pub fn get_available_count(_: Self) usize {
             return if (periph.flags.read().tx_fifo_full) 0 else 1;
         }
 
-        pub fn writeBlocking(_: *Self, data: []const Data_Type) !usize {
+        pub fn write_blocking(_: *Self, data: []const Data_Type) !usize {
             for (data) |b| {
                 while (periph.flags.read().tx_fifo_full) {}
                 periph.data.write(.{ .data = b });
@@ -570,24 +570,24 @@ fn UnbufferedTx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
             }
         }
 
-        pub fn handleInterrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
+        pub fn handle_interrupt(_: Self, _: reg_types.uart.Interrupt_Bitmap) void {}
     };
 }
 
-const ReadErrorPack = packed struct (u16) {
+const Read_Error_Pack = packed struct (u16) {
     data_bytes: u12 = 0, // after errors chronologically
     errors: Read_Error_Bitmap = .{},
 
-    pub fn hasError(self: ReadErrorPack) bool {
+    pub fn hasError(self: Read_Error_Pack) bool {
         return 0 != @as(u4, @bitCast(self.errors));
     }
 };
 
-fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime ReadError: type) type {
-    const check_parity = util.error_set_contains_all(ReadError, error{ParityError});
+fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime Read_Error: type) type {
+    const check_parity = util.error_set_contains_all(Read_Error, error{Parity_Error});
     const pack_buffer_size = @max(@min(8, buffer_size), buffer_size / 8);
     const DataFifo = std.fifo.LinearFifo(Data_Type, .{ .Static = buffer_size });
-    const PackFifo = std.fifo.LinearFifo(ReadErrorPack, .{ .Static = pack_buffer_size });
+    const PackFifo = std.fifo.LinearFifo(Read_Error_Pack, .{ .Static = pack_buffer_size });
 
     if (!std.math.isPowerOfTwo(buffer_size)) {
         @compileError("UART buffer size must be a power of two!");
@@ -612,14 +612,14 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
         }
         pub fn start(self: *Self) void {
             self.stopped = false;
-            self.enableInterrupt();
+            self.enable_interrupt();
         }
         pub fn stop(self: *Self) void {
             self.stopped = true;
-            self.disableInterrupt();
+            self.disable_interrupt();
         }
 
-        pub fn getAvailableCount(self: *Self) usize {
+        pub fn get_available_count(self: *Self) usize {
             const amount = self.data.readableLength();
             if (amount == 0) {
                 return self.packs.readableLength();
@@ -635,15 +635,15 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
 
             var dest_offset: usize = 0;
             outer: for (0..self.packs.readableLength()) |pack_index| {
-                const pack: ReadErrorPack = self.packs.peekItem(pack_index);
+                const pack: Read_Error_Pack = self.packs.peekItem(pack_index);
 
                 if (pack.hasError()) {
                     if (dest_offset == 0) {
                         if (pack.errors.overrun) return error.Overrun;
-                        if (pack.errors.framing_error) return error.FramingError;
-                        if (pack.errors.break_error) return error.BreakInterrupt;
+                        if (pack.errors.framing_error) return error.Framing_Error;
+                        if (pack.errors.break_error) return error.Break_Interrupt;
                         if (check_parity) {
-                            if (pack.errors.parity_error) return error.ParityError;
+                            if (pack.errors.parity_error) return error.Parity_Error;
                         } else std.debug.assert(!pack.errors.parity_error);
                     } else {
                         break :outer;
@@ -671,41 +671,41 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             return out[0..dest_offset];
         }
 
-        pub fn peekByte(self: *Self) !?Data_Type {
+        pub fn peek_byte(self: *Self) !?Data_Type {
             var buf: [1]Data_Type = undefined;
             const result = try self.peek(&buf);
             if (result.len > 0) return result[0];
             return null;
         }
 
-        fn checkReadError(self: *Self, errors: Read_Error_Bitmap) !void {
+        fn check_read_error(self: *Self, errors: Read_Error_Bitmap) !void {
             if (errors.overrun) {
                 self.packs.buf[self.packs.head].errors.overrun = false;
                 return error.Overrun;
             }
             if (errors.framing_error) {
                 self.packs.buf[self.packs.head].errors.framing_error = false;
-                return error.FramingError;
+                return error.Framing_Error;
             }
             if (errors.break_error) {
                 self.packs.buf[self.packs.head].errors.break_error = false;
-                return error.BreakInterrupt;
+                return error.Break_Interrupt;
             }
             if (check_parity) {
                 if (errors.parity_error) {
                     self.packs.buf[self.packs.head].errors.parity_error = false;
-                    return error.ParityError;
+                    return error.Parity_Error;
                 }
             } else std.debug.assert(!errors.parity_error);
         }
 
-        pub fn readBlocking(self: *Self, out: []Data_Type) ReadError!usize {
+        pub fn read_blocking(self: *Self, out: []Data_Type) Read_Error!usize {
             var remaining = out;
             while (remaining.len > 0) {
-                const bytes_read: usize = self.readNonBlocking(out) catch |err| switch (err) {
+                const bytes_read: usize = self.read_nonblocking(out) catch |err| switch (err) {
                     error.Would_Block => blk: {
                         while (self.packs.readableLength() == 0) {
-                            self.enableInterrupt();
+                            self.enable_interrupt();
                             interrupts.wait_for_interrupt();
                         }
                         break :blk 0;
@@ -718,7 +718,7 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             return out.len;
         }
 
-        pub fn readNonBlocking(self: *Self, out: []Data_Type) (ReadError||error{Would_Block})!usize {
+        pub fn read_nonblocking(self: *Self, out: []Data_Type) (Read_Error||error{Would_Block})!usize {
             var remaining = out;
             while (remaining.len > 0) {
                 if (self.packs.readableLength() == 0) {
@@ -727,11 +727,11 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
                     return error.Would_Block;
                 }
 
-                var pack: ReadErrorPack = self.packs.peekItem(0);
+                var pack: Read_Error_Pack = self.packs.peekItem(0);
 
                 if (pack.hasError()) {
                     if (remaining.ptr != out.ptr) break;
-                    try self.checkReadError(pack.errors);
+                    try self.check_read_error(pack.errors);
                     unreachable;
                 }
 
@@ -752,13 +752,13 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
                     self.packs.discard(1);
                 }
                 cs.leave();
-                self.enableInterrupt();
+                self.enable_interrupt();
             }
 
             return out.len - remaining.len;
         }
 
-        pub fn enableInterrupt(self: *Self) void {
+        pub fn enable_interrupt(self: *Self) void {
             if (periph.interrupt_mask.read().rx) return;
             if (self.stopped) return;
             if (self.packs.writableLength() < 2) return;
@@ -770,23 +770,23 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             });
         }
 
-        pub fn disableInterrupt(_: *Self) void {
+        pub fn disable_interrupt(_: *Self) void {
             periph.interrupt_mask.clear_bits(.{
                 .rx = true,
                 .rx_timeout = true,
             });
         }
 
-        pub fn handleInterrupt(self: *Self, status: reg_types.uart.Interrupt_Bitmap) void {
+        pub fn handle_interrupt(self: *Self, status: reg_types.uart.Interrupt_Bitmap) void {
             if (status.rx or status.rx_timeout) {
-                self.tryProcessInterruptData();
+                self.try_process_interrupt_data();
             }
         }
 
-        fn tryProcessInterruptData(self: *Self) void {
+        fn try_process_interrupt_data(self: *Self) void {
             const writable_len = self.data.writableLength();
             if (writable_len == 0 or self.packs.writableLength() < 2) {
-                self.disableInterrupt();
+                self.disable_interrupt();
                 return;
             }
 
@@ -811,7 +811,7 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             } else .{};
 
             self.data.writeAssumeCapacity(buf[0..read_count]);
-            self.recordPackDataBytes(read_count);
+            self.record_pack_data_bytes(read_count);
 
             if (0 != @as(u4, @bitCast(errors))) {
                 self.packs.writeItemAssumeCapacity(.{
@@ -820,12 +820,12 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
                 });
                 if (errors.overrun) {
                     self.data.writeAssumeCapacity(buf[read_count..][0..1]);
-                    self.recordPackDataBytes(1);
+                    self.record_pack_data_bytes(1);
                 }
             }
         }
 
-        fn recordPackDataBytes(self: *Self, count: u12) void {
+        fn record_pack_data_bytes(self: *Self, count: u12) void {
             if (self.packs.readableLength() > 0) {
                 var last_index = self.packs.head + self.packs.count - 1;
                 last_index &= self.packs.buf.len - 1;
@@ -846,7 +846,7 @@ fn InterruptRx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
     };
 }
 
-fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize) type {
+fn Interrupt_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize) type {
     const Fifo = std.fifo.LinearFifo(Data_Type, .{ .Static = buffer_size });
 
     if (!std.math.isPowerOfTwo(buffer_size)) {
@@ -869,25 +869,25 @@ fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
         }
         pub fn start(self: *Self) void {
             self.stopped = false;
-            self.enableInterrupt();
+            self.enable_interrupt();
         }
         pub fn stop(self: *Self) void {
             self.stopped = true;
-            self.disableInterrupt();
+            self.disable_interrupt();
         }
 
-        pub fn getAvailableCount(self: *Self) usize {
+        pub fn get_available_count(self: *Self) usize {
             return self.data.writableLength();
         }
 
-        pub fn writeBlocking(self: *Self, data_to_write: []const Data_Type) !usize {
+        pub fn write_blocking(self: *Self, data_to_write: []const Data_Type) !usize {
             if (data_to_write.len == 0) return 0;
 
-            var remaining = self.writeDirect(data_to_write);
+            var remaining = self.write_direct(data_to_write);
             while (remaining.len > 0) {
                 var bytes_to_write = self.data.writableLength();
                 while (bytes_to_write == 0) {
-                    self.enableInterrupt();
+                    self.enable_interrupt();
                     interrupts.wait_for_interrupt();
                     bytes_to_write = self.data.writableLength();
                 }
@@ -901,7 +901,7 @@ fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
                 cs.leave();
                 remaining = remaining[bytes_to_write..];
 
-                self.enableInterrupt();
+                self.enable_interrupt();
             }
 
             return data_to_write.len;
@@ -910,7 +910,7 @@ fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
         pub fn write_nonblocking(self: *Self, data_to_write: []const Data_Type) !usize {
             if (data_to_write.len == 0) return 0;
 
-            const remaining = self.writeDirect(data_to_write);
+            const remaining = self.write_direct(data_to_write);
             if (remaining.len == 0) return data_to_write.len;
 
             const bytes_to_write = @min(self.data.writableLength(), remaining.len);
@@ -921,11 +921,11 @@ fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             var cs = microbe.Critical_Section.enter();
             self.data.writeAssumeCapacity(data_to_write[0..bytes_to_write]);
             cs.leave();
-            self.enableInterrupt();
+            self.enable_interrupt();
             return data_to_write.len - remaining.len + bytes_to_write;
         }
 
-        fn writeDirect(self: *Self, data_to_write: []const Data_Type) []const Data_Type {
+        fn write_direct(self: *Self, data_to_write: []const Data_Type) []const Data_Type {
             var remaining = data_to_write;
             if (self.data.readableLength() == 0) {
                 while (remaining.len > 0 and !periph.flags.read().tx_fifo_full) {
@@ -936,7 +936,7 @@ fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             return remaining;
         }
 
-        pub fn enableInterrupt(self: *Self) void {
+        pub fn enable_interrupt(self: *Self) void {
             if (periph.interrupt_mask.read().tx) return;
             if (self.stopped) return;
             if (self.data.readableLength() == 0) return;
@@ -944,17 +944,17 @@ fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             periph.interrupt_mask.set_bits(.tx);
         }
 
-        pub fn disableInterrupt(_: *Self) void {
+        pub fn disable_interrupt(_: *Self) void {
             periph.interrupt_mask.clear_bits(.tx);
         }
 
-        pub fn handleInterrupt(self: *Self, status: reg_types.uart.Interrupt_Bitmap) void {
+        pub fn handle_interrupt(self: *Self, status: reg_types.uart.Interrupt_Bitmap) void {
             if (status.tx) {
-                self.tryProcessInterruptData();
+                self.try_process_interrupt_data();
             }
         }
 
-        pub fn tryProcessInterruptData(self: *Self) void {
+        pub fn try_process_interrupt_data(self: *Self) void {
             const readable = self.data.readableSlice(0);
             var bytes_written: usize = 0;
             for (readable) |b| {
@@ -965,26 +965,26 @@ fn InterruptTx(comptime Data_Type: type, comptime periph: *volatile reg_types.ua
             self.data.discard(bytes_written);
 
             if (self.data.readableLength() == 0) {
-                self.disableInterrupt();
+                self.disable_interrupt();
             }
         }
 
     };
 }
 
-fn DmaRx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime channel: dma.Channel) type {
-    _ = buffer_size;
-    _ = periph;
-    _ = Data_Type;
-    _ = channel;
+fn DMA_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime channel: dma.Channel) type {
+    _ = Data_Type; // autofix
+    _ = periph; // autofix
+    _ = buffer_size; // autofix
+    _ = channel; // autofix
     @compileError("Not implemented yet");
 }
 
-fn DmaTx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime channel: dma.Channel) type {
-    _ = buffer_size;
-    _ = periph;
-    _ = Data_Type;
-    _ = channel;
+fn DMA_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UART, comptime buffer_size: usize, comptime channel: dma.Channel) type {
+    _ = Data_Type; // autofix
+    _ = periph; // autofix
+    _ = buffer_size; // autofix
+    _ = channel; // autofix
     @compileError("Not implemented yet");
 }
 

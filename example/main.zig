@@ -24,7 +24,7 @@ pub const handlers = struct {
     pub const SysTick = chip.timing.handleTickInterrupt;
 
     pub fn UART0_IRQ() callconv(.C) void {
-        debug_uart.handleInterrupt();
+        debug_uart.handle_interrupt();
     }
 };
 
@@ -58,16 +58,16 @@ pub fn main() void {
     while (true) {
         usb.update();
 
-        if (debug_uart.canRead()) {
+        if (debug_uart.can_read()) {
             writer.writeByte(':') catch unreachable;
 
-            while (debug_uart.canRead()) {
+            while (debug_uart.can_read()) {
                 const b = reader.readByte() catch |err| {
                     const s = switch (err) {
                         error.Overrun => "!ORE!",
-                        error.FramingError => "!FE!",
-                        error.ParityError => "!PE!",
-                        error.BreakInterrupt => "!BRK!",
+                        error.Framing_Error => "!FE!",
+                        error.Parity_Error => "!PE!",
+                        error.Break_Interrupt => "!BRK!",
                         error.EndOfStream => unreachable,
                     };
                     writer.writeAll(s) catch unreachable;
