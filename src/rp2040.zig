@@ -22,6 +22,7 @@ pub const timing = @import("rp2040/timing.zig");
 pub const resets = @import("rp2040/resets.zig");
 pub const uart = @import("rp2040/uart.zig");
 pub const UART = uart.UART;
+pub const spi = @import("rp2040/spi.zig");
 pub const usb = @import("rp2040/usb.zig");
 
 pub const base_name = "RP2040";

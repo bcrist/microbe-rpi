@@ -310,7 +310,7 @@ pub fn UART(comptime config: Config) type {
             }
 
             pub fn peek_one(self: *Self) Read_Error!?Data_Type {
-                return @call(.always_inline, self.rxi.peek_byte, .{});
+                return @call(.always_inline, self.rxi.peek_one, .{});
             }
 
             pub fn reader(self: *Self) Reader {
@@ -367,7 +367,7 @@ fn No_Rx(comptime Data_Type: type) type {
         pub fn peek(_: Self, _: []Data_Type) ![]const Data_Type {
             return error.Unimplemented;
         }
-        pub fn peek_byte(_: Self) !?Data_Type {
+        pub fn peek_one(_: Self) !?Data_Type {
             return error.Unimplemented;
         }
 
@@ -412,7 +412,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
     const check_parity = util.error_set_contains_any(Read_Error, error {Parity_Error});
 
     return struct {
-        peek_byte: ?Data_Type = null,
+        peek_data: ?Data_Type = null,
         pending_error: Read_Error_Bitmap = .{},
 
         const Self = @This();
@@ -423,7 +423,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
         pub fn stop(_: *const Self) void {}
 
         pub fn get_available_count(self: *const Self) usize {
-            if (self.peek_byte) |_| return 1;
+            if (self.peek_data) |_| return 1;
             if (0 != @as(u4, @bitCast(self.pending_error))) return 1;
             if (!periph.flags.read().rx_fifo_empty) return 1;
             return 0;
@@ -432,7 +432,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
         pub fn peek(self: *Self, out: []u8) ![]const Data_Type {
             if (out.len == 0) return out[0..0];
 
-            if (try self.peek_byte()) |b| {
+            if (try self.peek_one()) |b| {
                 out[0] = b;
                 return out[0..1];
             } else {
@@ -440,7 +440,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
             }
         }
 
-        pub fn peek_byte(self: *Self) !?Data_Type {
+        pub fn peek_one(self: *Self) !?Data_Type {
             if (0 != @as(u4, @bitCast(self.pending_error))) {
                 if (self.pending_error.overrun) return error.Overrun;
                 if (self.pending_error.framing_error) return error.Framing_Error;
@@ -448,14 +448,14 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
                 if (check_parity and self.pending_error.parity_error) return error.Parity_Error;
             }
 
-            if (self.peek_byte) |b| return b;
+            if (self.peek_data) |b| return b;
 
             if (periph.flags.read().rx_fifo_empty) return null;
 
             const item = periph.data.read();
             self.pending_error = item.errors;
             if (item.errors.overrun) {
-                self.peek_byte = @intCast(item.data);
+                self.peek_data = @intCast(item.data);
                 return error.Overrun;
             } else if (item.errors.framing_error) {
                 return error.Framing_Error;
@@ -465,14 +465,14 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
                 return error.Parity_Error;
             } else {
                 const data: Data_Type = @intCast(item.data);
-                self.peek_byte = data;
+                self.peek_data = data;
                 return data;
             }
         }
 
         pub fn read_blocking(self: *Self, buffer: []Data_Type) !usize {
             for (0.., buffer) |i, *out| {
-                const result = self.peek_byte() catch |err| {
+                const result = self.peek_one() catch |err| {
                     if (i > 0) return i;
 
                     if (err == error.Overrun) {
@@ -488,7 +488,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
                 } else {
                     while (periph.flags.read().rx_fifo_empty) {}
 
-                    out.* = (self.peek_byte() catch |err| {
+                    out.* = (self.peek_one() catch |err| {
                         if (i > 0) return i;
 
                         if (err == error.Overrun) {
@@ -500,7 +500,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
                     }).?;
                 }
 
-                self.peek_byte = null;
+                self.peek_data = null;
             }
 
             return buffer.len;
@@ -508,7 +508,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
 
         pub fn read_nonblocking(self: *Self, buffer: []Data_Type) !usize {
             for (0.., buffer) |i, *out| {
-                const result = self.peek_byte() catch |err| {
+                const result = self.peek_one() catch |err| {
                     if (i > 0) return i;
 
                     if (err == error.Overrun) {
@@ -521,7 +521,7 @@ fn Unbuffered_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.
 
                 if (result) |b| {
                     out.* = b;
-                    self.peek_byte = null;
+                    self.peek_data = null;
                 } else if (i > 0) {
                     return i;
                 } else {
@@ -671,7 +671,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
             return out[0..dest_offset];
         }
 
-        pub fn peek_byte(self: *Self) !?Data_Type {
+        pub fn peek_one(self: *Self) !?Data_Type {
             var buf: [1]Data_Type = undefined;
             const result = try self.peek(&buf);
             if (result.len > 0) return result[0];
@@ -702,7 +702,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
         pub fn read_blocking(self: *Self, out: []Data_Type) Read_Error!usize {
             var remaining = out;
             while (remaining.len > 0) {
-                const bytes_read: usize = self.read_nonblocking(out) catch |err| switch (err) {
+                const bytes_read: usize = self.read_nonblocking(remaining) catch |err| switch (err) {
                     error.Would_Block => blk: {
                         while (self.packs.readableLength() == 0) {
                             self.enable_interrupt();
@@ -915,11 +915,15 @@ fn Interrupt_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
 
             const bytes_to_write = @min(self.data.writableLength(), remaining.len);
             if (bytes_to_write == 0) {
-                return error.Would_Block;
+                if (remaining.len == data_to_write.len) {
+                    return error.Would_Block;
+                } else {
+                    return data_to_write.len - remaining.len;
+                }
             }
 
             var cs = microbe.Critical_Section.enter();
-            self.data.writeAssumeCapacity(data_to_write[0..bytes_to_write]);
+            self.data.writeAssumeCapacity(remaining[0..bytes_to_write]);
             cs.leave();
             self.enable_interrupt();
             return data_to_write.len - remaining.len + bytes_to_write;
@@ -928,6 +932,8 @@ fn Interrupt_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
         fn write_direct(self: *Self, data_to_write: []const Data_Type) []const Data_Type {
             var remaining = data_to_write;
             if (self.data.readableLength() == 0) {
+                var cs = microbe.Critical_Section.enter();
+                defer cs.leave();
                 while (remaining.len > 0 and !periph.flags.read().tx_fifo_full) {
                     periph.data.write(.{ .data = remaining[0] });
                     remaining = remaining[1..];

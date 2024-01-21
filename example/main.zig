@@ -39,11 +39,23 @@ pub var debug_uart: chip.UART(.{
     .rx_buffer_size = 256,
 }) = undefined;
 
-const TestBus = microbe.bus.Bus(&.{ .GPIO4, .GPIO5, .GPIO6, .GPIO11, .GPIO10 }, .{ .name = "Test", .gpio_config = .{} });
+pub var spi: chip.spi.Controller(.{
+    .format = .spi_mode_0,
+    .bit_rate = 1_000_000,
+    .sck = .GPIO10,
+    .tx = .GPIO11,
+    .rx = .GPIO12,
+    .cs = .GPIO9,
+}) = undefined;
+
+const TestBus = microbe.bus.Bus(&.{ .GPIO4, .GPIO5, .GPIO6, .GPIO14, .GPIO15 }, .{ .name = "Test", .gpio_config = .{} });
 
 pub fn main() void {
     debug_uart = @TypeOf(debug_uart).init();
     debug_uart.start();
+
+    spi = @TypeOf(spi).init();
+    spi.start();
 
     TestBus.init();
     TestBus.modify_inline(7);
@@ -54,6 +66,10 @@ pub fn main() void {
 
     var writer = debug_uart.writer();
     var reader = debug_uart.reader();
+
+    try spi.writer().writeAll("ABC");
+    var result: [3]u8 = undefined;
+    _ = try spi.reader().readAll(&result);
 
     while (true) {
         usb.update();

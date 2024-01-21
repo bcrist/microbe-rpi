@@ -429,6 +429,120 @@
 (group i2c
 )
 (group spi
+    (create-type Interrupt_Bitmap
+        (bits 32)
+        (packed
+            (rx_overrun (type bool))
+            (rx_timeout (type bool))
+            (rx_fifo (type bool))
+            (tx_fifo (type bool))
+        )
+    )
+    (create-type Interrupt_Clear_Bitmap
+        (bits 32)
+        (packed
+            (rx_overrun (type bool))
+            (rx_timeout (type bool))
+        )
+    )
+    (create-type Data_Bits
+        (inline never)
+        (bits 4)
+        (enum
+            (3 four)
+            (4 five)
+            (5 six)
+            (6 seven)
+            (7 eight)
+            (8 nine)
+            (9 ten)
+            (10 eleven)
+            (11 twelve)
+            (12 thirteen)
+            (13 fourteen)
+            (14 fifteen)
+            (15 sixteen)
+        )
+    )
+    (create-type Format
+        (inline never)
+        (bits 4)
+        (enum
+            (0x0 spi_mode_0 "Latch data on rising clock, clock idles low")
+            (0x8 spi_mode_1 "Latch data on falling clock, clock idles low")
+            (0x4 spi_mode_2 "Latch data on falling clock, clock idles high")
+            (0xC spi_mode_3 "Latch data on rising clock, clock idles high")
+            (0x1 ssp)
+            (0x2 microwire)
+        )
+    )
+    (create-type Role
+        (bits 1)
+        (enum
+            (0 controller)
+            (1 device)
+        )
+    )
+    (peripheral SPI*
+        (type
+            (field SSPCR0
+                (rename control0)
+                (type (inner
+                    (field DSS (rename data_bits) (set-type Data_Bits))
+                    (merge-field FRF format Format)
+                    (field SCR (rename clock_rate_factor))
+                ))
+            )
+            (field SSPCR1
+                (rename control1)
+                (type (inner
+                    (field LBM (rename loopback) (set-type bool))
+                    (field SSE (rename enabled) (set-type bool))
+                    (field MS (rename role) (set-type Role))
+
+                    (-- SSP OE signal isn't connected to the device OE)
+                    (delete-field SOD)
+                ))
+            )
+            (field SSPDR
+                (rename fifo)
+                (type (inner
+                    (field DATA (rename data))
+                ))
+            )
+            (field SSPSR
+                (rename status)
+                (type (inner
+                    (field TFE (rename tx_fifo_empty) (set-type bool))
+                    (field TNF (rename tx_fifo_not_full) (set-type bool))
+                    (field RNE (rename rx_fifo_not_empty) (set-type bool))
+                    (field RFF (rename rx_fifo_full) (set-type bool))
+                    (field BSY (rename transfer_in_progress) (set-type bool))
+                ))
+            )
+            (field SSPCPSR
+                (rename clock_prescale)
+                (type (inner
+                    (field CPSDVSR (rename divisor) (set-desc "Must be multiple of 2"))
+                ))
+            )
+            (merge-field SSPIMSC irq (struct
+                (enable (type (reg Interrupt_Bitmap)))
+                (raw (type (reg r Interrupt_Bitmap)))
+                (status (type (reg r Interrupt_Bitmap)))
+                (clear (type (reg Interrupt_Clear_Bitmap)))
+            ))
+            (field SSPDMACR
+                (rename dma_control)
+                (type (inner
+                    (field RXDMAE (rename rx_enable) (set-type bool))
+                    (field TXDMAE (rename tx_enable) (set-type bool))
+                ))
+            )
+            (delete-field SSPPERIPHID*)
+            (delete-field SSPPCELLID*)
+        )
+    )
 )
 (group uart
     (create-type Parity

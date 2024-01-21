@@ -3,102 +3,97 @@ const microbe = @import("microbe");
 const chip = @import("chip");
 const MMIO = microbe.MMIO;
 
+pub const Interrupt_Bitmap = packed struct(u32) {
+    rx_overrun: bool = false,
+    rx_timeout: bool = false,
+    rx_fifo: bool = false,
+    tx_fifo: bool = false,
+    _reserved_4: u28 = 0,
+};
+
+pub const Data_Bits = enum(u4) {
+    four = 3,
+    five = 4,
+    six = 5,
+    seven = 6,
+    eight = 7,
+    nine = 8,
+    ten = 9,
+    eleven = 10,
+    twelve = 11,
+    thirteen = 12,
+    fourteen = 13,
+    fifteen = 14,
+    sixteen = 15,
+    _,
+};
+
+pub const Format = enum(u4) {
+    /// Latch data on rising clock, clock idles low
+    spi_mode_0 = 0,
+
+    ssp = 1,
+    microwire = 2,
+
+    /// Latch data on falling clock, clock idles high
+    spi_mode_2 = 4,
+
+    /// Latch data on falling clock, clock idles low
+    spi_mode_1 = 8,
+
+    /// Latch data on rising clock, clock idles high
+    spi_mode_3 = 12,
+
+    _,
+};
+
 pub const SPI = extern struct {
-    SSPCR0: MMIO(packed struct(u32) {
-        DSS: u4 = 0,
-        FRF: u2 = 0,
-        SPO: u1 = 0,
-        SPH: u1 = 0,
-        SCR: u8 = 0,
+    control0: MMIO(packed struct(u32) {
+        data_bits: Data_Bits = @enumFromInt(0),
+        format: Format = .spi_mode_0,
+        clock_rate_factor: u8 = 0,
         _reserved_10: u16 = 0,
     }, .rw),
-    SSPCR1: MMIO(packed struct(u32) {
-        LBM: u1 = 0,
-        SSE: u1 = 0,
-        MS: u1 = 0,
-        SOD: u1 = 0,
-        _reserved_4: u28 = 0,
+    control1: MMIO(packed struct(u32) {
+        loopback: bool = false,
+        enabled: bool = false,
+        role: enum(u1) {
+            controller = 0,
+            device = 1,
+        } = .controller,
+        _reserved_3: u29 = 0,
     }, .rw),
-    SSPDR: MMIO(packed struct(u32) {
-        DATA: u16 = 0,
+    fifo: MMIO(packed struct(u32) {
+        data: u16 = 0,
         _reserved_10: u16 = 0,
     }, .rw),
-    SSPSR: MMIO(packed struct(u32) {
-        TFE: u1 = 1,
-        TNF: u1 = 1,
-        RNE: u1 = 0,
-        RFF: u1 = 0,
-        BSY: u1 = 0,
+    status: MMIO(packed struct(u32) {
+        tx_fifo_empty: bool = true,
+        tx_fifo_not_full: bool = true,
+        rx_fifo_not_empty: bool = false,
+        rx_fifo_full: bool = false,
+        transfer_in_progress: bool = false,
         _reserved_5: u27 = 0,
     }, .rw),
-    SSPCPSR: MMIO(packed struct(u32) {
-        CPSDVSR: u8 = 0,
+    clock_prescale: MMIO(packed struct(u32) {
+        /// Must be multiple of 2
+        divisor: u8 = 0,
+
         _reserved_8: u24 = 0,
     }, .rw),
-    SSPIMSC: MMIO(packed struct(u32) {
-        RORIM: u1 = 0,
-        RTIM: u1 = 0,
-        RXIM: u1 = 0,
-        TXIM: u1 = 0,
-        _reserved_4: u28 = 0,
-    }, .rw),
-    SSPRIS: MMIO(packed struct(u32) {
-        RORRIS: u1 = 0,
-        RTRIS: u1 = 0,
-        RXRIS: u1 = 0,
-        TXRIS: u1 = 1,
-        _reserved_4: u28 = 0,
-    }, .rw),
-    SSPMIS: MMIO(packed struct(u32) {
-        RORMIS: u1 = 0,
-        RTMIS: u1 = 0,
-        RXMIS: u1 = 0,
-        TXMIS: u1 = 0,
-        _reserved_4: u28 = 0,
-    }, .rw),
-    SSPICR: MMIO(packed struct(u32) {
-        RORIC: u1 = 0,
-        RTIC: u1 = 0,
+    irq: extern struct {
+        enable: MMIO(Interrupt_Bitmap, .rw),
+        raw: MMIO(Interrupt_Bitmap, .r),
+        status: MMIO(Interrupt_Bitmap, .r),
+        clear: MMIO(packed struct(u32) {
+            rx_overrun: bool = false,
+            rx_timeout: bool = false,
+            _reserved_2: u30 = 0,
+        }, .rw),
+    },
+    dma_control: MMIO(packed struct(u32) {
+        rx_enable: bool = false,
+        tx_enable: bool = false,
         _reserved_2: u30 = 0,
-    }, .rw),
-    SSPDMACR: MMIO(packed struct(u32) {
-        RXDMAE: u1 = 0,
-        TXDMAE: u1 = 0,
-        _reserved_2: u30 = 0,
-    }, .rw),
-    _reserved_28: [4024]u8 = undefined,
-    SSPPERIPHID0: MMIO(packed struct(u32) {
-        PARTNUMBER0: u8 = 0x22,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SSPPERIPHID1: MMIO(packed struct(u32) {
-        PARTNUMBER1: u4 = 0,
-        DESIGNER0: u4 = 1,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SSPPERIPHID2: MMIO(packed struct(u32) {
-        DESIGNER1: u4 = 4,
-        REVISION: u4 = 3,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SSPPERIPHID3: MMIO(packed struct(u32) {
-        CONFIGURATION: u8 = 0,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SSPPCELLID0: MMIO(packed struct(u32) {
-        SSPPCELLID0: u8 = 0xD,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SSPPCELLID1: MMIO(packed struct(u32) {
-        SSPPCELLID1: u8 = 0xF0,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SSPPCELLID2: MMIO(packed struct(u32) {
-        SSPPCELLID2: u8 = 5,
-        _reserved_8: u24 = 0,
-    }, .rw),
-    SSPPCELLID3: MMIO(packed struct(u32) {
-        SSPPCELLID3: u8 = 0xB1,
-        _reserved_8: u24 = 0,
     }, .rw),
 };
