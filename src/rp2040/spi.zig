@@ -408,6 +408,10 @@ fn No_Tx(comptime Data_Type: type) type {
         pub fn start(_: Self) void {}
         pub fn stop(_: Self) void {}
 
+        pub fn is_idle(_: Self) bool {
+            return true;
+        }
+
         pub fn get_available_count(_: Self) usize {
             return 0;
         }
@@ -731,6 +735,10 @@ fn Interrupt_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.s
             self.disable_interrupt();
         }
 
+        pub fn is_idle(self: *Self) bool {
+            return !periph.status.read().transfer_in_progress and self.data.readableLength() == 0;
+        }
+
         pub fn get_available_count(self: *Self) usize {
             return self.data.writableLength();
         }
@@ -802,7 +810,7 @@ fn Interrupt_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.s
             if (self.stopped) return;
             if (self.data.readableLength() == 0) return;
 
-            periph.irq.enable.set_bits(.tx);
+            periph.irq.enable.set_bits(.tx_fifo);
         }
 
         pub fn disable_interrupt(_: *Self) void {
