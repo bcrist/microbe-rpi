@@ -59,12 +59,15 @@ pub const Config = struct {
         high_below_threshold,
         low_below_threshold,
     } = .high_below_threshold,
-    frequency_hz: comptime_int,
+    clock: union (enum) {
+        frequency_hz: comptime_int,
+        divisor_16ths: u12,
+    },
     max_count: comptime_int,
 };
 
 pub const Channel_Config = struct {
-    frequency_hz: u64,
+    divisor_16ths: u12,
     max_count: u16,
 };
 pub fn Channel_Configs() type {
@@ -80,11 +83,11 @@ pub fn Channel_Configs() type {
                         existing.max_count,
                     }));
                 }
-                if (existing.frequency_hz != config.frequency_hz) {
-                    @compileError(std.fmt.comptimePrint("Can't set PWM channel {} to frequency of {}; must be {}", .{
+                if (existing.divisor_16ths != config.divisor_16ths) {
+                    @compileError(std.fmt.comptimePrint("Can't set PWM channel {} to divisor_16ths {}; must be {}", .{
                         @intFromEnum(channel),
-                        util.fmt_frequency(config.frequency_hz),
-                        util.fmt_frequency(existing.frequency_hz),
+                        config.divisor_16ths,
+                        existing.divisor_16ths,
                     }));
                 }
             } else {
@@ -109,23 +112,29 @@ pub fn PWM(comptime cfg: Config) type {
         validation.pads.reserve(pad, cfg.name);
     }
 
-    if (cfg.frequency_hz == 0 or cfg.max_count == 0) {
-        @compileError("Frequency too low!");
+    if (cfg.max_count == 0) {
+        @compileError("Max Count must be positive!");
     }
 
-    const sys_clk = cfg.clocks.sys.frequency_hz;
-    const div_16ths = std.math.clamp(util.div_round(sys_clk * 16, cfg.max_count * cfg.frequency_hz), 0x10, 0xFFF);
-    const actual_frequency_hz = util.div_round(sys_clk * 16, cfg.max_count * div_16ths);
-    if (actual_frequency_hz != cfg.frequency_hz) {
-        @compileError(std.fmt.comptimePrint("Cannot achieve frequency {}; closest possible is {}", .{
-            util.fmt_frequency(cfg.frequency_hz),
-            util.fmt_frequency(actual_frequency_hz),
-        }));
-    }
+    const div_16ths = switch (cfg.clock) {
+        .frequency_hz => |hz| d: {
+            const sys_clk = cfg.clocks.sys.frequency_hz;
+            const div_16ths = std.math.clamp(util.div_round(sys_clk * 16, cfg.max_count * hz), 0x10, 0xFFF);
+            const actual_frequency_hz = util.div_round(sys_clk * 16, cfg.max_count * div_16ths);
+            if (actual_frequency_hz != hz) {
+                @compileError(std.fmt.comptimePrint("Cannot achieve frequency {}; closest possible is {}", .{
+                    util.fmt_frequency(hz),
+                    util.fmt_frequency(actual_frequency_hz),
+                }));
+            }
+            break :d div_16ths;
+        },
+        .divisor_16ths => |div| div,
+    };
 
     Channel_Configs().update(computed_channel, .{
-        .frequency_hz = cfg.frequency_hz,
         .max_count = cfg.max_count,
+        .divisor_16ths = div_16ths,
     });
 
     const periph = &chip.peripherals.PWM.channel[@intFromEnum(computed_channel)];

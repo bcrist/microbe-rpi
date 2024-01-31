@@ -50,7 +50,7 @@ pub var spi: chip.spi.Controller(.{
 
 const Test_PWM = chip.PWM(.{
     .output = .GPIO20,
-    .frequency_hz = 391,
+    .clock = .{ .frequency_hz = 391 },
     .max_count = 1000,
 });
 
