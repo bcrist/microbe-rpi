@@ -48,6 +48,12 @@ pub var spi: chip.spi.Controller(.{
     .cs = .GPIO9,
 }) = undefined;
 
+const Test_PWM = chip.PWM(.{
+    .output = .GPIO20,
+    .frequency_hz = 391,
+    .max_count = 1000,
+});
+
 const TestBus = microbe.bus.Bus(&.{ .GPIO4, .GPIO5, .GPIO6, .GPIO14, .GPIO15 }, .{ .name = "Test", .gpio_config = .{} });
 
 pub fn main() void {
@@ -56,6 +62,10 @@ pub fn main() void {
 
     spi = @TypeOf(spi).init();
     spi.start();
+
+    Test_PWM.init();
+    Test_PWM.set_threshold(128);
+    Test_PWM.start();
 
     TestBus.init();
     TestBus.modify_inline(7);

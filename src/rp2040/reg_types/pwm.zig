@@ -3,137 +3,57 @@ const microbe = @import("microbe");
 const chip = @import("chip");
 const MMIO = microbe.MMIO;
 
-pub const CH7_CSR = packed struct(u32) {
-    EN: u1 = 0,
-    PH_CORRECT: u1 = 0,
-    A_INV: u1 = 0,
-    B_INV: u1 = 0,
-    DIVMODE: enum(u2) {
-        div = 0,
-        level = 1,
-        rise = 2,
-        fall = 3,
-    } = .div,
-    PH_RET: u1 = 0,
-    PH_ADV: u1 = 0,
-    _reserved_8: u24 = 0,
-};
-
-pub const CH7_DIV = packed struct(u32) {
-    FRAC: u4 = 0,
-    INT: u8 = 1,
-    _reserved_c: u20 = 0,
-};
-
-pub const CH7_CC = packed struct(u32) {
-    A: u16 = 0,
-    B: u16 = 0,
-};
-
-pub const INT = packed struct(u32) {
-    CH0: u1 = 0,
-    CH1: u1 = 0,
-    CH2: u1 = 0,
-    CH3: u1 = 0,
-    CH4: u1 = 0,
-    CH5: u1 = 0,
-    CH6: u1 = 0,
-    CH7: u1 = 0,
+pub const Channel_Bitmap = packed struct(u32) {
+    ch0: bool = false,
+    ch1: bool = false,
+    ch2: bool = false,
+    ch3: bool = false,
+    ch4: bool = false,
+    ch5: bool = false,
+    ch6: bool = false,
+    ch7: bool = false,
     _reserved_8: u24 = 0,
 };
 
 pub const PWM = extern struct {
-    CH0_CSR: MMIO(CH7_CSR, .rw),
-    CH0_DIV: MMIO(CH7_DIV, .rw),
-    CH0_CTR: MMIO(packed struct(u32) {
-        CH0_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH0_CC: MMIO(CH7_CC, .rw),
-    CH0_TOP: MMIO(packed struct(u32) {
-        CH0_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH1_CSR: MMIO(CH7_CSR, .rw),
-    CH1_DIV: MMIO(CH7_DIV, .rw),
-    CH1_CTR: MMIO(packed struct(u32) {
-        CH1_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH1_CC: MMIO(CH7_CC, .rw),
-    CH1_TOP: MMIO(packed struct(u32) {
-        CH1_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH2_CSR: MMIO(CH7_CSR, .rw),
-    CH2_DIV: MMIO(CH7_DIV, .rw),
-    CH2_CTR: MMIO(packed struct(u32) {
-        CH2_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH2_CC: MMIO(CH7_CC, .rw),
-    CH2_TOP: MMIO(packed struct(u32) {
-        CH2_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH3_CSR: MMIO(CH7_CSR, .rw),
-    CH3_DIV: MMIO(CH7_DIV, .rw),
-    CH3_CTR: MMIO(packed struct(u32) {
-        CH3_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH3_CC: MMIO(CH7_CC, .rw),
-    CH3_TOP: MMIO(packed struct(u32) {
-        CH3_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH4_CSR: MMIO(CH7_CSR, .rw),
-    CH4_DIV: MMIO(CH7_DIV, .rw),
-    CH4_CTR: MMIO(packed struct(u32) {
-        CH4_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH4_CC: MMIO(CH7_CC, .rw),
-    CH4_TOP: MMIO(packed struct(u32) {
-        CH4_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH5_CSR: MMIO(CH7_CSR, .rw),
-    CH5_DIV: MMIO(CH7_DIV, .rw),
-    CH5_CTR: MMIO(packed struct(u32) {
-        CH5_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH5_CC: MMIO(CH7_CC, .rw),
-    CH5_TOP: MMIO(packed struct(u32) {
-        CH5_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH6_CSR: MMIO(CH7_CSR, .rw),
-    CH6_DIV: MMIO(CH7_DIV, .rw),
-    CH6_CTR: MMIO(packed struct(u32) {
-        CH6_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH6_CC: MMIO(CH7_CC, .rw),
-    CH6_TOP: MMIO(packed struct(u32) {
-        CH6_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH7_CSR: MMIO(CH7_CSR, .rw),
-    CH7_DIV: MMIO(CH7_DIV, .rw),
-    CH7_CTR: MMIO(packed struct(u32) {
-        CH7_CTR: u16 = 0,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    CH7_CC: MMIO(CH7_CC, .rw),
-    CH7_TOP: MMIO(packed struct(u32) {
-        CH7_TOP: u16 = 0xFFFF,
-        _reserved_10: u16 = 0,
-    }, .rw),
-    EN: MMIO(INT, .rw),
-    INTR: MMIO(INT, .rw),
-    INTE: MMIO(INT, .rw),
-    INTF: MMIO(INT, .rw),
-    INTS: MMIO(INT, .rw),
+    channel: [8]extern struct {
+        control: MMIO(packed struct(u32) {
+            enabled: bool = false,
+            phase_correct: bool = false,
+            invert_a: bool = false,
+            invert_b: bool = false,
+            clock_mode: enum(u2) {
+                free_running = 0,
+                gated = 1,
+                rising_edge = 2,
+                falling_edge = 3,
+            } = .free_running,
+            request_phase_retard: bool = false,
+            request_phase_advance: bool = false,
+            _reserved_8: u24 = 0,
+        }, .rw),
+        divisor: MMIO(packed struct(u32) {
+            div_16ths: u12 = 0x10,
+            _reserved_c: u20 = 0,
+        }, .rw),
+        counter: MMIO(packed struct(u32) {
+            count: u16 = 0,
+            _reserved_10: u16 = 0,
+        }, .rw),
+        compare: MMIO(packed struct(u32) {
+            a: u16 = 0,
+            b: u16 = 0,
+        }, .rw),
+        top: MMIO(packed struct(u32) {
+            count: u16 = 0xFFFF,
+            _reserved_10: u16 = 0,
+        }, .rw),
+    },
+    enable: MMIO(Channel_Bitmap, .rw),
+    irq: extern struct {
+        raw: MMIO(Channel_Bitmap, .rw),
+        enable: MMIO(Channel_Bitmap, .rw),
+        force: MMIO(Channel_Bitmap, .rw),
+        status: MMIO(Channel_Bitmap, .r),
+    },
 };

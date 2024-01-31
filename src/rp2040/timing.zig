@@ -22,16 +22,16 @@ pub fn get_tick_frequency_hz() comptime_int {
 }
 
 pub fn handleTickInterrupt() callconv(.C) void {
-    if (chip.SYSTICK.control_status.read().overflow_flag) {
+    if (peripherals.SYSTICK.control_status.read().overflow_flag) {
         current_tick_raw +%= 1;
     }
 }
 
 pub fn current_microtick() microbe.Microtick {
-    var h = chip.TIMER.read_tick_unlatched.high.read();
+    var h = peripherals.TIMER.read_tick_unlatched.high.read();
     while (true) {
-        const l = chip.TIMER.read_tick_unlatched.low.read();
-        const h2 = chip.TIMER.read_tick_unlatched.high.read();
+        const l = peripherals.TIMER.read_tick_unlatched.low.read();
+        const h2 = peripherals.TIMER.read_tick_unlatched.high.read();
         if (h == h2) {
             const combined = (@as(u64, h) << 32) | l; 
             return @enumFromInt(combined);
@@ -51,6 +51,6 @@ pub fn get_microtick_frequency_hz() comptime_int {
 }
 
 const clocks = @import("clocks.zig");
-const chip = @import("chip");
+const peripherals = @import("peripherals.zig");
 const microbe = @import("microbe");
 const std = @import("std");

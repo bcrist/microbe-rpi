@@ -39,20 +39,20 @@ pub fn unhandled(comptime e: Exception) Handler {
 }
 
 pub fn is_enabled(comptime irq: Interrupt) bool {
-    return @field(chip.NVIC.interrupt_set_enable.read(), @tagName(irq));
+    return @field(peripherals.NVIC.interrupt_set_enable.read(), @tagName(irq));
 }
 
 pub fn set_enabled(comptime irq: Interrupt, comptime enabled: bool) void {
     if (enabled) {
-        const T = chip.NVIC.interrupt_set_enable.Raw_Type;
+        const T = peripherals.NVIC.interrupt_set_enable.Raw_Type;
         const val = T{};
         @field(val, @tagName(irq)) = true;
-        chip.NVIC.interrupt_set_enable.write(val);
+        peripherals.NVIC.interrupt_set_enable.write(val);
     } else {
-        const T = chip.NVIC.interrupt_clear_enable.Raw_Type;
+        const T = peripherals.NVIC.interrupt_clear_enable.Raw_Type;
         const val = T{};
         @field(val, @tagName(irq)) = true;
-        chip.NVIC.interrupt_clear_enable.write(val);
+        peripherals.NVIC.interrupt_clear_enable.write(val);
     }
 }
 
@@ -61,12 +61,12 @@ pub const configure_enables = util.configure_interrupt_enables;
 pub fn get_priority(comptime e: Exception) u8 {
     if (e.to_interrupt()) |irq| {
         const reg_name = std.fmt.comptimePrint("interrupt_priority_{}", .{ @intFromEnum(irq) / 4 });
-        const val = @field(chip.NVIC, reg_name).read();
+        const val = @field(peripherals.NVIC, reg_name).read();
         return @field(val, @tagName(irq));
     } else return switch (e) {
-        .SVCall => chip.SCB.exception_priority_2.read().SVCall,
-        .PendSV => chip.SCB.exception_priority_3.read().PendSV,
-        .SysTick => chip.SCB.exception_priority_3.read().SysTick,
+        .SVCall => peripherals.SCB.exception_priority_2.read().SVCall,
+        .PendSV => peripherals.SCB.exception_priority_3.read().PendSV,
+        .SysTick => peripherals.SCB.exception_priority_3.read().SysTick,
         else => @compileError("Exception priority is fixed!"),
     };
 }
@@ -74,13 +74,13 @@ pub fn get_priority(comptime e: Exception) u8 {
 pub fn set_priority(comptime e: Exception, priority: u8) void {
     if (e.to_interrupt()) |irq| {
         const reg_name = std.fmt.comptimePrint("interrupt_priority_{}", .{ @intFromEnum(irq) / 4 });
-        const val = @field(chip.NVIC, reg_name).read();
+        const val = @field(peripherals.NVIC, reg_name).read();
         @field(val, @tagName(irq)) = priority;
-        @field(chip.NVIC, reg_name).write(val);
+        @field(peripherals.NVIC, reg_name).write(val);
     } else switch (e) {
-        .SVCall => chip.SCB.exception_priority_2.modify(.{ .SVCall = priority }),
-        .PendSV => chip.SCB.exception_priority_3.modify(.{ .PendSV = priority }),
-        .SysTick => chip.SCB.exception_priority_3.modify(.{ .SysTick = priority }),
+        .SVCall => peripherals.SCB.exception_priority_2.modify(.{ .SVCall = priority }),
+        .PendSV => peripherals.SCB.exception_priority_3.modify(.{ .PendSV = priority }),
+        .SysTick => peripherals.SCB.exception_priority_3.modify(.{ .SysTick = priority }),
         else => @compileError("Exception priority is fixed!"),
     }
 }
@@ -89,11 +89,11 @@ pub const configure_priorities = util.configure_interrupt_priorities;
 
 pub fn is_pending(comptime e: Exception) bool {
     if (e.to_interrupt()) |irq| {
-        return @field(chip.NVIC.interrupt_set_pending.read(), @tagName(irq));
+        return @field(peripherals.NVIC.interrupt_set_pending.read(), @tagName(irq));
     } else return switch (e) {
-        .NMI => chip.SCB.interrupt_control_state.read().set_pending_NMI,
-        .PendSV => chip.SCB.interrupt_control_state.read().set_pending_PendSV,
-        .SysTick => chip.SCB.interrupt_control_state.read().set_pending_SysTick,
+        .NMI => peripherals.SCB.interrupt_control_state.read().set_pending_NMI,
+        .PendSV => peripherals.SCB.interrupt_control_state.read().set_pending_PendSV,
+        .SysTick => peripherals.SCB.interrupt_control_state.read().set_pending_SysTick,
         else => @compileError("Unsupported exception type!"),
     };
 }
@@ -101,35 +101,35 @@ pub fn is_pending(comptime e: Exception) bool {
 pub fn set_pending(comptime e: Exception, comptime pending: bool) void {
     if (e.to_interrupt()) |irq| {
         if (pending) {
-            const T = chip.NVIC.interrupt_set_pending.Raw_Type;
+            const T = peripherals.NVIC.interrupt_set_pending.Raw_Type;
             const val = T{};
             @field(val, @tagName(irq)) = 1;
-            chip.NVIC.interrupt_set_pending.write(val);
+            peripherals.NVIC.interrupt_set_pending.write(val);
         } else {
-            const T = chip.NVIC.interrupt_clear_pending.Raw_Type;
+            const T = peripherals.NVIC.interrupt_clear_pending.Raw_Type;
             const val = T{};
             @field(val, @tagName(irq)) = 1;
-            chip.NVIC.interrupt_clear_pending.write(val);
+            peripherals.NVIC.interrupt_clear_pending.write(val);
         }
     } else switch (e) {
         .NMI => {
             if (!pending) {
                 @compileError("NMI can't be unpended!");
             }
-            chip.SCB.interrupt_control_state.write(.{ .set_pending_NMI = true });
+            peripherals.SCB.interrupt_control_state.write(.{ .set_pending_NMI = true });
         },
         .PendSV => {
             if (pending) {
-                chip.SCB.interrupt_control_state.write(.{ .set_pending_PendSV = true });
+                peripherals.SCB.interrupt_control_state.write(.{ .set_pending_PendSV = true });
             } else {
-                chip.SCB.interrupt_control_state.write(.{ .clear_pending_PendSV = true });
+                peripherals.SCB.interrupt_control_state.write(.{ .clear_pending_PendSV = true });
             }
         },
         .SysTick => {
             if (pending) {
-                chip.SCB.interrupt_control_state.write(.{ .set_pending_SysTick = true });
+                peripherals.SCB.interrupt_control_state.write(.{ .set_pending_SysTick = true });
             } else {
-                chip.SCB.interrupt_control_state.write(.{ .clear_pending_SysTick = true });
+                peripherals.SCB.interrupt_control_state.write(.{ .clear_pending_SysTick = true });
             }
         },
         else => @compileError("Unsupported exception type!"),
@@ -154,7 +154,7 @@ pub inline fn set_globally_enabled(comptime enabled: bool) void {
 
 pub inline fn current_exception() Exception {
     // Another way to implement this would be:
-    // chip.SCB.interrupt_control_state.read().active_exception_number
+    // peripherals.SCB.interrupt_control_state.read().active_exception_number
     // but this is faster:
     return !asm volatile ("mrs r0, ipsr"
         : [ret] "={r0}" (-> Exception),
@@ -179,6 +179,7 @@ pub inline fn send_event() void {
     asm volatile ("sev");
 }
 
-const chip = @import("chip");
+const peripherals = @import("peripherals.zig");
+const chip = @import("../rp2040.zig");
 const util = @import("microbe").util;
 const std = @import("std");

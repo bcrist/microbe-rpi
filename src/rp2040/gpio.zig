@@ -62,16 +62,16 @@ pub fn configure(comptime pads: []const Pad_ID, config: Config) void {
     inline for (pads) |pad| {
         const n = @intFromEnum(pad);
         if (n < 30) {
-            configure_internal(&chip.PADS.gpio[n], config);
+            configure_internal(&peripherals.PADS.gpio[n], config);
         } else switch (pad) {
-            .SWCLK => configure_internal(&chip.PADS.swclk, config),
-            .SWDIO => configure_internal(&chip.PADS.swdio, config),
-            .SCLK => configure_internal(&chip.PADS_QSPI.sclk, config),
-            .SS => configure_internal(&chip.PADS_QSPI.ss, config),
-            .SD0 => configure_internal(&chip.PADS_QSPI.sd[0], config),
-            .SD1 => configure_internal(&chip.PADS_QSPI.sd[1], config),
-            .SD2 => configure_internal(&chip.PADS_QSPI.sd[2], config),
-            .SD3 => configure_internal(&chip.PADS_QSPI.sd[3], config),
+            .SWCLK => configure_internal(&peripherals.PADS.swclk, config),
+            .SWDIO => configure_internal(&peripherals.PADS.swdio, config),
+            .SCLK => configure_internal(&peripherals.PADS_QSPI.sclk, config),
+            .SS => configure_internal(&peripherals.PADS_QSPI.ss, config),
+            .SD0 => configure_internal(&peripherals.PADS_QSPI.sd[0], config),
+            .SD1 => configure_internal(&peripherals.PADS_QSPI.sd[1], config),
+            .SD2 => configure_internal(&peripherals.PADS_QSPI.sd[2], config),
+            .SD3 => configure_internal(&peripherals.PADS_QSPI.sd[3], config),
             else => unreachable,
         }
     }
@@ -125,16 +125,16 @@ pub fn set_function(comptime pad: Pad_ID, comptime function: anytype) void {
     const n = @intFromEnum(pad);
     if (n < 30) {
         const func = comptime std.enums.nameCast(io.IO_Function, function);
-        chip.IO[n].control.modify(.{ .func = func });
+        peripherals.IO[n].control.modify(.{ .func = func });
     } else {
         const func = comptime std.enums.nameCast(io.QSPI_Function, function);
         switch (pad) {
-            .SCLK => chip.IO_QSPI.sclk.control.modify(.{ .func = func }),
-            .SS  => chip.IO_QSPI.ss.control.modify(.{ .func = func }),
-            .SD0 => chip.IO_QSPI.sd[0].control.modify(.{ .func = func }),
-            .SD1 => chip.IO_QSPI.sd[1].control.modify(.{ .func = func }),
-            .SD2 => chip.IO_QSPI.sd[2].control.modify(.{ .func = func }),
-            .SD3 => chip.IO_QSPI.sd[3].control.modify(.{ .func = func }),
+            .SCLK => peripherals.IO_QSPI.sclk.control.modify(.{ .func = func }),
+            .SS  => peripherals.IO_QSPI.ss.control.modify(.{ .func = func }),
+            .SD0 => peripherals.IO_QSPI.sd[0].control.modify(.{ .func = func }),
+            .SD1 => peripherals.IO_QSPI.sd[1].control.modify(.{ .func = func }),
+            .SD2 => peripherals.IO_QSPI.sd[2].control.modify(.{ .func = func }),
+            .SD3 => peripherals.IO_QSPI.sd[3].control.modify(.{ .func = func }),
             else => @compileError("SWD pads don't have configurable functions"),
         }
     }
@@ -142,115 +142,115 @@ pub fn set_function(comptime pad: Pad_ID, comptime function: anytype) void {
 
 pub fn read_input_port(comptime port: Port_ID) Port_Data_Type {
     return switch (port) {
-        .gpio => chip.SIO.io.in.read(),
-        .qspi => chip.SIO.io.in_qspi.read(),
+        .gpio => peripherals.SIO.io.in.read(),
+        .qspi => peripherals.SIO.io.in_qspi.read(),
     };
 }
 
 pub fn read_output_port(comptime port: Port_ID) Port_Data_Type {
     return switch (port) {
-        .gpio => chip.SIO.io.out.value.read(),
-        .qspi => chip.SIO.io.out_qspi.value.read(),
+        .gpio => peripherals.SIO.io.out.value.read(),
+        .qspi => peripherals.SIO.io.out_qspi.value.read(),
     };
 }
 
 pub fn write_output_port(comptime port: Port_ID, state: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.out.value.write(state),
-        .qspi => chip.SIO.io.out_qspi.value.write(state),
+        .gpio => peripherals.SIO.io.out.value.write(state),
+        .qspi => peripherals.SIO.io.out_qspi.value.write(state),
     }
 }
 
 pub fn clear_output_port_bits(comptime port: Port_ID, bits_to_clear: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.out.clear.write(bits_to_clear),
-        .qspi => chip.SIO.io.out_qspi.clear.write(bits_to_clear),
+        .gpio => peripherals.SIO.io.out.clear.write(bits_to_clear),
+        .qspi => peripherals.SIO.io.out_qspi.clear.write(bits_to_clear),
     }
 }
 
 pub fn set_output_port_bits(comptime port: Port_ID, bits_to_set: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.out.set.write(bits_to_set),
-        .qspi => chip.SIO.io.out_qspi.set.write(bits_to_set),
+        .gpio => peripherals.SIO.io.out.set.write(bits_to_set),
+        .qspi => peripherals.SIO.io.out_qspi.set.write(bits_to_set),
     }
 }
 
 pub fn toggle_output_port_bits(comptime port: Port_ID, bits_to_toggle: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.out.toggle.write(bits_to_toggle),
-        .qspi => chip.SIO.io.out_qspi.toggle.write(bits_to_toggle),
+        .gpio => peripherals.SIO.io.out.toggle.write(bits_to_toggle),
+        .qspi => peripherals.SIO.io.out_qspi.toggle.write(bits_to_toggle),
     }
 }
 
 pub fn modify_output_port(comptime port: Port_ID, bits_to_clear: Port_Data_Type, bits_to_set: Port_Data_Type) void {
     switch (port) {
         .gpio => {
-            const old = chip.SIO.io.out.value.read();
+            const old = peripherals.SIO.io.out.value.read();
             var val = old;
             val |= bits_to_set;
             val &= ~bits_to_clear;
-            chip.SIO.io.out.toggle.write(val ^ old);
+            peripherals.SIO.io.out.toggle.write(val ^ old);
         },
         .qspi => {
-            const old = chip.SIO.io.out_qspi.value.read();
+            const old = peripherals.SIO.io.out_qspi.value.read();
             var val = old;
             val |= bits_to_set;
             val &= ~bits_to_clear;
-            chip.SIO.io.out_qspi.toggle.write(val ^ old);
+            peripherals.SIO.io.out_qspi.toggle.write(val ^ old);
         },
     }
 }
 
 pub fn read_output_port_enables(comptime port: Port_ID) Port_Data_Type {
     return switch (port) {
-        .gpio => chip.SIO.io.oe.value.read(),
-        .qspi => chip.SIO.io.oe_qspi.value.read(),
+        .gpio => peripherals.SIO.io.oe.value.read(),
+        .qspi => peripherals.SIO.io.oe_qspi.value.read(),
     };
 }
 
 pub fn write_output_port_enables(comptime port: Port_ID, state: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.oe.value.write(state),
-        .qspi => chip.SIO.io.oe_qspi.value.write(state),
+        .gpio => peripherals.SIO.io.oe.value.write(state),
+        .qspi => peripherals.SIO.io.oe_qspi.value.write(state),
     }
 }
 
 pub fn clear_output_port_enable_bits(comptime port: Port_ID, bits_to_clear: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.oe.clear.write(bits_to_clear),
-        .qspi => chip.SIO.io.oe_qspi.clear.write(bits_to_clear),
+        .gpio => peripherals.SIO.io.oe.clear.write(bits_to_clear),
+        .qspi => peripherals.SIO.io.oe_qspi.clear.write(bits_to_clear),
     }
 }
 
 pub fn set_output_port_enable_bits(comptime port: Port_ID, bits_to_set: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.oe.set.write(bits_to_set),
-        .qspi => chip.SIO.io.oe_qspi.set.write(bits_to_set),
+        .gpio => peripherals.SIO.io.oe.set.write(bits_to_set),
+        .qspi => peripherals.SIO.io.oe_qspi.set.write(bits_to_set),
     }
 }
 
 pub fn toggle_output_port_enable_bits(comptime port: Port_ID, bits_to_toggle: Port_Data_Type) void {
     switch (port) {
-        .gpio => chip.SIO.io.oe.toggle.write(bits_to_toggle),
-        .qspi => chip.SIO.io.oe_qspi.toggle.write(bits_to_toggle),
+        .gpio => peripherals.SIO.io.oe.toggle.write(bits_to_toggle),
+        .qspi => peripherals.SIO.io.oe_qspi.toggle.write(bits_to_toggle),
     }
 }
 
 pub fn modify_output_port_enables(comptime port: Port_ID, bits_to_clear: Port_Data_Type, bits_to_set: Port_Data_Type) void {
     switch (port) {
         .gpio => {
-            const old = chip.SIO.io.oe.value.read();
+            const old = peripherals.SIO.io.oe.value.read();
             var val = old;
             val |= bits_to_set;
             val &= ~bits_to_clear;
-            chip.SIO.io.oe.toggle.write(val ^ old);
+            peripherals.SIO.io.oe.toggle.write(val ^ old);
         },
         .qspi => {
-            const old = chip.SIO.io.oe_qspi.value.read();
+            const old = peripherals.SIO.io.oe_qspi.value.read();
             var val = old;
             val |= bits_to_set;
             val &= ~bits_to_clear;
-            chip.SIO.io.oe_qspi.toggle.write(val ^ old);
+            peripherals.SIO.io.oe_qspi.toggle.write(val ^ old);
         },
     }
 }
@@ -280,7 +280,7 @@ pub inline fn set_outputs(comptime pads: []const Pad_ID) void {
         var mask: Port_Data_Type = 0;
         inline for (pads) |pad| {
             if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime chip.gpio.get_offset(pad);
+                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
             }
         }
         set_output_port_bits(port, mask);
@@ -291,7 +291,7 @@ pub inline fn clear_outputs(comptime pads: []const Pad_ID) void {
         var mask: Port_Data_Type = 0;
         inline for (pads) |pad| {
             if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime chip.gpio.get_offset(pad);
+                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
             }
         }
         clear_output_port_bits(port, mask);
@@ -302,7 +302,7 @@ pub inline fn toggle_outputs(comptime pads: []const Pad_ID) void {
         var mask: Port_Data_Type = 0;
         inline for (pads) |pad| {
             if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime chip.gpio.get_offset(pad);
+                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
             }
         }
         toggle_output_port_bits(port, mask);
@@ -329,7 +329,7 @@ pub inline fn set_output_enables(comptime pads: []const Pad_ID) void {
         var mask: Port_Data_Type = 0;
         inline for (pads) |pad| {
             if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime chip.gpio.get_offset(pad);
+                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
             }
         }
         set_output_port_enable_bits(port, mask);
@@ -340,7 +340,7 @@ pub inline fn clear_output_enables(comptime pads: []const Pad_ID) void {
         var mask: Port_Data_Type = 0;
         inline for (pads) |pad| {
             if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime chip.gpio.get_offset(pad);
+                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
             }
         }
         clear_output_port_enable_bits(port, mask);
@@ -351,7 +351,7 @@ pub inline fn toggle_output_enables(comptime pads: []const Pad_ID) void {
         var mask: Port_Data_Type = 0;
         inline for (pads) |pad| {
             if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime chip.gpio.get_offset(pad);
+                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
             }
         }
         toggle_output_port_enable_bits(port, mask);
@@ -359,7 +359,8 @@ pub inline fn toggle_output_enables(comptime pads: []const Pad_ID) void {
 }
 
 const resets = @import("resets.zig");
+const peripherals = @import("peripherals.zig");
 const Pad_ID = chip.Pad_ID;
 const io = chip.reg_types.io;
-const chip = @import("chip");
+const chip = @import("../rp2040.zig");
 const std = @import("std");

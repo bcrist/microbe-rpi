@@ -425,6 +425,87 @@
 (group pio
 )
 (group pwm
+    (create-type Clock_Mode
+        (bits 2)
+        (enum
+            (0 free_running)
+            (1 gated)
+            (2 rising_edge)
+            (3 falling_edge)
+        )
+    )
+    (peripheral PWM
+        (type
+            (field CH0_CSR
+                (type (inner
+                    (rename Control)
+                    (field EN (rename enabled) (set-type bool))
+                    (field PH_CORRECT (rename phase_correct) (set-type bool))
+                    (field A_INV (rename invert_a) (set-type bool))
+                    (field B_INV (rename invert_b) (set-type bool))
+                    (field DIVMODE (rename clock_mode) (set-type Clock_Mode))
+                    (field PH_RET (rename request_phase_retard) (set-type bool))
+                    (field PH_ADV (rename request_phase_advance) (set-type bool))
+                ))
+            )
+            (field CH0_DIV
+                (type (inner
+                    (rename Divisor)
+                    (merge-field FRAC div_16ths u12)
+                ))
+            )
+            (field CH0_CTR
+                (type (inner
+                    (rename Counter)
+                    (field CH0_CTR (rename count))
+                ))
+            )
+            (field CH0_CC
+                (type (inner
+                    (rename Compare)
+                    (field A (rename a))
+                    (field B (rename b))
+                ))
+            )
+            (field CH0_TOP
+                (type (inner
+                    (rename Top)
+                    (field CH0_TOP (rename count))
+                ))
+            )
+        )
+    )
+    (create-type Channel
+        (struct
+            (control (type (reg Control)))
+            (divisor (type (reg Divisor)))
+            (counter (type (reg Counter)))
+            (compare (type (reg Compare)))
+            (top (type (reg Top)))
+        )
+    )
+    (peripheral PWM
+        (type
+            (merge-field CH0_CSR channel (array 8 Channel))
+            (field EN (rename enable) (type (inner
+                (rename Channel_Bitmap)
+                (field CH0 (rename ch0) (set-type bool))
+                (field CH1 (rename ch1) (set-type bool))
+                (field CH2 (rename ch2) (set-type bool))
+                (field CH3 (rename ch3) (set-type bool))
+                (field CH4 (rename ch4) (set-type bool))
+                (field CH5 (rename ch5) (set-type bool))
+                (field CH6 (rename ch6) (set-type bool))
+                (field CH7 (rename ch7) (set-type bool))
+            )))
+            (merge-field INTR irq (struct
+                (raw (type (reg Channel_Bitmap)))
+                (enable (type (reg Channel_Bitmap)))
+                (force (type (reg Channel_Bitmap)))
+                (status (type (reg r Channel_Bitmap)))
+            ))
+        )
+    )
 )
 (group i2c
 )

@@ -19,17 +19,18 @@ pub fn abort_channel(comptime channel: Channel) void {
     const mask = @as(u32, 1) << ch;
     const bitmap: chip.reg_types.dma.Channel_Bitmap = @bitCast(mask);
 
-    const irq0_enables: u32 = @bitCast(chip.DMA.irq0.enable.read());
-    chip.DMA.irq0.enable.write(@bitCast(irq0_enables & ~mask));
+    const irq0_enables: u32 = @bitCast(peripherals.DMA.irq0.enable.read());
+    peripherals.DMA.irq0.enable.write(@bitCast(irq0_enables & ~mask));
 
-    const irq1_enables: u32 = @bitCast(chip.DMA.irq1.enable.read());
-    chip.DMA.irq1.enable.write(@bitCast(irq1_enables & ~mask));
+    const irq1_enables: u32 = @bitCast(peripherals.DMA.irq1.enable.read());
+    peripherals.DMA.irq1.enable.write(@bitCast(irq1_enables & ~mask));
 
-    chip.DMA.abort.write(bitmap);
+    peripherals.DMA.abort.write(bitmap);
 
-    while (chip.DMA_CH[ch].config.control.read().busy) {}
+    while (peripherals.DMA_CH[ch].config.control.read().busy) {}
 
-    chip.DMA.interrupt_status.write(bitmap);
+    peripherals.DMA.interrupt_status.write(bitmap);
 }
 
-const chip = @import("chip");
+const peripherals = @import("peripherals.zig");
+const chip = @import("../rp2040.zig");

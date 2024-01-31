@@ -1,8 +1,8 @@
 pub const ROSC_Params = struct {
     range: union(enum) {
-        low: [8]chip.reg_types.clk.ROSC_Stage_Drive_Strength,
-        medium: [6]chip.reg_types.clk.ROSC_Stage_Drive_Strength,
-        high: [4]chip.reg_types.clk.ROSC_Stage_Drive_Strength,
+        low: [8]reg_types.clk.ROSC_Stage_Drive_Strength,
+        medium: [6]reg_types.clk.ROSC_Stage_Drive_Strength,
+        high: [4]reg_types.clk.ROSC_Stage_Drive_Strength,
     },
     divisor: comptime_int, // 1 - 32
 
@@ -34,10 +34,10 @@ pub const Config = struct {
     usb_pll: ?PLL_Config = null,
 
     gpin: [2]?struct {
-        pad: chip.Pad_ID,
+        pad: Pad_ID,
         invert: bool,
         hysteresis: bool,
-        maintenance: chip.reg_types.io.Pin_Maintenance,
+        maintenance: reg_types.io.Pin_Maintenance,
         frequency_hz: comptime_int,
     } = .{ null, null },
 
@@ -81,7 +81,7 @@ pub const Config = struct {
     } = .{ .period_ns = 10_000_000 },
 
     gpout: [4]?struct {
-        pad: chip.Pad_ID,
+        pad: Pad_ID,
         source: enum {
             sys_pll,
             usb_pll,
@@ -97,8 +97,8 @@ pub const Config = struct {
         },
         frequency_hz: ?comptime_int = null,
         invert: bool = false,
-        slew: chip.reg_types.io.Slew_Rate,
-        strength: chip.reg_types.io.Drive_Strength,
+        slew: reg_types.io.Slew_Rate,
+        strength: reg_types.io.Drive_Strength,
     } = .{ null, null, null, null },
 
     /// a.k.a. clk_peri
@@ -218,7 +218,7 @@ pub const Generic_Clock_Generator_Config = struct {
         };
     }
 
-    pub fn integer_divisor(comptime self: Generic_Clock_Generator_Config) chip.reg_types.clk.Div123 {
+    pub fn integer_divisor(comptime self: Generic_Clock_Generator_Config) reg_types.clk.Div123 {
         return switch (self.divisor_256ths) {
             0x100 => .none,
             0x200 => .div2,
@@ -258,10 +258,10 @@ pub const Parsed_Config = struct {
     sys_pll: Parsed_PLL_Config,
     usb_pll: Parsed_PLL_Config,
     gpin: [2]struct {
-        pad: chip.Pad_ID,
+        pad: Pad_ID,
         invert: bool,
         hysteresis: bool,
-        maintenance: chip.reg_types.io.Pin_Maintenance,
+        maintenance: reg_types.io.Pin_Maintenance,
         frequency_hz: comptime_int,
         period_ns: comptime_int,
     },
@@ -284,10 +284,10 @@ pub const Parsed_Config = struct {
     adc: Generic_Clock_Generator_Config,
     rtc: Generic_Clock_Generator_Config,
     gpout: [4]struct {
-        pad: chip.Pad_ID,
+        pad: Pad_ID,
         invert: bool,
-        slew: chip.reg_types.io.Slew_Rate,
-        strength: chip.reg_types.io.Drive_Strength,
+        slew: reg_types.io.Slew_Rate,
+        strength: reg_types.io.Drive_Strength,
         generator: Generic_Clock_Generator_Config,
     },
 };
@@ -434,7 +434,7 @@ pub fn parse_config(comptime config: Config) Parsed_Config {
 
         for (0..2) |n| {
             if (config.gpin[n]) |gpin| {
-                const io: chip.Pad_ID = switch (n) {
+                const io: Pad_ID = switch (n) {
                     0 => .GPIO20,
                     1 => .GPIO22,
                 };
@@ -572,7 +572,7 @@ pub fn parse_config(comptime config: Config) Parsed_Config {
 
         for (0.., config.gpout, &parsed.gpout) |n, maybe_gpout, *parsed_gpout| {
             if (maybe_gpout) |gpout| {
-                const io: chip.Pad_ID = switch (n) {
+                const io: Pad_ID = switch (n) {
                     0 => .GPIO21,
                     1 => .GPIO23,
                     2 => .GPIO24,
@@ -1005,13 +1005,13 @@ fn print_pll_config(comptime config: Parsed_PLL_Config, writer: anytype) !void {
 
 
 const PLL_Config_Change = struct {
-    pll: *volatile chip.reg_types.clk.PLL,
+    pll: *volatile reg_types.clk.PLL,
 
     disable_output_divisor: bool = false,
     change_input_divisor: ?u6 = null,
     change_multiplier: ?u12 = null,
     should_wait_for_stable: bool = false,
-    change_output_divisor: ?@TypeOf(chip.PLL_SYS.output).Type = null,
+    change_output_divisor: ?@TypeOf(peripherals.PLL_SYS.output).Type = null,
     enable_output_divisor: bool = false,
     shutdown: bool = false,
 
@@ -1054,14 +1054,14 @@ const PLL_Config_Change = struct {
 /// from one Parsed_Config to another, or to set up the initial Parsed_Config.
 /// It's generated at comptime so that the run() function optimizes to just the necessary operations.
 const Config_Change = struct {
-    resets_to_clear: ?chip.reg_types.sys.Reset_Bitmap = null,
+    resets_to_clear: ?reg_types.sys.Reset_Bitmap = null,
     change_xosc_startup_delay_div256: ?u14 = null,
     start_xosc: bool = false,
 
     change_rosc_divisor_early: ?ROSC_Divisor = null,
-    change_rosc_drive0: ?@TypeOf(chip.ROSC.drive0).Type = null,
-    change_rosc_drive1: ?@TypeOf(chip.ROSC.drive1).Type = null,
-    start_rosc: ?@TypeOf(chip.ROSC.control).Type = null,
+    change_rosc_drive0: ?@TypeOf(peripherals.ROSC.drive0).Type = null,
+    change_rosc_drive1: ?@TypeOf(peripherals.ROSC.drive1).Type = null,
+    start_rosc: ?@TypeOf(peripherals.ROSC.control).Type = null,
     change_rosc_divisor_late: ?ROSC_Divisor = null,
 
     wait_for_rosc_stable: bool = false,
@@ -1075,48 +1075,48 @@ const Config_Change = struct {
     cycles_to_wait_after_disables: u32 = 0,
 
     setup_gpin_hysteresis: [2]?bool = .{ null, null },
-    setup_gpin_maintenance: [2]?chip.reg_types.io.Pin_Maintenance = .{ null, null },
+    setup_gpin_maintenance: [2]?reg_types.io.Pin_Maintenance = .{ null, null },
     setup_gpin_io: [2]?enum { disabled, normal, inverted } = .{ null, null },
 
-    change_ref_divisor_early: ?chip.reg_types.clk.Div123 = null,
+    change_ref_divisor_early: ?reg_types.clk.Div123 = null,
     change_sys_divisor_early: ?u32 = null,
     switch_ref_to_rosc: bool = false,
     switch_ref_to_xosc: bool = false,
-    change_ref_divisor_mid: ?chip.reg_types.clk.Div123 = null,
+    change_ref_divisor_mid: ?reg_types.clk.Div123 = null,
 
     switch_sys_to_ref: bool = false,
     change_sys_divisor_ref: ?u32 = null,
 
-    sys_pll: PLL_Config_Change = .{ .pll = chip.PLL_SYS },
-    usb_pll: PLL_Config_Change = .{ .pll = chip.PLL_USB },
+    sys_pll: PLL_Config_Change = .{ .pll = peripherals.PLL_SYS },
+    usb_pll: PLL_Config_Change = .{ .pll = peripherals.PLL_USB },
 
-    switch_sys_aux: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.control).Type, .aux_source).type = null,
+    switch_sys_aux: ?std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.sys.control).Type, .aux_source).type = null,
     switch_sys_to_aux: bool = false,
     change_sys_divisor_late: ?u32 = null,
 
-    switch_ref_aux: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.ref.control).Type, .aux_source).type = null,
+    switch_ref_aux: ?std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.ref.control).Type, .aux_source).type = null,
     switch_ref_to_aux: bool = false,
-    change_ref_divisor_late: ?chip.reg_types.clk.Div123 = null,
+    change_ref_divisor_late: ?reg_types.clk.Div123 = null,
 
-    enable_peri: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.peri.control).Type, .source).type = null,
-    change_usb_divisor: ?chip.reg_types.clk.Div123 = null,
-    enable_usb: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.usb.control).Type, .source).type = null,
-    change_adc_divisor: ?chip.reg_types.clk.Div123 = null,
-    enable_adc: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.adc.control).Type, .source).type = null,
+    enable_peri: ?std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.peri.control).Type, .source).type = null,
+    change_usb_divisor: ?reg_types.clk.Div123 = null,
+    enable_usb: ?std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.usb.control).Type, .source).type = null,
+    change_adc_divisor: ?reg_types.clk.Div123 = null,
+    enable_adc: ?std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.adc.control).Type, .source).type = null,
     change_rtc_divisor: ?u32 = null,
-    enable_rtc: ?std.meta.fieldInfo(@TypeOf(chip.CLOCKS.rtc.control).Type, .source).type = null,
+    enable_rtc: ?std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.rtc.control).Type, .source).type = null,
 
-    setup_gpout_slew: [4]?chip.reg_types.io.Slew_Rate = .{ null, null, null, null },
-    setup_gpout_strength: [4]?chip.reg_types.io.Drive_Strength = .{ null, null, null, null },
+    setup_gpout_slew: [4]?reg_types.io.Slew_Rate = .{ null, null, null, null },
+    setup_gpout_strength: [4]?reg_types.io.Drive_Strength = .{ null, null, null, null },
     setup_gpout_io: [4]?enum { disabled, normal, inverted } = .{ null, null, null, null },
     change_gpout_divisor: [4]?u32 = .{ null, null, null, null },
-    change_gpout_control: [4]?std.meta.fieldInfo(chip.reg_types.clk.GPOUT_Clock_Generator, .control).type = .{ null, null, null, null },
-    enable_gpout: [4]?std.meta.fieldInfo(chip.reg_types.clk.GPOUT_Clock_Generator, .control).type = .{ null, null, null, null },
+    change_gpout_control: [4]?std.meta.fieldInfo(reg_types.clk.GPOUT_Clock_Generator, .control).type = .{ null, null, null, null },
+    enable_gpout: [4]?std.meta.fieldInfo(reg_types.clk.GPOUT_Clock_Generator, .control).type = .{ null, null, null, null },
 
     disable_microtick: bool = false,
     disable_systick: bool = false,
     change_microtick_divisor: ?u9 = null,
-    change_systick_source: ?std.meta.fieldInfo(@TypeOf(chip.SYSTICK.control_status).Type, .clock_source).type = null,
+    change_systick_source: ?std.meta.fieldInfo(@TypeOf(peripherals.SYSTICK.control_status).Type, .clock_source).type = null,
     change_systick_reload: ?u24 = null,
     enable_systick: bool = false,
     enable_microtick: bool = false,
@@ -1130,42 +1130,42 @@ const Config_Change = struct {
         }
 
         if (self.change_xosc_startup_delay_div256) |delay| {
-            chip.XOSC.startup_delay.write(.{ .cycles_div256 = delay });
+            peripherals.XOSC.startup_delay.write(.{ .cycles_div256 = delay });
         }
         if (self.start_xosc) {
-            chip.XOSC.control.modify(.{ .enabled = .enabled });
+            peripherals.XOSC.control.modify(.{ .enabled = .enabled });
         }
         if (self.change_rosc_divisor_early) |div| {
-            chip.ROSC.output_divisor.write(.{ .divisor = div });
+            peripherals.ROSC.output_divisor.write(.{ .divisor = div });
         }
         if (self.change_rosc_drive0) |drive| {
-            chip.ROSC.drive0.write(drive);
+            peripherals.ROSC.drive0.write(drive);
         }
         if (self.change_rosc_drive1) |drive| {
-            chip.ROSC.drive1.write(drive);
+            peripherals.ROSC.drive1.write(drive);
         }
         if (self.start_rosc) |control_word| {
-            chip.ROSC.control.write(control_word);
+            peripherals.ROSC.control.write(control_word);
         }
         if (self.change_rosc_divisor_late) |div| {
-            chip.ROSC.output_divisor.write(.{ .divisor = div });
+            peripherals.ROSC.output_divisor.write(.{ .divisor = div });
         }
         inline for (0.., self.disable_gpout) |n, disable| {
             if (disable) {
-                chip.CLOCKS.gpout[n].control.modify(.{ .enabled = false });
+                peripherals.CLOCKS.gpout[n].control.modify(.{ .enabled = false });
             }
         }
         if (self.disable_peri) {
-            chip.CLOCKS.peri.control.modify(.{ .enabled = false });
+            peripherals.CLOCKS.peri.control.modify(.{ .enabled = false });
         }
         if (self.disable_usb) {
-            chip.CLOCKS.usb.control.modify(.{ .enabled = false });
+            peripherals.CLOCKS.usb.control.modify(.{ .enabled = false });
         }
         if (self.disable_adc) {
-            chip.CLOCKS.adc.control.modify(.{ .enabled = false });
+            peripherals.CLOCKS.adc.control.modify(.{ .enabled = false });
         }
         if (self.disable_rtc) {
-            chip.CLOCKS.rtc.control.modify(.{ .enabled = false });
+            peripherals.CLOCKS.rtc.control.modify(.{ .enabled = false });
         }
         if (self.cycles_to_wait_after_disables > 0) {
             timing.blockAtLeastCycles(self.cycles_to_wait_after_disables);
@@ -1177,25 +1177,25 @@ const Config_Change = struct {
                 else => unreachable,
             };
             if (maybe_hyst != null or maybe_pull != null) {
-                var io_cfg = chip.PADS.gpio[io].read();
+                var io_cfg = peripherals.PADS.gpio[io].read();
                 if (maybe_hyst) |hyst| io_cfg.hysteresis = hyst;
                 if (maybe_pull) |pull| io_cfg.maintenance = pull;
                 io_cfg.input_enabled = true;
-                chip.PADS.gpio[io].write(io_cfg);
+                peripherals.PADS.gpio[io].write(io_cfg);
             }
             if (maybe_io_mode) |mode| {
                 switch (mode) {
-                    .disabled => chip.IO[io].control.modify(.{
+                    .disabled => peripherals.IO[io].control.modify(.{
                         .func = .disable,
                         .oe_override = .normal,
                         .input_override = .normal,
                     }),
-                    .normal   => chip.IO[io].control.modify(.{
+                    .normal   => peripherals.IO[io].control.modify(.{
                         .func = .clock,
                         .oe_override = .force_low,
                         .input_override = .normal,
                     }),
-                    .inverted => chip.IO[io].control.modify(.{
+                    .inverted => peripherals.IO[io].control.modify(.{
                         .func = .clock,
                         .oe_override = .force_low,
                         .input_override = .invert,
@@ -1205,21 +1205,21 @@ const Config_Change = struct {
         }
         if (self.wait_for_rosc_stable) {
             while (true) {
-                const status = chip.ROSC.status.read();
+                const status = peripherals.ROSC.status.read();
                 if (status.stable or !status.enabled) break;
             }
         }
         if (self.wait_for_xosc_stable) {
             while (true) {
-                const status = chip.XOSC.status.read();
+                const status = peripherals.XOSC.status.read();
                 if (status.stable or !status.enabled) break;
             }
         }
         if (self.change_ref_divisor_early) |div| {
-            self.CLOCKS.ref.divisor.write(.{ .divisor = div });
+            peripherals.CLOCKS.ref.divisor.write(.{ .divisor = div });
         }
         if (self.change_sys_divisor_early) |div| {
-            self.CLOCKS.sys.divisor.write(.{ .divisor = div });
+            peripherals.CLOCKS.sys.divisor.write(.{ .divisor = div });
         }
         if (self.switch_ref_to_rosc) {
             set_glitchless_ref_source(.rosc);
@@ -1228,77 +1228,77 @@ const Config_Change = struct {
             set_glitchless_ref_source(.xosc);
         }
         if (self.change_ref_divisor_mid) |div| {
-            chip.CLOCKS.ref.divisor.write(.{ .divisor = div });
+            peripherals.CLOCKS.ref.divisor.write(.{ .divisor = div });
         }
         if (self.switch_sys_to_ref) {
             set_glitchless_sys_source(.clk_ref);
         }
         if (self.change_sys_divisor_ref) |div| {
-            chip.CLOCKS.sys.divisor.write(.{ .divisor = div });
+            peripherals.CLOCKS.sys.divisor.write(.{ .divisor = div });
         }
         self.sys_pll.init();
         self.usb_pll.init();
         self.sys_pll.wait_for_stable();
         self.usb_pll.wait_for_stable();
         if (self.switch_sys_aux) |aux_src| {
-            chip.CLOCKS.sys.control.modify(.{ .aux_source = aux_src });
+            peripherals.CLOCKS.sys.control.modify(.{ .aux_source = aux_src });
         }
         if (self.switch_sys_to_aux) {
             set_glitchless_sys_source(.aux);
         }
         if (self.change_sys_divisor_late) |div| {
-            chip.CLOCKS.sys.divisor.write(div);
+            peripherals.CLOCKS.sys.divisor.write(div);
         }
         if (self.switch_ref_aux) |aux_src| {
-            chip.CLOCKS.ref.control.modify(.{ .aux_source = aux_src });
+            peripherals.CLOCKS.ref.control.modify(.{ .aux_source = aux_src });
         }
         if (self.switch_ref_to_aux) {
             set_glitchless_ref_source(.aux);
         }
         if (self.change_ref_divisor_late) |div| {
-            chip.CLOCKS.ref.divisor.write(.{ .divisor = div });
+            peripherals.CLOCKS.ref.divisor.write(.{ .divisor = div });
         }
         if (self.enable_peri) |src| {
-            chip.CLOCKS.peri.control.write(.{
+            peripherals.CLOCKS.peri.control.write(.{
                 .source = src,
             });
-            chip.CLOCKS.peri.control.write(.{
+            peripherals.CLOCKS.peri.control.write(.{
                 .source = src,
                 .enabled = true,
             });
         }
         if (self.change_usb_divisor) |div| {
-            chip.CLOCKS.usb.divisor.write(.{ .divisor = div });
+            peripherals.CLOCKS.usb.divisor.write(.{ .divisor = div });
         }
         if (self.enable_usb) |src| {
-            chip.CLOCKS.usb.control.write(.{
+            peripherals.CLOCKS.usb.control.write(.{
                 .source = src,
             });
-            chip.CLOCKS.usb.control.write(.{
+            peripherals.CLOCKS.usb.control.write(.{
                 .source = src,
                 .enabled = true,
             });
         }
         if (self.change_adc_divisor) |div| {
-            chip.CLOCKS.adc.divisor.write(.{ .divisor = div });
+            peripherals.CLOCKS.adc.divisor.write(.{ .divisor = div });
         }
         if (self.enable_adc) |src| {
-            chip.CLOCKS.adc.control.write(.{
+            peripherals.CLOCKS.adc.control.write(.{
                 .source = src,
             });
-            chip.CLOCKS.adc.control.write(.{
+            peripherals.CLOCKS.adc.control.write(.{
                 .source = src,
                 .enabled = true,
             });
         }
         if (self.change_rtc_divisor) |div| {
-            chip.CLOCKS.rtc.divisor.write(div);
+            peripherals.CLOCKS.rtc.divisor.write(div);
         }
         if (self.enable_rtc) |src| {
-            chip.CLOCKS.rtc.control.write(.{
+            peripherals.CLOCKS.rtc.control.write(.{
                 .source = src,
             });
-            chip.CLOCKS.rtc.control.write(.{
+            peripherals.CLOCKS.rtc.control.write(.{
                 .source = src,
                 .enabled = true,
             });
@@ -1312,13 +1312,13 @@ const Config_Change = struct {
             self.enable_gpout
         ) |n, maybe_slew, maybe_strength, maybe_io_mode, maybe_div, maybe_ctrl, maybe_enable| {
             if (maybe_div) |div| {
-                chip.CLOCKS.gpout[n].divisor.write(div);
+                peripherals.CLOCKS.gpout[n].divisor.write(div);
             }
             if (maybe_ctrl) |ctrl| {
-                chip.CLOCKS.gpout[n].control.write(ctrl);
+                peripherals.CLOCKS.gpout[n].control.write(ctrl);
             }
             if (maybe_enable) |ctrl| {
-                chip.CLOCKS.gpout[n].control.write(ctrl);
+                peripherals.CLOCKS.gpout[n].control.write(ctrl);
             }
             const io = switch (n) {
                 0 => 21,
@@ -1329,25 +1329,25 @@ const Config_Change = struct {
             };
 
             if (maybe_slew != null or maybe_strength != null) {
-                var io_cfg = chip.PADS.gpio[io].read();
+                var io_cfg = peripherals.PADS.gpio[io].read();
                 if (maybe_slew) |slew| io_cfg.speed = slew;
                 if (maybe_strength) |strength| io_cfg.strength = strength;
                 io_cfg.output_disabled = false;
-                chip.PADS.gpio[io].write(io_cfg);
+                peripherals.PADS.gpio[io].write(io_cfg);
             }
             if (maybe_io_mode) |mode| {
                 switch (mode) {
-                    .disabled => chip.IO[io].control.modify(.{
+                    .disabled => peripherals.IO[io].control.modify(.{
                         .func = .disable,
                         .output_override = .normal,
                         .oe_override = .normal,
                     }),
-                    .normal   => chip.IO[io].control.modify(.{
+                    .normal   => peripherals.IO[io].control.modify(.{
                         .func = .clock,
                         .output_override = .normal,
                         .oe_override = .force_high,
                     }),
-                    .inverted => chip.IO[io].control.modify(.{
+                    .inverted => peripherals.IO[io].control.modify(.{
                         .func = .clock,
                         .output_override = .invert,
                         .oe_override = .force_high,
@@ -1356,63 +1356,63 @@ const Config_Change = struct {
             }
         }
         if (self.disable_microtick) {
-            chip.WATCHDOG.tick.modify(.{ .enabled = false });
-            while (chip.WATCHDOG.tick.read().running) {}
+            peripherals.WATCHDOG.tick.modify(.{ .enabled = false });
+            while (peripherals.WATCHDOG.tick.read().running) {}
         }
         if (self.disable_systick) {
-            chip.SYSTICK.control_status.modify(.{ .count_enable = false });
+            peripherals.SYSTICK.control_status.modify(.{ .count_enable = false });
         }
         if (self.change_microtick_divisor) |div| {
-            chip.WATCHDOG.tick.modify(.{ .divisor = div });
+            peripherals.WATCHDOG.tick.modify(.{ .divisor = div });
         }
         if (self.change_systick_source) |src| {
-            chip.SYSTICK.control_status.modify(.{ .clock_source = src });
+            peripherals.SYSTICK.control_status.modify(.{ .clock_source = src });
         }
         if (self.change_systick_reload) |reload| {
-            chip.SYSTICK.reload_value.write(.{ .value = reload });
-            chip.SYSTICK.current_value.write(.{ .value = 0 });
+            peripherals.SYSTICK.reload_value.write(.{ .value = reload });
+            peripherals.SYSTICK.current_value.write(.{ .value = 0 });
         }
         if (self.enable_systick) {
-            chip.SYSTICK.control_status.modify(.{
+            peripherals.SYSTICK.control_status.modify(.{
                 .count_enable = true,
                 .overflow_interrupt_enable = true,
             });
         }
         if (self.enable_microtick) {
-            chip.WATCHDOG.tick.modify(.{ .enabled = true });
+            peripherals.WATCHDOG.tick.modify(.{ .enabled = true });
         }
         self.sys_pll.finish();
         self.usb_pll.finish();
         if (self.stop_xosc) {
-            chip.XOSC.control.modify(.{ .enabled = .disabled });
+            peripherals.XOSC.control.modify(.{ .enabled = .disabled });
         }
         if (self.stop_rosc) {
-            chip.ROSC.control.modify(.{ .enabled = .disabled });
+            peripherals.ROSC.control.modify(.{ .enabled = .disabled });
         }
     }
 
     fn set_glitchless_ref_source(comptime source: anytype) void {
-        const ControlSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.ref.control).Type, .source).type;
-        const StatusSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.ref.status).Type, .source).type;
-        chip.CLOCKS.ref.control.modify(.{
+        const ControlSource = std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.ref.control).Type, .source).type;
+        const StatusSource = std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.ref.status).Type, .source).type;
+        peripherals.CLOCKS.ref.control.modify(.{
             .source = std.enums.nameCast(ControlSource, source),
         });
         const expected_source = std.enums.nameCast(StatusSource, source);
-        while (chip.CLOCKS.ref.status.read().source != expected_source) {}
+        while (peripherals.CLOCKS.ref.status.read().source != expected_source) {}
     }
 
     fn set_glitchless_sys_source(comptime source: anytype) void {
-        const ControlSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.control).Type, .source).type;
-        const StatusSource = std.meta.fieldInfo(@TypeOf(chip.CLOCKS.sys.status).Type, .source).type;
-        chip.CLOCKS.sys.control.modify(.{
+        const ControlSource = std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.sys.control).Type, .source).type;
+        const StatusSource = std.meta.fieldInfo(@TypeOf(peripherals.CLOCKS.sys.status).Type, .source).type;
+        peripherals.CLOCKS.sys.control.modify(.{
             .source = std.enums.nameCast(ControlSource, source),
         });
         const expected_source = std.enums.nameCast(StatusSource, source);
-        while (chip.CLOCKS.sys.status.read().source != expected_source) {}
+        while (peripherals.CLOCKS.sys.status.read().source != expected_source) {}
     }
 };
 
-const ROSC_Divisor = std.meta.fieldInfo(@TypeOf(chip.ROSC.output_divisor).Type, .divisor).type;
+const ROSC_Divisor = std.meta.fieldInfo(@TypeOf(peripherals.ROSC.output_divisor).Type, .divisor).type;
 fn encode_rosc_divisor(comptime divisor: comptime_int) ROSC_Divisor {
     return switch (divisor) {
         1...31 => @enumFromInt(0xAA0 + divisor),
@@ -1674,7 +1674,7 @@ pub fn init() void {
                 cc.disable_gpout[n] = true;
                 cc.setup_gpout_io[n] = .disabled;
             } else {
-                var ctrl: std.meta.fieldInfo(chip.reg_types.clk.GPOUT_Clock_Generator, .control).type = .{
+                var ctrl: std.meta.fieldInfo(reg_types.clk.GPOUT_Clock_Generator, .control).type = .{
                     .source = switch (gpout.generator.source) {
                         .sys_pll => .pll_sys,
                         .gpin0 => .gpin0,
@@ -1726,6 +1726,8 @@ fn apply_parsed_config(comptime parsed: Parsed_Config, comptime old: Parsed_Conf
 const timing = @import("timing.zig");
 const resets = @import("resets.zig");
 const util = @import("microbe").util;
-const chip = @import("chip");
+const peripherals = @import("peripherals.zig");
+const reg_types = @import("reg_types.zig");
+const Pad_ID = @import("../rp2040.zig").Pad_ID;
 const root = @import("root");
 const std = @import("std");

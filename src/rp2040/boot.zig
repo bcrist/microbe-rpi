@@ -23,7 +23,7 @@ pub fn boot3() callconv(.Naked) noreturn {
 /// This is the logical entry point for microbe.
 /// It will invoke the main function from the root source file and provide error return handling
 export fn _start() linksection(".boot3") callconv(.C) noreturn {
-    chip.SCB.vector_table.write(&core0_vt);
+    peripherals.SCB.vector_table.write(&core0_vt);
 
     if (@hasDecl(root, "earlyInit")) {
         root.earlyInit();
@@ -34,7 +34,7 @@ export fn _start() linksection(".boot3") callconv(.C) noreturn {
         .io_bank0 = true,
     });
 
-    chip.WATCHDOG.control.modify(.{
+    peripherals.WATCHDOG.control.modify(.{
         .enable_countdown = false,
     });
 
@@ -112,7 +112,7 @@ fn init_vector_table(comptime core_id: []const u8) Vector_Table {
 }
 
 pub fn reset_current_core() noreturn {
-    chip.SCB.reset_control.write(.{ .request_core_reset = true });
+    peripherals.SCB.reset_control.write(.{ .request_core_reset = true });
     unreachable;
 }
 
@@ -126,12 +126,12 @@ pub const Reset_Source = enum {
 };
 /// Note this doesn't track individual core resets (i.e. reset_current_core())
 pub fn get_last_reset_source() Reset_Source {
-    switch (chip.WATCHDOG.last_reset_reason.read().reason) {
+    switch (peripherals.WATCHDOG.last_reset_reason.read().reason) {
         .watchdog_timeout => return .watchdog_timeout,
         .watchdog_forced => return .watchdog_forced,
         .chip_reset => {},
     }
-    const data = chip.VREG_AND_CHIP_RESET.CHIP_RESET.read();
+    const data = peripherals.VREG_AND_CHIP_RESET.CHIP_RESET.read();
     if (data.HAD_POR) return .power_on_or_brown_out;
     if (data.HAD_RUN) return .external_run_pin;
     if (data.HAD_PSM_RESTART) return .debug_port;
@@ -143,16 +143,17 @@ pub const Core_ID = enum(u8) {
     core1 = 1,
 };
 pub fn get_current_core_id() Core_ID {
-    return @enumFromInt(chip.SIO.core_id.read());
+    return @enumFromInt(peripherals.SIO.core_id.read());
 }
 
 const clocks = @import("clocks.zig");
 const resets = @import("resets.zig");
+const peripherals = @import("peripherals.zig");
 const reg_types = chip.reg_types;
 const Vector_Table = reg_types.Vector_Table;
 const Exception = chip.interrupts.Exception;
 const Exception_Handler = chip.interrupts.Handler;
-const chip = @import("chip");
+const chip = @import("../rp2040.zig");
 const config = @import("config");
 const microbe = @import("microbe");
 const root = @import("root");

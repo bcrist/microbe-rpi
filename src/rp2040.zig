@@ -6,7 +6,7 @@ pub fn init_exports() void {
 }
 
 pub const reg_types = @import("rp2040/reg_types.zig");
-pub usingnamespace @import("rp2040/peripherals.zig");
+pub const peripherals = @import("rp2040/peripherals.zig");
 
 pub const boot = @import("rp2040/boot.zig");
 pub const validation = @import("rp2040/validation.zig");
@@ -20,6 +20,8 @@ pub const dma = @import("rp2040/dma.zig");
 pub const clocks = @import("rp2040/clocks.zig");
 pub const timing = @import("rp2040/timing.zig");
 pub const resets = @import("rp2040/resets.zig");
+pub const pwm = @import("rp2040/pwm.zig");
+pub const PWM = pwm.PWM;
 pub const uart = @import("rp2040/uart.zig");
 pub const UART = uart.UART;
 pub const spi = @import("rp2040/spi.zig");

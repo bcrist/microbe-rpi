@@ -9,10 +9,6 @@
 ///    * The device supports the quad fast read command (0xEB).
 ///        * Using 24 address bits + 8 mode bits + N dummy cycles before data transfer.
 
-const std = @import("std");
-const chip = @import("chip");
-const config = @import("config");
-
 const flash_clock_div = config.flash_clock_div;
 comptime {
     if (flash_clock_div == 0) @compileError("flash_clock_div must be >= 2");
@@ -58,47 +54,47 @@ export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
 }
 
 fn setup_xip() linksection(".boot2") callconv (.C) void {
-    chip.PADS_QSPI.sclk.write(.{
+    peripherals.PADS_QSPI.sclk.write(.{
         .speed = .fast,
         .strength = .@"8mA",
         .input_enabled = false,
     });
 
-    chip.PADS_QSPI.sd[0].write(.{
+    peripherals.PADS_QSPI.sd[0].write(.{
         .speed = .fast,
         .hysteresis = false,
     });
-    chip.PADS_QSPI.sd[1].write(.{
+    peripherals.PADS_QSPI.sd[1].write(.{
         .speed = .fast,
         .hysteresis = false,
     });
-    chip.PADS_QSPI.sd[2].write(.{
+    peripherals.PADS_QSPI.sd[2].write(.{
         .speed = .fast,
         .hysteresis = false,
     });
-    chip.PADS_QSPI.sd[3].write(.{
+    peripherals.PADS_QSPI.sd[3].write(.{
         .speed = .fast,
         .hysteresis = false,
     });
 
-    chip.SSI.enable.write(.{ .enable = false });
-    chip.SSI.baud_rate.write(.{ .clock_divisor = flash_clock_div });
+    peripherals.SSI.enable.write(.{ .enable = false });
+    peripherals.SSI.baud_rate.write(.{ .clock_divisor = flash_clock_div });
 
     // Set 1-cycle sample delay. If flash_clock_div == 2 then this means,
     // if the flash launches data on SCLK posedge, we capture it at the time that
     // the next SCLK posedge is launched. This is shortly before that posedge
     // arrives at the flash, so data hold time should be ok. For
     // flash_clock_div > 2 this pretty much has no effect.
-    chip.SSI.rx_sample_delay.write(.{ .delay = 1 });
+    peripherals.SSI.rx_sample_delay.write(.{ .delay = 1 });
 
-    chip.SSI.control_0.write(.{
+    peripherals.SSI.control_0.write(.{
         .frame_format = .spi,
         .spi_frame_format = .standard,
         .transfer_mode = .tx_and_rx,
         .data_frame_size = ._8_bits,
     });
 
-    chip.SSI.enable.write(.{ .enable = true });
+    peripherals.SSI.enable.write(.{ .enable = true });
 
     if (comptime config.flash_quad_enable_bit < 8) {
         var sr0 = do_read_command(.read_status_reg_0, Status_Register_0);
@@ -139,20 +135,20 @@ fn setup_xip() linksection(".boot2") callconv (.C) void {
         }
     }
 
-    chip.SSI.enable.write(.{ .enable = false });
+    peripherals.SSI.enable.write(.{ .enable = false });
 
-    chip.SSI.control_0.write(.{
+    peripherals.SSI.control_0.write(.{
         .frame_format = .spi,
         .spi_frame_format = .quad,
         .transfer_mode = .eeprom_read,
         .data_frame_size = ._32_bits,
     });
 
-    chip.SSI.control_1.write(.{
+    peripherals.SSI.control_1.write(.{
         .num_data_frames = 0, // single 32b read
     });
 
-    chip.SSI.spi_control.write(.{
+    peripherals.SSI.spi_control.write(.{
         .transfer_format = .standard_command_wide_address,
         .command_length = ._8_bits,
         .address_length = ._32_bits,
@@ -160,15 +156,15 @@ fn setup_xip() linksection(".boot2") callconv (.C) void {
         .xip_command_or_mode = 0,
     });
 
-    chip.SSI.enable.write(.{ .enable = true });
+    peripherals.SSI.enable.write(.{ .enable = true });
 
-    chip.SSI.data[0].write(@intFromEnum(Command.quad_read));
-    chip.SSI.data[0].write(config.xip_mode_bits); // upper 24 bits are address; we don't actually care what they are.
+    peripherals.SSI.data[0].write(@intFromEnum(Command.quad_read));
+    peripherals.SSI.data[0].write(config.xip_mode_bits); // upper 24 bits are address; we don't actually care what they are.
     block_until_tx_complete();
 
-    chip.SSI.enable.write(.{ .enable = false });
+    peripherals.SSI.enable.write(.{ .enable = false });
 
-    chip.SSI.spi_control.write(.{
+    peripherals.SSI.spi_control.write(.{
         .transfer_format = .wide_command_wide_address,
         .command_length = .none,
         .address_length = ._32_bits,
@@ -176,36 +172,36 @@ fn setup_xip() linksection(".boot2") callconv (.C) void {
         .xip_command_or_mode = config.xip_mode_bits,
     });
 
-    chip.SSI.enable.write(.{ .enable = true });
+    peripherals.SSI.enable.write(.{ .enable = true });
 }
 
 fn block_until_tx_complete() linksection(".boot2") void {
-    var status = chip.SSI.status.read();
+    var status = peripherals.SSI.status.read();
     while (!status.tx_fifo_empty or status.busy) {
-        status = chip.SSI.status.read();
+        status = peripherals.SSI.status.read();
     }
 }
 
 fn do_write_command(command: Command, comptime T: type, value: T) linksection(".boot2") void {
     if (@sizeOf(T) == 0) {
-        chip.SSI.data[0].write(@intFromEnum(command));
+        peripherals.SSI.data[0].write(@intFromEnum(command));
         block_until_tx_complete();
-        _ = chip.SSI.data[0].read();
+        _ = peripherals.SSI.data[0].read();
     } else {
         const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
         const raw: Raw = @bitCast(value);
 
-        chip.SSI.data[0].write(@intFromEnum(command));
+        peripherals.SSI.data[0].write(@intFromEnum(command));
         inline for (0..@sizeOf(T)) |byte_index| {
             const b: u8 = @truncate(raw >> @intCast(byte_index * 8));
-            chip.SSI.data[0].write(b);
+            peripherals.SSI.data[0].write(b);
         }
 
         block_until_tx_complete();
 
-        _ = chip.SSI.data[0].read();
+        _ = peripherals.SSI.data[0].read();
         inline for (0..@sizeOf(T)) |_| {
-            _ = chip.SSI.data[0].read();
+            _ = peripherals.SSI.data[0].read();
         }
     }
 }
@@ -213,17 +209,17 @@ fn do_write_command(command: Command, comptime T: type, value: T) linksection(".
 fn do_read_command(command: Command, comptime T: type) linksection(".boot2") T {
     const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
 
-    chip.SSI.data[0].write(@intFromEnum(command));
+    peripherals.SSI.data[0].write(@intFromEnum(command));
     inline for (0..@sizeOf(T)) |_| {
-        chip.SSI.data[0].write(0);
+        peripherals.SSI.data[0].write(0);
     }
 
     block_until_tx_complete();
 
-    _ = chip.SSI.data[0].read();
+    _ = peripherals.SSI.data[0].read();
     var raw: Raw = 0;
     inline for (0..@sizeOf(T)) |byte_index| {
-        const b: Raw = @truncate(chip.SSI.data[0].read());
+        const b: Raw = @truncate(peripherals.SSI.data[0].read());
         raw |= b << @intCast(byte_index * 8);
     }
 
@@ -231,3 +227,8 @@ fn do_read_command(command: Command, comptime T: type) linksection(".boot2") T {
 }
 
 pub fn main() void {}
+
+const config = @import("config");
+const peripherals = chip.peripherals;
+const chip = @import("chip");
+const std = @import("std");
