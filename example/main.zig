@@ -21,7 +21,7 @@ pub const clocks: chip.clocks.Config = .{
 };
 
 pub const handlers = struct {
-    pub const SysTick = chip.timing.handleTickInterrupt;
+    pub const SysTick = chip.timing.handle_tick_interrupt;
 
     pub fn UART0_IRQ() callconv(.C) void {
         debug_uart.handle_interrupt();

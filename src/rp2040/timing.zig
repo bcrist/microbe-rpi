@@ -21,7 +21,7 @@ pub fn get_tick_frequency_hz() comptime_int {
     return clocks.get_config().tick.frequency_hz;
 }
 
-pub fn handleTickInterrupt() callconv(.C) void {
+pub fn handle_tick_interrupt() callconv(.C) void {
     if (peripherals.SYSTICK.control_status.read().overflow_flag) {
         current_tick_raw +%= 1;
     }
