@@ -153,14 +153,14 @@ pub inline fn set_globally_enabled(comptime enabled: bool) void {
 }
 
 pub inline fn current_exception() Exception {
-    // Another way to implement this would be:
-    // peripherals.SCB.interrupt_control_state.read().active_exception_number
-    // but this is faster:
-    return !asm volatile ("mrs r0, ipsr"
-        : [ret] "={r0}" (-> Exception),
-        :
-        : "r0"
-    );
+    return peripherals.SCB.interrupt_control_state.read().active_exception_number;
+
+    // TODO this should be faster, but causes a compiler crash in zig 0.12.0-dev.2341+92211135f:
+    // return asm volatile ("mrs r0, ipsr"
+    //     : [ret] "={r0}" (-> Exception),
+    //     :
+    //     : "r0"
+    // );
 }
 
 pub inline fn is_in_handler() bool {
