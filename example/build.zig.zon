@@ -5,8 +5,8 @@
     .paths = .{""},
     .dependencies = .{
         .microbe = .{
-            .url = "https://github.com/bcrist/microbe/archive/ed71eba4e2e9cd0bf488d416f7c58b5412161252.tar.gz",
-            .hash = "122075cb4d01427d291eddce0525b571d668a5b859c6ef8205930d4217d54866c50e",
+            .url = "https://github.com/bcrist/microbe/archive/42dd851ca53ec232c29a0f0f5d4a00380d2105a9.tar.gz",
+            .hash = "1220b4d164f007cf525da6843da0e295ddf2cac59838173d1fd5548d18530a4d59e4",
         },
         .@"microbe-rpi" = .{
             .path = "..",
