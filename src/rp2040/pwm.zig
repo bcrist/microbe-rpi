@@ -174,6 +174,10 @@ pub fn PWM(comptime cfg: Config) type {
                 gpio.configure(&.{ pad }, config.output_config);
             }
 
+            periph.counter.write(.{
+                .count = 0,
+            });
+
             periph.top.write(.{
                 .count = config.max_count - 1,
             });

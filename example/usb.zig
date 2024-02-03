@@ -55,10 +55,10 @@ const default_configuration = struct {
         pub const endpoints = .{ in_endpoint };
 
         pub const hid_descriptor: usb.hid.Descriptor(.us, .{ report_descriptor }) = .{};
-        pub const report_descriptor: usb.hid.boot_keyboard.ReportDescriptor = .{};
+        pub const report_descriptor: usb.hid.boot_keyboard.Report_Descriptor = .{};
 
-        pub const Report = usb.hid.boot_keyboard.InputReport;
-        pub const Status = usb.hid.boot_keyboard.OutputReport;
+        pub const Report = usb.hid.boot_keyboard.Input_Report;
+        pub const Status = usb.hid.boot_keyboard.Output_Report;
     };
 
     pub const interfaces = .{ hid_interface };
@@ -186,7 +186,7 @@ pub fn is_endpoint_ready(address: endpoint.Address) bool {
 pub fn fill_in_buffer(ep: endpoint.Index, data: []u8) u16 {
     switch (ep) {
         default_configuration.hid_interface.in_endpoint.address.ep => {
-            const b = report.getInBuffer();
+            const b = report.get_in_buffer();
             @memcpy(data.ptr, b);
             return @intCast(b.len);
         },
@@ -241,7 +241,7 @@ pub fn handle_setup(setup: Setup_Packet) bool {
     if (status.handle_setup(setup)) return true;
     if (setup.kind == .class and setup.target == .interface) switch (setup.request) {
         usb.hid.requests.set_protocol => if (setup.direction == .out) {
-            const payload: usb.hid.requests.ProtocolPayload = @bitCast(setup.payload);
+            const payload: usb.hid.requests.Protocol_Payload = @bitCast(setup.payload);
             if (payload.interface == default_configuration.hid_interface.index) {
                 std.log.scoped(.usb).info("set protocol: {}", .{ payload.protocol });
                 device.setup_status_in();
@@ -249,7 +249,7 @@ pub fn handle_setup(setup: Setup_Packet) bool {
             }
         },
         usb.hid.requests.get_protocol => if (setup.direction == .in) {
-            const payload: usb.hid.requests.ProtocolPayload = @bitCast(setup.payload);
+            const payload: usb.hid.requests.Protocol_Payload = @bitCast(setup.payload);
             if (payload.interface == default_configuration.hid_interface.index) {
                 std.log.scoped(.usb).info("get protocol", .{});
                 const protocol: u8 = 0;

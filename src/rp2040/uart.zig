@@ -94,7 +94,7 @@ pub fn UART(comptime config: Config) type {
             }
         } else if (config.rx_dma_channel) |_| {
             @compileError("RX pad not specified!");
-        } else if (config.rx_buffer_size > 0) |_| {
+        } else if (config.rx_buffer_size > 0) {
             @compileError("RX pad not specified!");
         }
 
@@ -297,20 +297,20 @@ pub fn UART(comptime config: Config) type {
                 if (want_uart1) resets.hold_in_reset(.uart1);
             }
 
-            pub fn get_rx_available_count(self: *Self) usize {
+            pub inline fn get_rx_available_count(self: *Self) usize {
                 return self.rxi.get_available_count();
             }
 
-            pub fn can_read(self: *Self) bool {
+            pub inline fn can_read(self: *Self) bool {
                 return self.rxi.get_available_count() > 0;
             }
 
-            pub fn peek(self: *Self, buffer: []Data_Type) Read_Error![]const Data_Type {
+            pub inline fn peek(self: *Self, buffer: []Data_Type) Read_Error![]const Data_Type {
                 return self.rxi.peek(buffer);
             }
 
-            pub fn peek_one(self: *Self) Read_Error!?Data_Type {
-                return @call(.always_inline, self.rxi.peek_one, .{});
+            pub inline fn peek_one(self: *Self) Read_Error!?Data_Type {
+                return self.rxi.peek_one();
             }
 
             pub fn reader(self: *Self) Reader {
@@ -321,15 +321,15 @@ pub fn UART(comptime config: Config) type {
                 return .{ .context = &self.rxi };
             }
 
-            pub fn is_tx_idle(self: *Self) bool {
+            pub inline fn is_tx_idle(self: *Self) bool {
                 return self.txi.is_idle();
             }
 
-            pub fn get_tx_available_count(self: *Self) usize {
+            pub inline fn get_tx_available_count(self: *Self) usize {
                 return self.txi.get_available_count();
             }
 
-            pub fn can_write(self: *Self) bool {
+            pub inline fn can_write(self: *Self) bool {
                 return self.txi.get_available_count() > 0;
             }
 
@@ -654,7 +654,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
                     }
                 }
 
-                var num_data_byte = pack.data_bytes;
+                var num_data_byte: usize = pack.data_bytes;
                 while (num_data_byte > 0) {
                     var bytes = self.data.readableSlice(dest_offset);
                     if (bytes.len > num_data_byte) {
