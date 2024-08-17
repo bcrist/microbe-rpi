@@ -2,7 +2,7 @@ pub const Data_Bits = reg_types.spi.Data_Bits;
 pub const Format = reg_types.spi.Format;
 
 pub const Controller_Config = struct {
-    name: [*:0]const u8 = "SPI",
+    name: [:0]const u8 = "SPI",
     clocks: clocks.Parsed_Config = clocks.get_config(),
     format: Format,
     bit_rate: comptime_int,
@@ -44,8 +44,7 @@ pub fn Controller(comptime config: Controller_Config) type {
         }
         pads = pads ++ [_]Pad_ID{config.sck};
         output_pads = output_pads ++ [_]Pad_ID{config.sck};
-        validation.pads.reserve(config.sck, config.name ++ ".SCK");
-
+        
         if (config.tx) |tx| {
             switch (tx) {
                 .GPIO3, .GPIO7, .GPIO19, .GPIO23 => want_spi0 = true,
@@ -54,7 +53,6 @@ pub fn Controller(comptime config: Controller_Config) type {
             }
             pads = pads ++ [_]Pad_ID{tx};
             output_pads = output_pads ++ [_]Pad_ID{tx};
-            validation.pads.reserve(tx, config.name ++ ".TX");
 
             if (config.tx_dma_channel) |_| {
                 want_dma = true;
@@ -73,7 +71,6 @@ pub fn Controller(comptime config: Controller_Config) type {
             }
             pads = pads ++ [_]Pad_ID{rx};
             input_pads = input_pads ++ [_]Pad_ID{rx};
-            validation.pads.reserve(rx, config.name ++ ".RX");
 
             if (config.rx_dma_channel) |_| {
                 want_dma = true;
@@ -92,7 +89,6 @@ pub fn Controller(comptime config: Controller_Config) type {
             }
             pads = pads ++ [_]Pad_ID{cs};
             output_pads = input_pads ++ [_]Pad_ID{cs};
-            validation.pads.reserve(cs, config.name ++ ".CS");
         }
 
         if (want_spi0 and want_spi1) {
@@ -252,6 +248,17 @@ pub fn Controller(comptime config: Controller_Config) type {
                     if (want_spi1) resets.reset(.spi1);
                 }
 
+                validation.pads.reserve(config.sck, config.name ++ ".SCK");
+                if (config.tx) |tx| {
+                    validation.pads.reserve(tx, config.name ++ ".TX");
+                } 
+                if (config.rx) |rx| {
+                    validation.pads.reserve(rx, config.name ++ ".RX");
+                }
+                if (config.cs) |cs| {
+                    validation.pads.reserve(cs, config.name ++ ".CS");
+                }
+
                 periph.control1.write(.{ .enabled = false });
 
                 gpio.set_function_all(pads, .spi);
@@ -311,6 +318,17 @@ pub fn Controller(comptime config: Controller_Config) type {
 
                 if (want_spi0) resets.hold_in_reset(.spi0);
                 if (want_spi1) resets.hold_in_reset(.spi1);
+
+                validation.pads.release(config.sck, config.name ++ ".SCK");
+                if (config.tx) |tx| {
+                    validation.pads.release(tx, config.name ++ ".TX");
+                } 
+                if (config.rx) |rx| {
+                    validation.pads.release(rx, config.name ++ ".RX");
+                }
+                if (config.cs) |cs| {
+                    validation.pads.release(cs, config.name ++ ".CS");
+                }
             }
 
             pub fn get_rx_available_count(self: *Self) usize {

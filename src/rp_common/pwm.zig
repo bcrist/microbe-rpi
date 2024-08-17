@@ -109,7 +109,6 @@ pub fn PWM(comptime cfg: Config) type {
                 @tagName(pad),
             }));
         }
-        validation.pads.reserve(pad, cfg.name);
     }
 
     if (cfg.max_count == 0) {
@@ -149,6 +148,10 @@ pub fn PWM(comptime cfg: Config) type {
                 .pads_bank0 = config.output != null,
             });
 
+            if (cfg.output) |pad| {
+                validation.pads.reserve(pad, cfg.name);
+            }
+
             const invert = switch (config.polarity) {
                 .high_below_threshold => false,
                 .low_below_threshold => true,
@@ -185,6 +188,13 @@ pub fn PWM(comptime cfg: Config) type {
             periph.divisor.write(.{
                 .div_16ths = div_16ths,
             });
+        }
+
+        pub fn deinit() void {
+            stop();
+            if (cfg.output) |pad| {
+                validation.pads.release(pad, cfg.name);
+            }
         }
 
         pub fn start() void {

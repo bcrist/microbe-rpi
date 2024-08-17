@@ -3,7 +3,7 @@ pub const Parity = reg_types.uart.Parity;
 pub const Stop_Bits = reg_types.uart.Stop_Bits;
 
 pub const Config = struct {
-    name: [*:0]const u8 = "UART",
+    name: [:0]const u8 = "UART",
     clocks: clocks.Parsed_Config = clocks.get_config(),
     baud_rate: comptime_int,
     data_bits: Data_Bits = .eight,
@@ -37,7 +37,6 @@ pub fn UART(comptime config: Config) type {
             }
             pads = pads ++ [_]Pad_ID{tx};
             output_pads = output_pads ++ [_]Pad_ID{tx};
-            validation.pads.reserve(tx, config.name ++ ".TX");
 
             if (config.cts) |cts| {
                 switch (cts) {
@@ -50,7 +49,6 @@ pub fn UART(comptime config: Config) type {
                 }
                 pads = pads ++ [_]Pad_ID{cts};
                 input_pads = input_pads ++ [_]Pad_ID{cts};
-                validation.pads.reserve(cts, config.name ++ ".CTS");
             }
 
             if (config.tx_dma_channel) |_| {
@@ -73,7 +71,6 @@ pub fn UART(comptime config: Config) type {
             }
             pads = pads ++ [_]Pad_ID{rx};
             input_pads = input_pads ++ [_]Pad_ID{rx};
-            validation.pads.reserve(rx, config.name ++ ".RX");
 
             if (config.rts) |rts| {
                 switch (rts) {
@@ -86,7 +83,6 @@ pub fn UART(comptime config: Config) type {
                 }
                 pads = pads ++ [_]Pad_ID{rts};
                 output_pads = output_pads ++ [_]Pad_ID{rts};
-                validation.pads.reserve(rts, config.name ++ ".RTS");
             }
 
             if (config.rx_dma_channel) |_| {
@@ -217,6 +213,19 @@ pub fn UART(comptime config: Config) type {
                     if (want_uart1) resets.reset(.uart1);
                 }
 
+                if (config.tx) |tx| {
+                    validation.pads.reserve(tx, config.name ++ ".TX");
+                    if (config.cts) |cts| {
+                        validation.pads.reserve(cts, config.name ++ ".CTS");
+                    }
+                }
+                if (config.rx) |rx| {
+                    validation.pads.reserve(rx, config.name ++ ".RX");
+                    if (config.rts) |rts| {
+                        validation.pads.reserve(rts, config.name ++ ".RTS");
+                    }
+                }
+
                 periph.control.modify(.{ .enabled = false });
 
                 gpio.set_function_all(pads, .uart);
@@ -292,6 +301,19 @@ pub fn UART(comptime config: Config) type {
                 periph.control.write(.{});
 
                 gpio.set_function_all(pads, .disable);
+
+                if (config.tx) |tx| {
+                    validation.pads.release(tx, config.name ++ ".TX");
+                    if (config.cts) |cts| {
+                        validation.pads.release(cts, config.name ++ ".CTS");
+                    }
+                }
+                if (config.rx) |rx| {
+                    validation.pads.release(rx, config.name ++ ".RX");
+                    if (config.rts) |rts| {
+                        validation.pads.release(rts, config.name ++ ".RTS");
+                    }
+                }
 
                 if (want_uart0) resets.hold_in_reset(.uart0);
                 if (want_uart1) resets.hold_in_reset(.uart1);
