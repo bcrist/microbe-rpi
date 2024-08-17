@@ -66,16 +66,16 @@ pub const Config = struct {
     max_count: comptime_int,
 };
 
-pub const Channel_Config = struct {
+pub const Channel_Config_Data = struct {
     divisor_16ths: u12,
     max_count: u16,
 };
-pub fn Channel_Configs() type {
-    comptime var configs: std.EnumMap(Channel, Channel_Config) = .{};
-
+pub fn Channel_Config(comptime channel: Channel) type {
     return struct {
-        pub fn update(comptime channel: Channel, comptime config: Channel_Config) void {
-            if (configs.get(channel)) |existing| {
+        var current_config: ?Channel_Config_Data = null;
+
+        pub fn update(config: Channel_Config_Data) void {
+            if (current_config) |existing| {
                 if (existing.max_count != config.max_count) {
                     @compileError(std.fmt.comptimePrint("Can't set PWM channel {} to max count of {}; must be {}", .{
                         @intFromEnum(channel),
@@ -91,8 +91,12 @@ pub fn Channel_Configs() type {
                     }));
                 }
             } else {
-                configs.put(channel, config);
+                current_config = config;
             }
+        }
+
+        pub fn deinit() void {
+            current_config = null;
         }
     };
 }
@@ -131,11 +135,6 @@ pub fn PWM(comptime cfg: Config) type {
         .divisor_16ths => |div| div,
     };
 
-    Channel_Configs().update(computed_channel, .{
-        .max_count = cfg.max_count,
-        .divisor_16ths = div_16ths,
-    });
-
     const periph = &chip.peripherals.PWM.channel[@intFromEnum(computed_channel)];
 
     return struct {
@@ -146,6 +145,11 @@ pub fn PWM(comptime cfg: Config) type {
             resets.ensure_not_in_reset(.{
                 .pwm = true,
                 .pads_bank0 = config.output != null,
+            });
+
+            Channel_Config(computed_channel).update(.{
+                .max_count = cfg.max_count,
+                .divisor_16ths = div_16ths,
             });
 
             if (cfg.output) |pad| {
@@ -195,6 +199,7 @@ pub fn PWM(comptime cfg: Config) type {
             if (cfg.output) |pad| {
                 validation.pads.release(pad, cfg.name);
             }
+            Channel_Config(computed_channel).deinit();
         }
 
         pub fn start() void {

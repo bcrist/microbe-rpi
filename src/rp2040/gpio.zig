@@ -30,7 +30,8 @@ pub fn get_ports(comptime pads: []const Pad_ID) []const Port_ID {
             ports[n] = port;
             n += 1;
         }
-        return ports[0..n];
+        const ports_copy: [n]Port_ID = ports[0..n].*;
+        return &ports_copy;
     }
 }
 
@@ -54,7 +55,8 @@ pub fn get_pads_in_port(
                 pads_in_port = pads_in_port ++ &[_]Pad_ID{pad};
             }
         }
-        return pads_in_port;
+        const pads_copy: [pads_in_port.len]Pad_ID = pads_in_port.*;
+        return &pads_copy;
     }
 }
 
