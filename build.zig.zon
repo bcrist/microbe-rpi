@@ -3,16 +3,16 @@
     .version = "0.0.0",
     .minimum_zig_version = "0.13.0",
     .paths = .{
+        "src",
+        "tools",
         "build.zig",
         "build.zig.zon",
-        "Boot2_Checksum_Step.zig",
-        "src",
         "license",
     },
     .dependencies = .{
         .microbe = .{
-            .url = "git+https://github.com/bcrist/microbe#2f422361af186475ec180296e75dec46f27770bc",
-            .hash = "12200df279a26e941f69d59c45377df75322d91ce51f45ef6bc779ee8646ae142e8a",
+            .url = "git+https://github.com/bcrist/microbe#a07d87e0c3652c569f382f2f951c2341c0f1387e",
+            .hash = "1220c8f2c51b34f66b1e590039e0423fa86f8784e163bdbe099bc7be73d64824d6c1",
         },
     },
 }

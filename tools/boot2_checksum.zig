@@ -11,7 +11,7 @@ pub fn main() !void {
     const file_contents = try std.fs.cwd().readFileAlloc(arena.allocator(), input_path, 1_000_000_000);
 
     if (file_contents.len < 252) {
-        std.io.getStdErr().writer().print("input binary too small; expected >= 252 bytes in {s}", .{ input_path });
+        try std.io.getStdErr().writer().print("input binary too small; expected >= 252 bytes in {s}", .{ input_path });
         return error.InvalidBinary;
     }
 
@@ -27,7 +27,10 @@ pub fn main() !void {
     crc_stream.reset();
     try crc_stream.writer().writeInt(u32, crc, .little);
 
-    try std.fs.cwd().writeFile(output_path, file_contents);
+    try std.fs.cwd().writeFile(.{
+        .sub_path = output_path,
+        .data = file_contents,
+    });
 }
 
 const std = @import("std");

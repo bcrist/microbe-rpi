@@ -306,12 +306,12 @@ pub fn build(b: *std.Build) void {
 
     _ = b.addModule("boot2-default", .{ .root_source_file = b.path("src/boot2/default.zig") });
 
-    _ = b.addExecutable(.{
+    b.installArtifact(b.addExecutable(.{
         .name = "boot2_checksum",
         .root_source_file = b.path("tools/boot2_checksum.zig"),
         .target = b.host,
         .optimize = .ReleaseSafe,
-    });
+    }));
 }
 
 const Chip = microbe.Chip;
