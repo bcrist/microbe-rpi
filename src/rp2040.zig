@@ -9,7 +9,7 @@ pub const reg_types = @import("rp2040/reg_types.zig");
 pub const peripherals = @import("rp2040/peripherals.zig");
 
 pub const boot = @import("rp2040/boot.zig");
-pub const validation = @import("rp2040/validation.zig");
+pub const validation = @import("rp_common/validation.zig");
 
 pub const interrupts = @import("rp_common/interrupts.zig");
 pub const Interrupt = interrupts.Interrupt;
