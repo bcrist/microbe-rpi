@@ -4,7 +4,7 @@ pub fn main() !void {
 
     var arg_iter = try std.process.argsWithAllocator(arena.allocator());
     defer arg_iter.deinit();
-
+    _ = arg_iter.next(); // exe name
     const input_path = arg_iter.next() orelse return error.ExpectedInputPath;
     const output_path = arg_iter.next() orelse return error.ExpectedOutputPath;
 
