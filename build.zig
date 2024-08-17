@@ -279,6 +279,13 @@ pub fn add_boot2_object(b: *std.Build, options: Boot2_Options) *std.Build.Step.C
     return object;
 }
 
+pub fn boot2_checksum(b: *std.Build, bin: std.Build.LazyPath) std.Build.LazyPath {
+    const exe = b.dependencyFromBuildZig(@This(), .{}).artifact("boot2_checksum");
+    const run = b.addRunArtifact(exe);
+    run.addFileArg(bin);
+    return run.addOutputFileArg("boot2.bin");
+}
+
 pub fn build(b: *std.Build) void {
     const microbe_module = b.dependency("microbe", .{}).module("microbe");
     const placeholder_config_module = b.createModule(.{ .root_source_file = b.path("src/placeholder_config.zig") });
