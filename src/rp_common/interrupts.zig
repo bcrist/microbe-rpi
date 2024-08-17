@@ -179,7 +179,7 @@ pub inline fn send_event() void {
     asm volatile ("sev");
 }
 
-const peripherals = @import("peripherals.zig");
-const chip = @import("../rp2040.zig");
+const peripherals = chip.peripherals;
+const chip = @import("chip");
 const util = @import("microbe").util;
 const std = @import("std");

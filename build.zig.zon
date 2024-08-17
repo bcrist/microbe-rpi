@@ -1,7 +1,7 @@
 .{
     .name = "microbe-rpi",
     .version = "0.0.0",
-    .minimum_zig_version = "0.12.0-dev.2063+804cee3b9",
+    .minimum_zig_version = "0.13.0",
     .paths = .{
         "build.zig",
         "build.zig.zon",
@@ -11,8 +11,8 @@
     },
     .dependencies = .{
         .microbe = .{
-            .url = "https://github.com/bcrist/microbe/archive/dc5c4a5904e478f34fdd0ab24c315ad932ad626f.tar.gz",
-            .hash = "122088b64ba287cab67175670deecc1a96c9cd327e7602f65a3a37327ec1e4d5b882",
+            .url = "git+https://github.com/bcrist/microbe#2f422361af186475ec180296e75dec46f27770bc",
+            .hash = "12200df279a26e941f69d59c45377df75322d91ce51f45ef6bc779ee8646ae142e8a",
         },
     },
 }

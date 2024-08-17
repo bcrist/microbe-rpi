@@ -204,12 +204,12 @@ pub fn PWM(comptime cfg: Config) type {
     };
 }
 
-const validation = @import("validation.zig");
-const clocks = @import("clocks.zig");
-const resets = @import("resets.zig");
-const gpio = @import("gpio.zig");
+const validation = chip.validation;
+const clocks = chip.clocks;
+const resets = chip.resets;
+const gpio = chip.gpio;
 const Pad_ID = chip.Pad_ID;
-const reg_types = @import("reg_types.zig");
-const chip = @import("../rp2040.zig");
+const reg_types = chip.reg_types;
+const chip = @import("chip");
 const util = @import("microbe").util;
 const std = @import("std");

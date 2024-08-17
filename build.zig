@@ -1,22 +1,3 @@
-pub fn build(b: *std.Build) void {
-    const chips: []const []const u8 = &.{
-        "rp2040",
-    };
-
-    const microbe_dep = b.dependency("microbe", .{});
-    const microbe_module = microbe_dep.module("microbe");
-
-    for (chips) |name| {
-        const module = b.addModule(name, .{
-            .root_source_file = .{ .path = std.fmt.allocPrint(b.allocator, "src/{s}.zig", .{ name }) catch @panic("OOM") },
-        });
-        module.addImport("microbe", microbe_module);
-        module.addImport("chip", module);
-    }
-
-    _ = b.addModule("boot2-default", .{ .root_source_file = .{ .path = "src/boot2/default.zig" }});
-}
-
 pub const Flash_Options = struct {
     size_kibytes: u32,
 
@@ -74,6 +55,19 @@ pub const zd25q64c = f: {
     break :f options;
 };
 
+pub const rp2354_flash = Flash_Options {
+    .size_kibytes = 2048,
+
+    // TODO the rest of this is unknown, but RP2350 bootloader should set up the QSPI correctly for us
+    .clock_div = 4,
+    .max_frequency_hz = 100_000_000,
+    .xip_mode_bits = 0xA0,
+    .xip_wait_cycles = 4,
+    .has_volatile_status_reg = true,
+    .has_write_status_reg_1 = true,
+    .quad_enable_bit = 9,
+};
+
 pub fn rp2040(comptime options: Flash_Options) Chip {
     return .{
         .name = "RP2040",
@@ -103,7 +97,46 @@ pub fn rp2040(comptime options: Flash_Options) Chip {
     };
 }
 
-pub fn default_sections() []const Section {
+pub fn rp2350a(comptime options: Flash_Options) Chip {
+    return rp2350("RP2350A", "rp2350a", options);
+}
+
+pub fn rp2350b(comptime options: Flash_Options) Chip {
+    return rp2350("RP2350B", "rp2350b", options);
+}
+
+pub const rp2354a = rp2350a(rp2354_flash);
+pub const rp2354b = rp2350b(rp2354_flash);
+
+fn rp2350(comptime name: []const u8, comptime module_name: []const u8, comptime options: Flash_Options) Chip {
+    return .{
+        .name = name,
+        .dependency_name = "microbe-rpi",
+        .module_name = module_name,
+        .core = Core.cortex_m33fpu,
+        .single_threaded = false,
+        .memory_regions = comptime &.{
+            Memory_Region.main_flash(0x10000000, options.size_kibytes * 1024),
+            Memory_Region.main_ram(0x20000000, 512 * 1024),
+            Memory_Region.executable_ram("xip_cache", 0x10000000 + options.size_kibytes * 1024, 0x4000000 - options.size_kibytes * 1024),
+            Memory_Region.executable_ram("sram8", 0x20080000, 4 * 1024),
+            Memory_Region.executable_ram("sram9", 0x20081000, 4 * 1024),
+            Memory_Region.ram("boot_ram", 0x400e0000, 1024),
+            Memory_Region.ram("usb_dpram", 0x50100000, 4 * 1024),
+        },
+        .extra_config = comptime &.{
+            .{ .name = "flash_clock_div",               .value = std.fmt.comptimePrint("{}", .{ options.clock_div }) },
+            .{ .name = "max_flash_frequency_hz",        .value = std.fmt.comptimePrint("{}", .{ options.max_frequency_hz }) },
+            .{ .name = "xip_mode_bits",                 .value = std.fmt.comptimePrint("0x{X}", .{ options.xip_mode_bits }) },
+            .{ .name = "xip_wait_cycles",               .value = std.fmt.comptimePrint("{}", .{ options.xip_wait_cycles }) },
+            .{ .name = "flash_has_volatile_status_reg", .value = std.fmt.comptimePrint("{}", .{ options.has_volatile_status_reg }) },
+            .{ .name = "flash_has_write_status_reg_1",  .value = std.fmt.comptimePrint("{}", .{ options.has_write_status_reg_1 }) },
+            .{ .name = "flash_quad_enable_bit",         .value = std.fmt.comptimePrint("{}", .{ options.quad_enable_bit }) },
+        },
+    };
+}
+
+pub fn default_rp2040_sections() []const Section {
     return comptime &.{
         // FLASH only:
         boot3_section(),
@@ -131,6 +164,34 @@ pub fn default_sections() []const Section {
 
         // FLASH + RAM (copied to sram5 by boot1 ROM)
         boot2_section(),
+    };
+}
+
+pub fn default_rp2350_sections() []const Section {
+    return comptime &.{
+        // FLASH only:
+        Section.keep_rom_section("core0_vt", "flash"),
+        Section.keep_rom_section("core1_vt", "flash"),
+        boot3_section(),
+        Section.default_text_section(),
+        Section.default_arm_extab_section(),
+        Section.default_arm_exidx_section(),
+        Section.default_rodata_section(),
+
+        // RAM only:
+        Section.stack_section("core0_stack", "sram8", 0),
+        Section.stack_section("core1_stack", "sram9", 0),
+
+        // FLASH + RAM:
+        Section.default_data_section(),
+
+        // RAM only:
+        Section.default_bss_section(),
+        Section.default_udata_section(),
+        Section.default_heap_section(),
+
+        // FLASH only:
+        Section.default_nvm_section(),
     };
 }
 
@@ -174,19 +235,26 @@ pub const Boot2_Options = struct {
 };
 
 pub fn add_boot2_object(b: *std.Build, options: Boot2_Options) *std.Build.Step.Compile {
-    const config_step = microbe.Config_Step.create(b, options.chip, default_sections(), false);
+    const generate_config_exe = b.dependency("microbe", .{}).artifact("generate_config");
+    const generate_config = b.addRunArtifact(generate_config_exe);
+    generate_config.addArg("-o");
+    const config_module_path = generate_config.addOutputFileArg("config.zig");
+    microbe.add_chip_and_section_args(generate_config, .{
+        .name = "",
+        .chip = options.chip,
+        .sections = default_rp2040_sections(),
+    });
+    const config_module = b.createModule(.{ .root_source_file = config_module_path });
 
-    const chip_dep = b.dependency(options.chip.dependency_name, .{});
-    const chip_module = chip_dep.module(options.chip.module_name);
+    const chip_module = b.dependencyFromBuildZig(@This(), .{}).module(options.chip.module_name);
     const rt_module = chip_module.import_table.get("microbe").?;
 
-    const config_module = b.createModule(.{ .root_source_file = config_step.get_output() });
     config_module.addImport("chip", chip_module);
 
     var object = b.addObject(.{
         .name = options.name orelse "boot2",
         .root_source_file = switch (options.source) {
-            .module => |module| .{ .path = module.root_source_file.?.getPath(module.owner) },
+            .module => |module| module.root_source_file.?,
             .path => |path| path,
         },
         .optimize = options.optimize,
@@ -211,15 +279,34 @@ pub fn add_boot2_object(b: *std.Build, options: Boot2_Options) *std.Build.Step.C
     return object;
 }
 
-pub fn add_bin_to_uf2(b: *std.Build, input_file: std.Build.LazyPath) *microbe.Bin_To_UF2_Step {
-    return microbe.add_bin_to_uf2(b, input_file, .{
-        .base_address = 0x1000_0000,
-        .block_size = 256,
-        .family_id = 0xE48BFF56,
+pub fn build(b: *std.Build) void {
+    const microbe_module = b.dependency("microbe", .{}).module("microbe");
+    const placeholder_config_module = b.createModule(.{ .root_source_file = b.path("src/placeholder_config.zig") });
+    
+    inline for (&.{ "rp2040", "rp2350a", "rp2350b" }) |name| {
+        const microbe_clone = microbe.clone_module(microbe_module);
+        const chip_module = b.addModule(name, .{ .root_source_file = b.path("src/" ++ name ++ ".zig") });
+        chip_module.addImport("microbe", microbe_clone);
+        chip_module.addImport("config", placeholder_config_module);
+        chip_module.addImport("chip", chip_module);
+        
+        var replacement_modules = std.StringHashMap(*std.Build.Module).init(b.allocator);
+        replacement_modules.put("microbe", microbe_clone) catch unreachable;
+        replacement_modules.put("config", placeholder_config_module) catch unreachable;
+        replacement_modules.put("chip", chip_module) catch unreachable;
+        microbe.replace_imports(microbe_clone, &replacement_modules);
+    }
+
+    _ = b.addModule("boot2-default", .{ .root_source_file = b.path("src/boot2/default.zig") });
+
+    _ = b.addExecutable(.{
+        .name = "boot2_checksum",
+        .root_source_file = b.path("tools/boot2_checksum.zig"),
+        .target = b.host,
+        .optimize = .ReleaseSafe,
     });
 }
 
-pub const Boot2_Checksum_Step = @import("Boot2_Checksum_Step.zig");
 const Chip = microbe.Chip;
 const Core = microbe.Core;
 const Section = microbe.Section;

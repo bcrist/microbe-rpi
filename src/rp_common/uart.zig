@@ -1002,17 +1002,17 @@ fn DMA_Tx(comptime Data_Type: type, comptime periph: *volatile reg_types.uart.UA
     @compileError("Not implemented yet");
 }
 
-const dma = @import("dma.zig");
-const clocks = @import("clocks.zig");
-const resets = @import("resets.zig");
-const validation = @import("validation.zig");
-const peripherals = @import("peripherals.zig");
-const interrupts = @import("interrupts.zig");
-const gpio = @import("gpio.zig");
+const dma = chip.dma;
+const clocks = chip.clocks;
+const resets = chip.resets;
+const validation = chip.validation;
+const peripherals = chip.peripherals;
+const interrupts = chip.interrupts;
+const gpio = chip.gpio;
 const Read_Error_Bitmap = reg_types.uart.Read_Error_Bitmap;
-const reg_types = @import("reg_types.zig");
+const reg_types = chip.reg_types;
 const Pad_ID = chip.Pad_ID;
-const chip = @import("../rp2040.zig");
+const chip = @import("chip");
 const util = microbe.util;
 const microbe = @import("microbe");
 const std = @import("std");

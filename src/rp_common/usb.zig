@@ -375,11 +375,11 @@ fn clear_buffer_transfer_complete_flag(ep_address: endpoint.Address) void {
 
 const log = std.log.scoped(.usb);
 
-const reg_types = @import("reg_types.zig");
-const peripherals = @import("peripherals.zig");
-const clocks = @import("clocks.zig");
-const resets = @import("resets.zig");
-const chip = @import("../rp2040.zig");
+const reg_types = chip.reg_types;
+const peripherals = chip.peripherals;
+const clocks = chip.clocks;
+const resets = chip.resets;
+const chip = @import("chip");
 const Events = microbe.usb.Events;
 const Setup_Packet = microbe.usb.Setup_Packet;
 const PID = microbe.usb.PID;

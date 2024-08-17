@@ -11,7 +11,7 @@ pub const peripherals = @import("rp2040/peripherals.zig");
 pub const boot = @import("rp2040/boot.zig");
 pub const validation = @import("rp2040/validation.zig");
 
-pub const interrupts = @import("rp2040/interrupts.zig");
+pub const interrupts = @import("rp_common/interrupts.zig");
 pub const Interrupt = interrupts.Interrupt;
 pub const Exception = interrupts.Exception;
 
@@ -20,12 +20,12 @@ pub const dma = @import("rp2040/dma.zig");
 pub const clocks = @import("rp2040/clocks.zig");
 pub const timing = @import("rp2040/timing.zig");
 pub const resets = @import("rp2040/resets.zig");
-pub const pwm = @import("rp2040/pwm.zig");
+pub const pwm = @import("rp_common/pwm.zig");
 pub const PWM = pwm.PWM;
-pub const uart = @import("rp2040/uart.zig");
+pub const uart = @import("rp_common/uart.zig");
 pub const UART = uart.UART;
-pub const spi = @import("rp2040/spi.zig");
-pub const usb = @import("rp2040/usb.zig");
+pub const spi = @import("rp_common/spi.zig");
+pub const usb = @import("rp_common/usb.zig");
 
 pub const base_name = "RP2040";
 pub const core_name = "ARM Cortex-M0+";
@@ -75,17 +75,17 @@ pub const Pad_ID = enum (u8) {
     SD3 = 37,
 };
 
-pub inline fn flushInstructionCache() void {
+pub inline fn flush_instruction_cache() void {
     asm volatile ("isb");
 }
-pub inline fn instructionFence() void {
+pub inline fn instruction_fence() void {
     asm volatile ("dsb");
 }
-pub inline fn memoryFence() void {
+pub inline fn memory_fence() void {
     asm volatile ("dmb");
 }
 
-pub inline fn registerHasAtomicAliases(comptime reg: *volatile u32) bool {
+pub inline fn register_has_atomic_aliases(comptime reg: *volatile u32) bool {
     const addr = @intFromPtr(reg);
     if ((addr & 0xFFFFF000) == 0x50100000) return false; // USB DPRAM
     if ((addr & 0xE0000000) == 0x40000000) return true; // APB & AHB peripherals
@@ -95,7 +95,7 @@ pub inline fn registerHasAtomicAliases(comptime reg: *volatile u32) bool {
 }
 
 pub inline fn modify_register(comptime reg: *volatile u32, comptime bits_to_set: u32, comptime bits_to_clear: u32) void {
-    if (comptime registerHasAtomicAliases(reg)) {
+    if (comptime register_has_atomic_aliases(reg)) {
         if (bits_to_set == 0) {
             if (bits_to_clear != 0) {
                 clear_register_bits(reg, bits_to_clear);
@@ -118,7 +118,7 @@ pub inline fn modify_register(comptime reg: *volatile u32, comptime bits_to_set:
 }
 
 pub inline fn toggle_register_bits(comptime reg: *volatile u32, bits_to_toggle: u32) void {
-    if (comptime registerHasAtomicAliases(reg)) {
+    if (comptime register_has_atomic_aliases(reg)) {
         const ptr: *volatile u32 = @ptrFromInt(@intFromPtr(reg) | 0x1000);
         ptr.* = bits_to_toggle;
     } else {
@@ -129,7 +129,7 @@ pub inline fn toggle_register_bits(comptime reg: *volatile u32, bits_to_toggle: 
 }
 
 pub inline fn set_register_bits(comptime reg: *volatile u32, bits_to_set: u32) void {
-    if (comptime registerHasAtomicAliases(reg)) {
+    if (comptime register_has_atomic_aliases(reg)) {
         const ptr: *volatile u32 = @ptrFromInt(@intFromPtr(reg) | 0x2000);
         ptr.* = bits_to_set;
     } else {
@@ -140,7 +140,7 @@ pub inline fn set_register_bits(comptime reg: *volatile u32, bits_to_set: u32) v
 }
 
 pub inline fn clear_register_bits(comptime reg: *volatile u32, bits_to_clear: u32) void {
-    if (comptime registerHasAtomicAliases(reg)) {
+    if (comptime register_has_atomic_aliases(reg)) {
         const ptr: *volatile u32 = @ptrFromInt(@intFromPtr(reg) | 0x3000);
         ptr.* = bits_to_clear;
     } else {
