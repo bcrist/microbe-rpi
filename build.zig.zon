@@ -11,12 +11,8 @@
     },
     .dependencies = .{
         .microbe = .{
-            .url = "git+https://github.com/bcrist/microbe#5261ddb4f99e164790455d94e1e748934ece2663",
-            .hash = "12204cfcb827b7db8b62db40ad0b9a3d08c04547df69d6727a53ed98cdb47dfd16fa",
-        },
-        .@"microbe-rpi" = .{
-            .url = "git+https://github.com/bcrist/microbe-rpi#836d6eb1dd09b34e18e00f454b38bac0a3d2edb1",
-            .hash = "1220ea3b23ded8a08ee806988625bfcd4c6ae17205d54ae36eba8dcc9488018b3588",
+            .url = "git+https://github.com/bcrist/microbe#054771d0a3b61abb54892e7ef63eb78beeba1deb",
+            .hash = "1220167c796d2371c4478ee7114655b17151e6ad1e336b3d921ef93a5919ba5d715d",
         },
     },
 }
