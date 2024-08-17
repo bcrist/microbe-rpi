@@ -74,21 +74,21 @@ pub fn Channel_Config(comptime channel: Channel) type {
     return struct {
         var current_config: ?Channel_Config_Data = null;
 
-        pub fn update(config: Channel_Config_Data) void {
+        pub fn update(comptime config: Channel_Config_Data) void {
             if (current_config) |existing| {
                 if (existing.max_count != config.max_count) {
-                    @compileError(std.fmt.comptimePrint("Can't set PWM channel {} to max count of {}; must be {}", .{
+                    std.debug.panic("Can't set PWM channel {} to max count of {}; must be {}", .{
                         @intFromEnum(channel),
                         config.max_count,
                         existing.max_count,
-                    }));
+                    });
                 }
                 if (existing.divisor_16ths != config.divisor_16ths) {
-                    @compileError(std.fmt.comptimePrint("Can't set PWM channel {} to divisor_16ths {}; must be {}", .{
+                    std.debug.panic("Can't set PWM channel {} to divisor_16ths {}; must be {}", .{
                         @intFromEnum(channel),
                         config.divisor_16ths,
                         existing.divisor_16ths,
-                    }));
+                    });
                 }
             } else {
                 current_config = config;
