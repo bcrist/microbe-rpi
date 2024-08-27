@@ -69,19 +69,25 @@ pub fn poll_events() Events {
         .setup_packet_received = true,
     });
 
+    var state_change: ?microbe.usb.State = null;
+
     if (s.connection_state) {
         if (sie_status.connected) {
             log.info("connected", .{});
+            state_change = .connected;
         } else {
             log.info("disconnected", .{});
+            state_change = .disconnected;
         }
     }
 
     if (s.suspend_state) {
         if (sie_status.suspended) {
             log.info("suspended", .{});
+            if (state_change != .disconnected) state_change = .suspended;
         } else {
             log.info("resumed", .{});
+            if (state_change != .disconnected) state_change = .connected;
         }
     }
 
@@ -120,6 +126,7 @@ pub fn poll_events() Events {
     }
 
     return .{
+        .state = state_change,
         .buffer_ready = s.buffer_transfer_complete or stalled_or_waiting != 0,
         .bus_reset = s.bus_reset,
         .setup_request = s.setup_request,

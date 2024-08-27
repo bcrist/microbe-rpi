@@ -16,6 +16,7 @@ comptime {
 }
 
 const Command = enum(u8) {
+    write_disable = 0x04,
     write_enable = 0x06,
     write_enable_volatile_status_reg = 0x50,
     read_status_reg_0 = 0x05,
@@ -46,37 +47,16 @@ const Full_Status_Register = packed struct (u16) {
     sr1: Status_Register_1,
 };
 
-extern fn _boot3() callconv(.Naked) noreturn;
-export fn _boot2() linksection(".boot2_entry") callconv(.Naked) noreturn {
-    // TODO use bl instead of blx for the setup_xip call?
-    asm volatile ("blx %[func]" :: [func] "r" (&setup_xip) : "memory");
-    asm volatile ("bx %[func]" :: [func] "r" (&_boot3));
+extern fn _boot3() callconv(.C) void; // should actually be noreturn, but since we're not defining it here, we don't want to assume...
+export fn _boot2() linksection(".boot2_entry") noreturn {
+    setup_xip();
+    _boot3();
+
+    // should be unreachable, but in case _boot3 returns, we should lock up rather than going into UB
+    while (true) asm volatile ("nop" ::: "memory");
 }
 
-fn setup_xip() linksection(".boot2") callconv (.C) void {
-    peripherals.PADS_QSPI.sclk.write(.{
-        .speed = .fast,
-        .strength = .@"8mA",
-        .input_enabled = false,
-    });
-
-    peripherals.PADS_QSPI.sd[0].write(.{
-        .speed = .fast,
-        .hysteresis = false,
-    });
-    peripherals.PADS_QSPI.sd[1].write(.{
-        .speed = .fast,
-        .hysteresis = false,
-    });
-    peripherals.PADS_QSPI.sd[2].write(.{
-        .speed = .fast,
-        .hysteresis = false,
-    });
-    peripherals.PADS_QSPI.sd[3].write(.{
-        .speed = .fast,
-        .hysteresis = false,
-    });
-
+fn setup_xip() void {
     peripherals.SSI.enable.write(.{ .enable = false });
     peripherals.SSI.baud_rate.write(.{ .clock_divisor = flash_clock_div });
 
@@ -96,19 +76,26 @@ fn setup_xip() linksection(".boot2") callconv (.C) void {
 
     peripherals.SSI.enable.write(.{ .enable = true });
 
-    if (comptime config.flash_quad_enable_bit < 8) {
+    if (comptime config.flash_has_volatile_status_reg) {
+        var sr0 = do_read_command(.read_status_reg_0, Status_Register_0);
+        var sr1 = do_read_command(.read_status_reg_1, Status_Register_1);
+        if (comptime config.flash_quad_enable_bit < 8) {
+            sr0.quad_enable = true;
+        } else {
+            sr1.quad_enable = true;
+        }
+        // N.B. Command 50h only works with 01h on some devices, not 31h
+        do_write_command(.write_enable_volatile_status_reg, void, {});
+        do_write_command(.write_status_reg, Full_Status_Register, .{
+            .sr0 = sr0,
+            .sr1 = sr1,
+        });
+    } else if (comptime config.flash_quad_enable_bit < 8) {
         var sr0 = do_read_command(.read_status_reg_0, Status_Register_0);
         if (!sr0.quad_enable) {
             sr0.quad_enable = true;
-
-            if (comptime config.flash_has_volatile_status_reg) {
-                do_write_command(.write_enable_volatile_status_reg, void, {});
-            } else {
-                do_write_command(.write_enable, void, {});
-            }
-
+            do_write_command(.write_enable, void, {});
             do_write_command(.write_status_reg, Status_Register_0, sr0);
-
             while (do_read_command(.read_status_reg_0, Status_Register_0).write_in_progress) {}
         }
     } else {
@@ -116,17 +103,13 @@ fn setup_xip() linksection(".boot2") callconv (.C) void {
         if (!sr1.quad_enable) {
             sr1.quad_enable = true;
 
-            if (comptime config.flash_has_volatile_status_reg) {
-                do_write_command(.write_enable_volatile_status_reg, void, {});
-            } else {
-                do_write_command(.write_enable, void, {});
-            }
-
+            do_write_command(.write_enable, void, {});
             if (comptime config.flash_has_write_status_reg_1) {
                 do_write_command(.write_status_reg_1, Status_Register_1, sr1);
             } else {
+                const sr0 = do_read_command(.read_status_reg_0, Status_Register_0);
                 do_write_command(.write_status_reg, Full_Status_Register, .{
-                    .sr0 = do_read_command(.read_status_reg_0, Status_Register_0),
+                    .sr0 = sr0,
                     .sr1 = sr1,
                 });
             }
@@ -183,24 +166,30 @@ fn block_until_tx_complete() linksection(".boot2") void {
 }
 
 fn do_write_command(command: Command, comptime T: type, value: T) linksection(".boot2") void {
-    if (@sizeOf(T) == 0) {
+    if (T == void) {
+        do_write_command_uint(command, void, {});
+    } else {
+        const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
+        do_write_command_uint(command, Raw, @bitCast(value));
+    }
+}
+
+fn do_write_command_uint(command: Command, comptime Raw: type, value: Raw) linksection(".boot2") void {
+    if (@sizeOf(Raw) == 0) {
         peripherals.SSI.data[0].write(@intFromEnum(command));
         block_until_tx_complete();
         _ = peripherals.SSI.data[0].read();
     } else {
-        const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
-        const raw: Raw = @bitCast(value);
-
         peripherals.SSI.data[0].write(@intFromEnum(command));
-        inline for (0..@sizeOf(T)) |byte_index| {
-            const b: u8 = @truncate(raw >> @intCast(byte_index * 8));
+        inline for (0..@sizeOf(Raw)) |byte_index| {
+            const b: u8 = @truncate(value >> @intCast(byte_index * 8));
             peripherals.SSI.data[0].write(b);
         }
 
         block_until_tx_complete();
 
         _ = peripherals.SSI.data[0].read();
-        inline for (0..@sizeOf(T)) |_| {
+        inline for (0..@sizeOf(Raw)) |_| {
             _ = peripherals.SSI.data[0].read();
         }
     }
@@ -208,9 +197,12 @@ fn do_write_command(command: Command, comptime T: type, value: T) linksection(".
 
 fn do_read_command(command: Command, comptime T: type) linksection(".boot2") T {
     const Raw = std.meta.Int(.unsigned, @bitSizeOf(T));
+    return @bitCast(do_read_command_uint(command, Raw));
+}
 
+fn do_read_command_uint(command: Command, comptime Raw: type) linksection(".boot2") Raw {
     peripherals.SSI.data[0].write(@intFromEnum(command));
-    inline for (0..@sizeOf(T)) |_| {
+    inline for (0..@sizeOf(Raw)) |_| {
         peripherals.SSI.data[0].write(0);
     }
 
@@ -218,12 +210,12 @@ fn do_read_command(command: Command, comptime T: type) linksection(".boot2") T {
 
     _ = peripherals.SSI.data[0].read();
     var raw: Raw = 0;
-    inline for (0..@sizeOf(T)) |byte_index| {
+    inline for (0..@sizeOf(Raw)) |byte_index| {
         const b: Raw = @truncate(peripherals.SSI.data[0].read());
         raw |= b << @intCast(byte_index * 8);
     }
 
-    return @bitCast(raw);
+    return raw;
 }
 
 pub fn main() void {}

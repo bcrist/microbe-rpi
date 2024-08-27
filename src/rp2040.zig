@@ -85,6 +85,29 @@ pub inline fn memory_fence() void {
     asm volatile ("dmb");
 }
 
+pub fn panic_hang() noreturn {
+    if (interrupts.is_in_handler()) {
+        asm volatile (
+            \\ mov sp, %[sp]
+            \\ push {%[psr]}
+            \\ push {%[hang]}
+            \\ push {%[hang]}
+            \\ push {r0}
+            \\ push {r0,r1,r2,r3}
+            \\ bx %[return_to_thread]
+            :
+            : [sp] "r" (boot.get_initial_stack_pointer()),
+              [psr] "r" (0x0100_0000),
+              [hang] "r" (microbe.hang),
+              [return_to_thread] "r" (0xFFFFFFF9)
+            : "memory"
+        );
+        unreachable;
+    } else {
+        microbe.hang();
+    }
+}
+
 pub inline fn register_has_atomic_aliases(comptime reg: *volatile u32) bool {
     const addr = @intFromPtr(reg);
     if ((addr & 0xFFFFF000) == 0x50100000) return false; // USB DPRAM
@@ -149,3 +172,5 @@ pub inline fn clear_register_bits(comptime reg: *volatile u32, bits_to_clear: u3
         reg.* = val;
     }
 }
+
+const microbe = @import("microbe");

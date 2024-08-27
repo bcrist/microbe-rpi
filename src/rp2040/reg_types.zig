@@ -84,7 +84,7 @@ pub const Vector_Table = extern struct {
     const Handler = chip.interrupts.Handler;
     const unhandled = chip.interrupts.unhandled;
 
-    initial_stack_pointer: *const fn () callconv(.C) void,
+    initial_stack_pointer: *const anyopaque,
     Reset: Handler,
     NMI: Handler = unhandled(.NMI),
     HardFault: Handler = unhandled(.HardFault),

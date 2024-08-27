@@ -139,9 +139,9 @@ fn rp2350(comptime name: []const u8, comptime module_name: []const u8, comptime 
 pub fn default_rp2040_sections() []const Section {
     return comptime &.{
         // FLASH only:
-        boot3_section(),
         Section.keep_rom_section("core0_vt", "flash"),
         Section.keep_rom_section("core1_vt", "flash"),
+        boot3_section(),
         Section.default_text_section(),
         Section.default_arm_extab_section(),
         Section.default_arm_exidx_section(),

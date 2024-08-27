@@ -677,6 +677,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
                 }
 
                 var num_data_byte: usize = pack.data_bytes;
+                std.log.scoped(.uart).debug("Found {} bytes in pack", .{ num_data_byte });
                 while (num_data_byte > 0) {
                     var bytes = self.data.readableSlice(dest_offset);
                     if (bytes.len > num_data_byte) {
@@ -685,7 +686,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
 
                     if (dest_offset + bytes.len >= out.len) {
                         @memcpy(out[dest_offset..], bytes.ptr);
-                        break :outer;
+                        return out;
                     }
 
                     @memcpy(out[dest_offset..].ptr, bytes);
@@ -805,6 +806,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
 
         pub fn handle_interrupt(self: *Self, status: reg_types.uart.Interrupt_Bitmap) void {
             if (status.rx or status.rx_timeout) {
+                std.log.scoped(.uart).debug("handling rx interrupt", .{});
                 self.try_process_interrupt_data();
             }
         }
@@ -836,6 +838,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
                 }
             } else .{};
 
+            std.log.scoped(.uart).debug("received {} bytes", .{ read_count });
             self.data.writeAssumeCapacity(buf[0..read_count]);
             self.record_pack_data_bytes(read_count);
 
@@ -845,6 +848,7 @@ fn Interrupt_Rx(comptime Data_Type: type, comptime periph: *volatile reg_types.u
                     .errors = errors,
                 });
                 if (errors.overrun) {
+                    std.log.scoped(.uart).debug("received 1 byte", .{});
                     self.data.writeAssumeCapacity(buf[read_count..][0..1]);
                     self.record_pack_data_bytes(1);
                 }

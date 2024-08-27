@@ -4,26 +4,50 @@
 // happen with declaring it as extern const anyopaque and then taking its address.
 // We need it to be comptime constant so that we can put it in the comptime
 // constant VectorTable.
-extern fn _core0_stack_end() void;
-extern fn _core1_stack_end() void;
+extern var _core0_stack_end: anyopaque;
+extern var _core1_stack_end: anyopaque;
 
 /// This is the entry point after XIP has been enabled by boot2.
 /// All it does is initialize core 0's SP and then call _start()
-pub fn boot3() callconv(.Naked) noreturn {
+pub fn boot3() linksection(".boot3_entry") callconv(.C) noreturn {
     asm volatile (
         \\ mov sp, %[stack]
-        \\ bx %[start]
         :
-        : [start] "r" (&_start),
-          [stack] "r" (&_core0_stack_end)
+        : [stack] "r" (&_core0_stack_end)
         : "memory"
     );
+    _start();
+    unreachable;
 }
 
 /// This is the logical entry point for microbe.
 /// It will invoke the main function from the root source file and provide error return handling
 export fn _start() linksection(".boot3") callconv(.C) noreturn {
     peripherals.SCB.vector_table.write(&core0_vt);
+
+    // We don't do this in boot2 in order to conserve space, and it's not
+    // needed there because the clock isn't initialized to full speed yet.
+    peripherals.PADS_QSPI.sclk.write(.{
+        .speed = .fast,
+        .strength = .@"8mA",
+        .input_enabled = false,
+    });
+    peripherals.PADS_QSPI.sd[0].write(.{
+        .speed = .fast,
+        .hysteresis = false,
+    });
+    peripherals.PADS_QSPI.sd[1].write(.{
+        .speed = .fast,
+        .hysteresis = false,
+    });
+    peripherals.PADS_QSPI.sd[2].write(.{
+        .speed = .fast,
+        .hysteresis = false,
+    });
+    peripherals.PADS_QSPI.sd[3].write(.{
+        .speed = .fast,
+        .hysteresis = false,
+    });
 
     if (@hasDecl(root, "earlyInit")) {
         root.earlyInit();
@@ -144,6 +168,13 @@ pub const Core_ID = enum(u8) {
 };
 pub fn get_current_core_id() Core_ID {
     return @enumFromInt(peripherals.SIO.core_id.read());
+}
+
+pub fn get_initial_stack_pointer() *anyopaque {
+    return switch (get_current_core_id()) {
+        .core0 => &_core0_stack_end,
+        .core1 => &_core1_stack_end,
+    };
 }
 
 const clocks = @import("clocks.zig");
