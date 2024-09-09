@@ -11,8 +11,8 @@
     },
     .dependencies = .{
         .microbe = .{
-            .url = "git+https://github.com/bcrist/microbe#756c52e3bc64a120d192fb826c5557436ecf5dc3",
-            .hash = "1220df68f90d5ec0195a03e500116eaa48b31208e309eefbf0601adfe158d1f9dc3f",
+            .url = "git+https://github.com/bcrist/microbe#385fc07f5f58ab9da5f1826c8985b18abaa0aad1",
+            .hash = "12203c7167f9369bb63a0a47c304abf1065db8c8ad27701a5115c0d84c6e2a602c0e",
         },
     },
 }
