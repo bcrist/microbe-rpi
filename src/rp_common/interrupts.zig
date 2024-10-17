@@ -6,7 +6,7 @@ pub const Handler = extern union {
     Naked: *const fn () callconv(.Naked) void,
 
     pub fn wrap(comptime function: anytype) Handler {
-        const cc = @typeInfo(@TypeOf(function)).Fn.calling_convention;
+        const cc = @typeInfo(@TypeOf(function)).@"fn".calling_convention;
         return switch (cc) {
             .C => .{ .C = function },
             .Naked => .{ .Naked = function },

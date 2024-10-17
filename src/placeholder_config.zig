@@ -13,7 +13,7 @@ pub const regions = struct {
 };
 
 pub fn init_ram() callconv(.C) void {
-    @setCold(true);
+    @branchHint(.cold);
 }
 
 fn mem_slice(comptime begin: u32, comptime len: u32) []u8 {

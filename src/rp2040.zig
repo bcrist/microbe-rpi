@@ -1,8 +1,8 @@
 
 pub fn init_exports() void {
-    @export(boot.boot3, .{ .name = "_boot3", .section = ".boot3_entry" });
-    @export(boot.core0_vt, .{ .name = "_core0_vt", .section = ".core0_vt" });
-    @export(boot.core1_vt, .{ .name = "_core1_vt", .section = ".core1_vt" });
+    @export(&boot.boot3, .{ .name = "_boot3", .section = ".boot3_entry" });
+    @export(&boot.core0_vt, .{ .name = "_core0_vt", .section = ".core0_vt" });
+    @export(&boot.core1_vt, .{ .name = "_core1_vt", .section = ".core1_vt" });
 }
 
 pub const reg_types = @import("rp2040/reg_types.zig");

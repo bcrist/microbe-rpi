@@ -80,15 +80,15 @@ export fn _start() linksection(".boot3") callconv(.C) noreturn {
 
     const info: std.builtin.Type = @typeInfo(@TypeOf(main_fn));
 
-    if (info != .Fn or info.Fn.params.len > 0) {
+    if (info != .@"fn" or info.@"fn".params.len > 0) {
         @compileError("main must be either 'pub fn main() void' or 'pub fn main() !void'.");
     }
 
-    if (info.Fn.calling_convention == .Async) {
+    if (info.@"fn".calling_convention == .Async) {
         @compileError("TODO: Event loop not supported.");
     }
 
-    if (@typeInfo(info.Fn.return_type.?) == .ErrorUnion) {
+    if (@typeInfo(info.@"fn".return_type.?) == .error_union) {
         main_fn() catch |err| @panic(@errorName(err));
     } else {
         main_fn();
@@ -106,14 +106,14 @@ fn init_vector_table(comptime core_id: []const u8) Vector_Table {
         .Reset = Exception_Handler.wrap(microbe.hang),
     };
     if (@hasDecl(root, "handlers")) {
-        if (@typeInfo(root.handlers) != .Struct) {
+        if (@typeInfo(root.handlers) != .@"struct") {
             @compileLog("root.handlers must be a struct");
         }
 
-        inline for (@typeInfo(root.handlers).Struct.decls) |decl| {
+        inline for (@typeInfo(root.handlers).@"struct".decls) |decl| {
             const field = @field(root.handlers, decl.name);
             switch (@typeInfo(@TypeOf(field))) {
-                .Struct => |struct_info| if (std.mem.eql(u8, decl.name, core_id)) {
+                .@"struct" => |struct_info| if (std.mem.eql(u8, decl.name, core_id)) {
                     inline for (struct_info.decls) |core_decl| {
                         const core_field = @field(field, core_decl.name);
                         if (@hasField(Exception, core_decl.name)) {
@@ -123,7 +123,7 @@ fn init_vector_table(comptime core_id: []const u8) Vector_Table {
                         }
                     }
                 },
-                .Fn => if (@hasField(Exception, decl.name)) {
+                .@"fn" => if (@hasField(Exception, decl.name)) {
                     @field(vt, decl.name) = Exception_Handler.wrap(field);
                 } else {
                     @compileError(decl.name ++ " is not a valid exception handler name!");

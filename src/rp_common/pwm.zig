@@ -216,6 +216,10 @@ pub fn PWM(comptime cfg: Config) type {
                 .b => periph.compare.rmw(.{ .b = count }),
             }
         }
+
+        pub fn read() u16 {
+            return periph.counter.read().count;
+        }
     };
 }
 
