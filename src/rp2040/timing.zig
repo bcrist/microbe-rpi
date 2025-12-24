@@ -1,4 +1,4 @@
-pub inline fn blockAtLeastCycles(min_cycles: u32) void {
+pub inline fn block_at_least_cycles(min_cycles: u32) void {
     asm volatile (
         \\1: subs %[reg], #3
         \\bhs 1b

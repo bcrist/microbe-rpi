@@ -11,7 +11,7 @@ pub fn main() !void {
     const file_contents = try std.fs.cwd().readFileAlloc(arena.allocator(), input_path, 1_000_000_000);
 
     if (file_contents.len < 252) {
-        try std.io.getStdErr().writer().print("input binary too small; expected >= 252 bytes in {s}", .{ input_path });
+        log.err("input binary too small; expected >= 252 bytes in {s}", .{ input_path });
         return error.InvalidBinary;
     }
 
@@ -21,7 +21,7 @@ pub fn main() !void {
 
     const previous_crc = try crc_stream.reader().readInt(u32, .little);
     if (previous_crc != crc) {
-        std.log.info("Replacing boot2 checksum: {X} -> {X}", .{ previous_crc, crc });
+        log.info("Replacing boot2 checksum: {X} -> {X}", .{ previous_crc, crc });
     }
 
     crc_stream.reset();
@@ -32,5 +32,7 @@ pub fn main() !void {
         .data = file_contents,
     });
 }
+
+const log = std.log.scoped(.boot2_checksum);
 
 const std = @import("std");

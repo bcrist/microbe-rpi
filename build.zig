@@ -287,30 +287,38 @@ pub fn boot2_checksum(b: *std.Build, bin: std.Build.LazyPath) std.Build.LazyPath
 }
 
 pub fn build(b: *std.Build) void {
-    const microbe_module = b.dependency("microbe", .{}).module("microbe");
+    const microbe_dep = b.dependency("microbe", .{});
+    const microbe_module = microbe_dep.module("microbe");
+    const internal_module = microbe_dep.module("microbe_internal");
     const placeholder_config_module = b.createModule(.{ .root_source_file = b.path("src/placeholder_config.zig") });
     
     inline for (&.{ "rp2040", "rp2350a", "rp2350b" }) |name| {
-        const microbe_clone = microbe.clone_module(microbe_module);
+        const microbe_clone = microbe.clone_module(microbe_module, null, null);
+        const internal_clone = microbe.clone_module(internal_module, null, null);
         const chip_module = b.addModule(name, .{ .root_source_file = b.path("src/" ++ name ++ ".zig") });
         chip_module.addImport("microbe", microbe_clone);
+        chip_module.addImport("microbe_internal", internal_clone);
         chip_module.addImport("config", placeholder_config_module);
         chip_module.addImport("chip", chip_module);
         
         var replacement_modules = std.StringHashMap(*std.Build.Module).init(b.allocator);
         replacement_modules.put("microbe", microbe_clone) catch unreachable;
+        replacement_modules.put("microbe_internal", internal_clone) catch unreachable;
         replacement_modules.put("config", placeholder_config_module) catch unreachable;
         replacement_modules.put("chip", chip_module) catch unreachable;
         microbe.replace_imports(microbe_clone, &replacement_modules);
+        microbe.replace_imports(internal_clone, &replacement_modules);
     }
 
     _ = b.addModule("boot2-default", .{ .root_source_file = b.path("src/boot2/default.zig") });
 
     b.installArtifact(b.addExecutable(.{
         .name = "boot2_checksum",
-        .root_source_file = b.path("tools/boot2_checksum.zig"),
-        .target = b.host,
-        .optimize = .ReleaseSafe,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/boot2_checksum.zig"),
+            .target = b.graph.host,
+            .optimize = .ReleaseSafe,
+        }),
     }));
 }
 

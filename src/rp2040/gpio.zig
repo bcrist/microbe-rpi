@@ -18,47 +18,14 @@ pub fn get_port(comptime pad: Pad_ID) Port_ID {
     return if (@intFromEnum(pad) < 32) .gpio else .qspi;
 }
 
-pub fn get_ports(comptime pads: []const Pad_ID) []const Port_ID {
-    comptime {
-        var ports: [pads.len]Port_ID = undefined;
-        var n = 0;
-        outer: for (pads) |pad| {
-            const port = get_port(pad);
-            for (ports[0..n]) |p| {
-                if (p == port) continue :outer;
-            }
-            ports[n] = port;
-            n += 1;
-        }
-        const ports_copy: [n]Port_ID = ports[0..n].*;
-        return &ports_copy;
-    }
-}
+pub const get_ports = defaults.gpio.get_ports;
 
 pub fn get_offset(comptime pad: Pad_ID) comptime_int {
     const raw = @intFromEnum(pad);
     return if (raw < 32) raw else raw - 32;
 }
 
-pub fn get_pads_in_port(
-    comptime pads: []const Pad_ID,
-    comptime port: Port_ID,
-    comptime min_offset: comptime_int,
-    comptime max_offset: comptime_int,
-) []const Pad_ID {
-    comptime {
-        var pads_in_port: []const Pad_ID = &.{};
-        for (pads) |pad| {
-            const pad_port = get_port(pad);
-            const pad_offset = get_offset(pad);
-            if (pad_port == port and pad_offset >= min_offset and pad_offset <= max_offset) {
-                pads_in_port = pads_in_port ++ &[_]Pad_ID{pad};
-            }
-        }
-        const pads_copy: [pads_in_port.len]Pad_ID = pads_in_port.*;
-        return &pads_copy;
-    }
-}
+pub const get_pads_in_port = defaults.gpio.get_pads_in_port;
 
 pub fn configure(comptime pads: []const Pad_ID, config: Config) void {
     inline for (pads) |pad| {
@@ -257,112 +224,22 @@ pub fn modify_output_port_enables(comptime port: Port_ID, bits_to_clear: Port_Da
     }
 }
 
-pub inline fn read_input(comptime pad: Pad_ID) u1 {
-    const offset = comptime get_offset(pad);
-    return @truncate(read_input_port(comptime get_port(pad)) >> offset);
-}
-
-pub inline fn read_output(comptime pad: Pad_ID) u1 {
-    const offset = comptime get_offset(pad);
-    return @truncate(read_output_port(comptime get_port(pad)) >> offset);
-}
-
-pub inline fn write_output(comptime pad: Pad_ID, state: u1) void {
-    const port = comptime get_port(pad);
-    const mask = @as(Port_Data_Type, 1) << comptime get_offset(pad);
-    if (state == 0) {
-        clear_output_port_bits(port, mask);
-    } else {
-        set_output_port_bits(port, mask);
-    }
-}
-
-pub inline fn set_outputs(comptime pads: []const Pad_ID) void {
-    inline for (comptime get_ports(pads)) |port| {
-        var mask: Port_Data_Type = 0;
-        inline for (pads) |pad| {
-            if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
-            }
-        }
-        set_output_port_bits(port, mask);
-    }
-}
-pub inline fn clear_outputs(comptime pads: []const Pad_ID) void {
-    inline for (comptime get_ports(pads)) |port| {
-        var mask: Port_Data_Type = 0;
-        inline for (pads) |pad| {
-            if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
-            }
-        }
-        clear_output_port_bits(port, mask);
-    }
-}
-pub inline fn toggle_outputs(comptime pads: []const Pad_ID) void {
-    inline for (comptime get_ports(pads)) |port| {
-        var mask: Port_Data_Type = 0;
-        inline for (pads) |pad| {
-            if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
-            }
-        }
-        toggle_output_port_bits(port, mask);
-    }
-}
-
-pub inline fn read_output_enable(comptime pad: Pad_ID) u1 {
-    const offset = comptime get_offset(pad);
-    return @truncate(read_output_port_enables(comptime get_port(pad)) >> offset);
-}
-
-pub inline fn write_output_enable(comptime pad: Pad_ID, state: u1) void {
-    const port = comptime get_port(pad);
-    const mask = @as(Port_Data_Type, 1) << comptime get_offset(pad);
-    if (state == 0) {
-        clear_output_port_enable_bits(port, mask);
-    } else {
-        set_output_port_enable_bits(port, mask);
-    }
-}
-
-pub inline fn set_output_enables(comptime pads: []const Pad_ID) void {
-    inline for (comptime get_ports(pads)) |port| {
-        var mask: Port_Data_Type = 0;
-        inline for (pads) |pad| {
-            if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
-            }
-        }
-        set_output_port_enable_bits(port, mask);
-    }
-}
-pub inline fn clear_output_enables(comptime pads: []const Pad_ID) void {
-    inline for (comptime get_ports(pads)) |port| {
-        var mask: Port_Data_Type = 0;
-        inline for (pads) |pad| {
-            if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
-            }
-        }
-        clear_output_port_enable_bits(port, mask);
-    }
-}
-pub inline fn toggle_output_enables(comptime pads: []const Pad_ID) void {
-    inline for (comptime get_ports(pads)) |port| {
-        var mask: Port_Data_Type = 0;
-        inline for (pads) |pad| {
-            if (comptime get_port(pad) == port) {
-                mask |= @as(Port_Data_Type, 1) << comptime get_offset(pad);
-            }
-        }
-        toggle_output_port_enable_bits(port, mask);
-    }
-}
+pub const read_input = defaults.gpio.read_input;
+pub const read_output = defaults.gpio.read_output;
+pub const write_output = defaults.gpio.write_output;
+pub const set_outputs = defaults.gpio.set_outputs;
+pub const clear_outputs = defaults.gpio.clear_ouputs;
+pub const toggle_outputs = defaults.gpio.toggle_outputs;
+pub const read_output_enable = defaults.gpio.read_output_enable;
+pub const write_output_enable = defaults.gpio.write_output_enable;
+pub const set_output_enables = defaults.gpio.set_output_enables;
+pub const clear_output_enables = defaults.gpio.clear_output_enables;
+pub const toggle_output_enables = defaults.gpio.toggle_output_enables;
 
 const resets = @import("resets.zig");
 const peripherals = @import("peripherals.zig");
 const Pad_ID = chip.Pad_ID;
 const io = chip.reg_types.io;
 const chip = @import("../rp2040.zig");
+const defaults = @import("microbe_internal");
 const std = @import("std");
