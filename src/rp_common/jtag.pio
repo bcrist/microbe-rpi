@@ -1,0 +1,66 @@
+.program jtag
+.side_set 1
+
+; OUT_BASE => TDI pin
+; IN_BASE => TDO pin
+; SET_BASE => TMS pin
+; SIDE_SET_BASE => TCK pin
+
+; bit val desc
+;  0   0  delay cycles (lsb)
+;  1   0  delay cycles
+;  2   0  delay cycles
+;  3   0  delay cycles
+;  4   0  delay cycles
+;  5   0  delay cycles
+;  6   0  delay cycles
+;  7   0  delay cycles
+;  8   0  delay cycles
+;  9   0  delay cycles (msb)
+; 10   1  num bits (lsb)
+; 11   1  num bits
+; 12   0  num bits
+; 13   0  num bits
+; 14   0  num bits
+; 15   0  num bits
+; 16   0  bit 0 (TMS)
+; 17   0  bit 0 (TDI)
+; 18   0  bit 1 (TMS)
+; 19   0  bit 1 (TDI)
+; 20   0  bit 2 (TMS)
+; 21   0  bit 2 (TDI)
+; 22   0  push ISR? (0 = no)
+
+main_loop:
+    pull                side 1
+    out y, 10           side 1
+    jmp !y bits         side 1
+delay_loop:
+    set x 14            side 1 ; 1 extra cycle for set and 1 for jmp y-- means total delay is 16*y cycles
+delay_loop1:
+    jmp x-- delay_loop1 side 1
+    jmp y-- delay_loop  side 1
+bits:
+    out y, 6            side 1
+    jmp !y main_loop    side 1
+bit_loop:
+    out x, 1            side 1
+    jmp !x tms_low      side 1
+tms_high:
+    set pins, 1         side 0      ; TCK falling edge
+    out pins, 1         side 0 [5]
+    jmp clk             side 0
+tms_low:
+    set pins, 0         side 0      ; TCK falling edge
+    out pins, 1         side 0 [6]
+clk:
+    in pins, 1          side 1      ; TCK rising edge
+    jmp y-- next_bit    side 1
+    out y, 1            side 1
+    jmp !y next_cmd     side 1
+    push                side 1
+next_cmd:
+    mov isr, null       side 1
+    jmp main_loop       side 1
+next_bit:
+    jmp bit_loop        side 1 [3]

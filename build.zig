@@ -292,6 +292,23 @@ pub fn build(b: *std.Build) void {
     const internal_module = microbe_dep.module("microbe_internal");
     const placeholder_config_module = b.createModule(.{ .root_source_file = b.path("src/placeholder_config.zig") });
     
+    const pioz = b.addExecutable(.{
+        .name = "pioz",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/pioz.zig"),
+            .target = b.graph.host,
+            .optimize = .ReleaseSafe,
+        }),
+    });
+    b.installArtifact(pioz);
+
+    const compile = b.addRunArtifact(pioz);
+    compile.addFileArg(b.path("src/rp_common/jtag.pio"));
+    const jtag_pio_module_path = compile.addOutputFileArg("pio_jtag.zig");
+    const jtag_pio_module = b.createModule(.{
+        .root_source_file = jtag_pio_module_path,
+    });
+
     inline for (&.{ "rp2040", "rp2350a", "rp2350b" }) |name| {
         const microbe_clone = microbe.clone_module(microbe_module, null, null);
         const internal_clone = microbe.clone_module(internal_module, null, null);
@@ -300,6 +317,8 @@ pub fn build(b: *std.Build) void {
         chip_module.addImport("microbe_internal", internal_clone);
         chip_module.addImport("config", placeholder_config_module);
         chip_module.addImport("chip", chip_module);
+        
+        chip_module.addImport("pio_jtag", jtag_pio_module);
         
         var replacement_modules = std.StringHashMap(*std.Build.Module).init(b.allocator);
         replacement_modules.put("microbe", microbe_clone) catch unreachable;
