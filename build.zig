@@ -235,7 +235,16 @@ pub const Boot2_Options = struct {
 };
 
 pub fn add_boot2_object(b: *std.Build, options: Boot2_Options) *std.Build.Step.Compile {
-    const generate_config_exe = b.dependency("microbe", .{}).artifact("generate_config");
+    const target = b.resolveTargetQuery(options.chip.core.target);
+
+    const microbe_dep = b.dependency("microbe", .{});
+    const self_dep = b.dependencyFromBuildZig(@This(), .{});
+
+    const chip_module = microbe.clone_module(self_dep.module(options.chip.module_name), target, options.optimize);
+    const microbe_module = microbe.clone_module(microbe_dep.module("microbe"), target, options.optimize);
+    const internal_module = microbe.clone_module(microbe_dep.module("microbe_internal"), target, options.optimize);
+
+    const generate_config_exe = microbe_dep.artifact("generate_config");
     const generate_config = b.addRunArtifact(generate_config_exe);
     generate_config.addArg("-o");
     const config_module_path = generate_config.addOutputFileArg("config.zig");
@@ -244,39 +253,48 @@ pub fn add_boot2_object(b: *std.Build, options: Boot2_Options) *std.Build.Step.C
         .chip = options.chip,
         .sections = default_rp2040_sections(),
     });
-    const config_module = b.createModule(.{ .root_source_file = config_module_path });
-
-    const chip_module = b.dependencyFromBuildZig(@This(), .{}).module(options.chip.module_name);
-    const rt_module = chip_module.import_table.get("microbe").?;
-
-    config_module.addImport("chip", chip_module);
-
-    var object = b.addObject(.{
-        .name = options.name orelse "boot2",
-        .root_source_file = switch (options.source) {
-            .module => |module| module.root_source_file.?,
-            .path => |path| path,
-        },
+    const config_module = b.createModule(.{
+        .root_source_file = config_module_path,
+        .target = target,
         .optimize = options.optimize,
-        .target = b.resolveTargetQuery(options.chip.core.target),
-        .single_threaded = options.chip.single_threaded,
+        .imports = &.{
+            .{ .name = "chip", .module = chip_module },
+        },
     });
 
-    switch (options.source) {
-        .path => {},
-        .module => |m| {
-            m.root_source_file.?.addStepDependencies(&object.step);
-            var iter = m.import_table.iterator();
-            while (iter.next()) |entry| {
-                object.root_module.addImport(entry.key_ptr.*, entry.value_ptr.*);
-            }
-        },
-    }
-    object.root_module.addImport("microbe", rt_module);
-    object.root_module.addImport("config", config_module);
-    object.root_module.addImport("chip", chip_module);
+    var replacement_modules = std.StringHashMap(*std.Build.Module).init(b.allocator);
+    replacement_modules.put("microbe", microbe_module) catch unreachable;
+    replacement_modules.put("microbe_internal", internal_module) catch unreachable;
+    replacement_modules.put("config", config_module) catch unreachable;
+    replacement_modules.put("chip", chip_module) catch unreachable;
 
-    return object;
+    microbe.replace_imports(microbe_module, &replacement_modules);
+    microbe.replace_imports(chip_module, &replacement_modules);
+
+    const root_module = switch (options.source) {
+        .module => |module| cloned_module: {
+            const cloned = microbe.clone_module(module, target, options.optimize);
+            cloned.single_threaded = options.chip.single_threaded;
+            microbe.replace_imports(cloned, &replacement_modules);
+            break :cloned_module cloned;
+        },
+        .path => |path| b.createModule(.{
+            .root_source_file = path,
+            .target = target,
+            .optimize = options.optimize,
+            .single_threaded = options.chip.single_threaded,
+            .imports = &.{
+                .{ .name = "microbe", .module = microbe_module },
+                .{ .name = "config", .module = config_module },
+                .{ .name = "chip", .module = chip_module },
+            },
+        }),
+    };
+    
+    return b.addObject(.{
+        .name = options.name orelse "boot2",
+        .root_module = root_module,
+    });
 }
 
 pub fn boot2_checksum(b: *std.Build, bin: std.Build.LazyPath) std.Build.LazyPath {
@@ -292,13 +310,15 @@ pub fn build(b: *std.Build) void {
     const internal_module = microbe_dep.module("microbe_internal");
     const placeholder_config_module = b.createModule(.{ .root_source_file = b.path("src/placeholder_config.zig") });
     
+    const pioz_module = b.createModule(.{
+        .root_source_file = b.path("tools/pioz.zig"),
+        .target = b.graph.host,
+        .optimize = .ReleaseSafe,
+    });
+
     const pioz = b.addExecutable(.{
         .name = "pioz",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tools/pioz.zig"),
-            .target = b.graph.host,
-            .optimize = .ReleaseSafe,
-        }),
+        .root_module = pioz_module,
     });
     b.installArtifact(pioz);
 
@@ -331,14 +351,31 @@ pub fn build(b: *std.Build) void {
 
     _ = b.addModule("boot2-default", .{ .root_source_file = b.path("src/boot2/default.zig") });
 
-    b.installArtifact(b.addExecutable(.{
+    const boot2_checksum_exe = b.addExecutable(.{
         .name = "boot2_checksum",
         .root_module = b.createModule(.{
             .root_source_file = b.path("tools/boot2_checksum.zig"),
             .target = b.graph.host,
             .optimize = .ReleaseSafe,
         }),
-    }));
+    });
+    b.installArtifact(boot2_checksum_exe);
+
+    const pioz_test = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("test/pioz_comparison_tests.zig"),
+            .target = b.graph.host,
+            .optimize = .Debug,
+            .link_libc = true,
+            .imports = &.{
+                .{ .name = "pioz", .module = pioz_module },
+            },
+        }),
+    });
+    pioz_test.root_module.addIncludePath(b.path("test"));
+
+    const run_tests = b.step("test", "run all tests");
+    run_tests.dependOn(&b.addRunArtifact(pioz_test).step);
 }
 
 const Chip = microbe.Chip;
